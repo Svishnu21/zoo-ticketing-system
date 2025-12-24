@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scanner Login | Kurumbapatti Zoo</title>
+    <link rel="stylesheet" href="./scanner.css" />
+  </head>
+  <body class="scanner-body auth-bg">
+    <main class="auth-card">
+      <header class="auth-head">
+        <h1>Entry Gate Scanner</h1>
+        <p>Restricted access for gate devices only.</p>
+      </header>
+      <form id="scannerLoginForm" class="auth-form">
+        <label>
+          <span>Username</span>
+          <input type="text" name="username" autocomplete="username" required />
+        </label>
+        <label>
+          <span>Password</span>
+          <input type="password" name="password" autocomplete="current-password" required />
+        </label>
+        <button class="btn primary" type="submit">Login</button>
+        <p class="hint">Use the credentials issued by Admin. No signup or password reset here.</p>
+        <p id="loginError" class="error" aria-live="assertive"></p>
+      </form>
+    </main>
+    <script type="module" src="./scanner.js"></script>
+  </body>
+</html>

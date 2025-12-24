@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login | Kurumbapatti Zoo</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body class="admin auth-bg">
+    <main class="auth-wrapper">
+      <section class="auth-card">
+        <header class="auth-header">
+          <h1>Admin Console</h1>
+          <p>Secure access for authorized personnel only.</p>
+        </header>
+        <form id="adminLoginForm" class="auth-form">
+          <label>
+            <span>Username</span>
+            <input type="text" name="username" placeholder="Enter username" required />
+          </label>
+          <label>
+            <span>Password</span>
+            <input type="password" name="password" placeholder="Enter password" required />
+          </label>
+          <label>
+            <span>Secure OTP</span>
+            <input type="password" name="otp" placeholder="4-digit OTP" maxlength="4" required />
+          </label>
+          <button type="submit" class="btn primary">Access Dashboard</button>
+          <p class="form-hint">Use your assigned credentials. Contact the park IT desk for support.</p>
+          <p id="loginError" class="form-error" aria-live="assertive"></p>
+        </form>
+      </section>
+    </main>
+    <script type="module" src="./admin-script.js"></script>
+  </body>
+</html>

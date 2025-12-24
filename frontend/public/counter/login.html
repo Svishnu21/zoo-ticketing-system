@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Counter Login | Kurumbapatti Zoo</title>
+    <link rel="stylesheet" href="./counter.css" />
+  </head>
+  <body class="counter-body auth-bg" data-page="login">
+    <main class="auth-card">
+      <header class="auth-head">
+        <p class="eyebrow">Kurumbapatti Zoological Park</p>
+        <h1>Counter Console</h1>
+        <p>Restricted to authorized counter staff.</p>
+      </header>
+      <form id="login-form" class="auth-form">
+        <label>
+          <span>Username</span>
+          <input type="text" name="username" autocomplete="username" required />
+        </label>
+        <label>
+          <span>Password</span>
+          <input type="password" name="password" autocomplete="current-password" required />
+        </label>
+        <button class="btn primary" type="submit">Login</button>
+        <p class="hint">Use credentials issued by Admin. No signup or reset here.</p>
+        <p id="login-error" class="error" aria-live="assertive"></p>
+      </form>
+    </main>
+    <script type="module" src="./counter.js"></script>
+  </body>
+</html>

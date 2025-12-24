@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kurumbapatti Zoological Park — Printable Ticket</title>
+    <style>
+      /* ---------- Base styles: simple, print-friendly, B/W safe ---------- */
+      :root {
+        color-scheme: light;
+        --ink: #111;
+        --muted: #444;
+        --border: #d1d5db;
+        --surface: #ffffff;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: #f5f6f7;
+        font-family: Arial, 'Segoe UI', system-ui, sans-serif;
+        color: var(--ink);
+        display: flex;
+        justify-content: center;
+        padding: 18px 10px;
+      }
+
+      main {
+        width: 100%;
+        max-width: 760px;
+        display: grid;
+        gap: 12px;
+        justify-items: center;
+      }
+
+      /* ---------- Ticket shell ---------- */
+      .ticket {
+        width: 100%;
+        max-width: 780px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px;
+        display: grid;
+        gap: 10px;
+        page-break-inside: avoid;
+      }
+
+      .header {
+        display: grid;
+        grid-template-columns: 1fr 110px;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .logo-box {
+        width: 100%;
+        max-width: 110px;
+        height: 70px;
+        border: 1px dashed var(--border);
+        display: grid;
+        place-items: center;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .title-group h1 { margin: 0; font-size: 1.1rem; letter-spacing: 0.02em; }
+      .title-group p { margin: 2px 0 0; color: var(--muted); font-size: 0.9rem; }
+
+      /* ---------- Key fields ---------- */
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 8px;
+      }
+
+      .field { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
+      .field .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+      .field .value { font-size: 0.95rem; font-weight: 700; margin-top: 1px; }
+
+      /* ---------- Breakdown table ---------- */
+      table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+      th, td { border: 1px solid var(--border); padding: 6px; text-align: left; }
+      th { background: #f3f4f6; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+      td.qty, td.price, td.amount { text-align: right; }
+
+      .totals {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 6px;
+        font-weight: 700;
+        font-size: 0.95rem;
+      }
+
+      /* ---------- QR block ---------- */
+      .qr-area {
+        display: grid;
+        grid-template-columns: 1fr 140px;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .qr-box {
+        width: 140px;
+        height: 140px;
+        border: 1px solid var(--ink);
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        text-align: center;
+        font-size: 0.9rem;
+      }
+
+      .note-list { margin: 0; padding-left: 16px; color: var(--muted); font-size: 0.9rem; }
+      .note-list li { margin: 4px 0; }
+
+      /* ---------- Footer ---------- */
+      .footer {
+        border-top: 1px solid var(--border);
+        padding-top: 8px;
+        font-size: 0.88rem;
+        color: var(--muted);
+        display: grid;
+        gap: 3px;
+      }
+
+      /* ---------- Actions (hidden in print) ---------- */
+      .actions { display: flex; gap: 10px; justify-content: flex-end; width: 100%; }
+      .btn { padding: 10px 14px; border: 1px solid var(--border); background: #f3f4f6; cursor: pointer; border-radius: 6px; font-weight: 700; }
+      .btn:hover { background: #e5e7eb; }
+
+      /* ---------- Print rules ---------- */
+      @media print {
+        body { background: #fff; padding: 0; }
+        main { max-width: 80mm; width: 100%; }
+        .ticket { border-radius: 0; border: 1px solid #000; padding: 12px; max-width: 80mm; }
+        .header { grid-template-columns: 1fr; }
+        .logo-box { height: 60px; }
+        .qr-area { grid-template-columns: 1fr; }
+        .actions { display: none; }
+        th { background: #fff; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <!-- Printable Zoo Ticket Template -->
+      <article class="ticket" aria-label="Kurumbapatti Zoological Park Ticket">
+        <header class="header">
+          <div class="title-group">
+            <p class="label" style="margin:0; font-size:0.78rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted);">Government of Tamil Nadu</p>
+            <h1>Kurumbapatti Zoological Park, Salem</h1>
+            <p>Official Entry Ticket · Keep this for gate validation</p>
+          </div>
+          <div class="logo-box">Logo / Seal</div>
+        </header>
+
+        <!-- Key ticket identifiers -->
+        <section class="info-grid" aria-label="Ticket identifiers">
+          <div class="field"><div class="label">Ticket ID</div><div class="value">KPZ-2025-784231</div></div>
+          <div class="field"><div class="label">Ticket Source</div><div class="value">ONLINE</div></div>
+          <div class="field"><div class="label">Visit Date</div><div class="value">28 Dec 2025</div></div>
+          <div class="field"><div class="label">Issue Date & Time</div><div class="value">18 Dec 2025, 10:24 AM</div></div>
+          <div class="field"><div class="label">Payment Mode</div><div class="value">UPI</div></div>
+        </section>
+
+        <!-- Ticket breakdown table -->
+        <section aria-label="Ticket breakdown">
+          <table>
+            <thead>
+              <tr><th>Category</th><th class="qty">Qty</th><th class="price">Price</th><th class="amount">Amount</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Entry - Adult</td><td class="qty">2</td><td class="price">₹ 50.00</td><td class="amount">₹ 100.00</td></tr>
+              <tr><td>Entry - Child (5-12)</td><td class="qty">1</td><td class="price">₹ 10.00</td><td class="amount">₹ 10.00</td></tr>
+              <tr><td>Parking - 4 Wheeler (LMV)</td><td class="qty">1</td><td class="price">₹ 50.00</td><td class="amount">₹ 50.00</td></tr>
+              <tr><td>Video Camera</td><td class="qty">1</td><td class="price">₹ 150.00</td><td class="amount">₹ 150.00</td></tr>
+            </tbody>
+          </table>
+          <div class="totals"><span>Total Amount Paid:</span><span>₹ 310.00</span></div>
+        </section>
+
+        <!-- QR and entry notes -->
+        <section class="qr-area" aria-label="QR and entry notes">
+          <div>
+            <p style="margin:0 0 6px; font-weight:700;">Ticket Type: Zoo Entry</p>
+            <ul class="note-list">
+              <li>Valid for single entry only.</li>
+              <li>Entry timings: 09:00 AM – 05:00 PM.</li>
+              <li>Closed on Tuesdays (weekly holiday).</li>
+              <li>Keep this ticket until you exit the park.</li>
+            </ul>
+          </div>
+          <div class="qr-box" aria-label="QR code placeholder">QR CODE</div>
+          <p style="grid-column: 1 / -1; margin: 0; font-size: 0.9rem; color: var(--muted);">Scan this QR code at the entry gate</p>
+        </section>
+
+        <!-- Footer / disclaimer -->
+        <footer class="footer">
+          <div>Thank you for visiting Kurumbapatti Zoological Park.</div>
+          <div>Help Desk: 0427-2912197 · info@kurumbapattizoo.com</div>
+          <div>Ticket once used is invalid for re-entry.</div>
+        </footer>
+      </article>
+
+      <!-- On-screen helper (hidden in print) -->
+      <div class="actions">
+        <button class="btn" type="button" onclick="window.print()">Print Ticket</button>
+        <a class="btn" href="/">Back to Home</a>
+      </div>
+    </main>
+  </body>
+</html>

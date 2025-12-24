@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Panel | Kurumbapatti Zoological Park</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body class="admin">
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>Kurumbapatti Zoo</h1>
+          <p>Admin Console</p>
+        </div>
+        <nav class="nav">
+          <button class="nav-link active" data-target="overview">Admin Dashboard</button>
+          <button class="nav-link" data-target="bookings">Online Bookings</button>
+          <button class="nav-link" data-target="counter">Counter Tickets</button>
+          <button class="nav-link" data-target="qrlogs">QR Scanner Logs</button>
+          <button class="nav-link" data-target="tariffs">Tariff Management</button>
+          <button class="nav-link" data-target="adoptions">Animal Adoption</button>
+          <button class="nav-link" data-target="reports">Admin Reports</button>
+        </nav>
+        <div class="sidebar-footer">
+          <button id="logoutBtn" class="btn ghost">Logout</button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div>
+            <h2 id="sectionTitle">Admin Dashboard</h2>
+            <p id="sectionSubtitle">Read-only oversight of bookings, tickets, and compliance.</p>
+          </div>
+        </header>
+
+        <section id="overview" class="panel active">
+          <div class="cards-grid">
+            <article class="stat-card">
+              <p>Today’s Online Bookings</p>
+              <h3 id="metricOnlineToday">--</h3>
+              <span id="metricOnlineTrend" class="stat-sub"></span>
+            </article>
+            <article class="stat-card">
+              <p>Today’s Counter Tickets</p>
+              <h3 id="metricCounterToday">--</h3>
+              <span class="stat-sub">Issued by counters</span>
+            </article>
+            <article class="stat-card">
+              <p>Total Revenue Today</p>
+              <h3 id="metricRevenueToday">₹ --</h3>
+              <span class="stat-sub">Online + Counter</span>
+            </article>
+            <article class="stat-card">
+              <p>Visitors Entered Today</p>
+              <h3 id="metricEntered">--</h3>
+              <span class="stat-sub">Entry status recorded</span>
+            </article>
+            <article class="stat-card warning">
+              <p>Pending Entries</p>
+              <h3 id="metricPending">--</h3>
+              <span class="stat-sub">To be verified at gate</span>
+            </article>
+          </div>
+          <div class="panel-note">
+            Read-only overview. Numbers refresh when the page loads. No payment handling or ticket issuance is provided here.
+          </div>
+        </section>
+
+        <section id="bookings" class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Online Bookings Management</h3>
+              <p>Search and review online bookings. No payment edits or QR regeneration.</p>
+            </div>
+          </div>
+
+          <div class="filters">
+            <label>
+              <span>Visit Date</span>
+              <input type="date" id="bookingDateFilter" />
+            </label>
+            <label>
+              <span>Payment Status</span>
+              <select id="bookingPaymentFilter">
+                <option value="all">All</option>
+                <option value="Paid">Paid</option>
+                <option value="Pending">Pending</option>
+                <option value="Failed">Failed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </label>
+            <label>
+              <span>Entry Status</span>
+              <select id="bookingEntryFilter">
+                <option value="all">All</option>
+                <option value="Entered">Entered</option>
+                <option value="Not Entered">Not Entered</option>
+                <option value="Entered (Manual)">Entered (Manual)</option>
+              </select>
+            </label>
+            <label class="search-field">
+              <span>Search (Booking ID / Mobile)</span>
+              <input type="search" id="bookingSearchInput" placeholder="BK-... or mobile" />
+            </label>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Booking ID</th>
+                  <th>Visitor Name</th>
+                  <th>Mobile</th>
+                  <th>Visit Date</th>
+                  <th>Ticket Count</th>
+                  <th>Total Amount</th>
+                  <th>Payment Status</th>
+                  <th>Entry Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="bookingTableBody">
+                <tr><td colspan="9">Loading bookings...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="panel-note">
+            Cancel is only available for unpaid bookings. Manual entry requires a reason when scanners fail. Ticket quantities and payment amounts remain immutable.
+          </div>
+        </section>
+
+        <section id="counter" class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Counter Tickets Report</h3>
+              <p>Read-only view of counter-issued tickets. No edits or deletes.</p>
+            </div>
+            <div class="panel-actions">
+              <button id="exportCounterBtn" class="btn ghost">Export CSV</button>
+            </div>
+          </div>
+
+          <div class="filters">
+            <label>
+              <span>Date</span>
+              <input type="date" id="counterDateFilter" />
+            </label>
+            <div class="totals">
+              <p>Daily Total: <strong id="counterDailyTotal">₹ 0</strong></p>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Counter Ticket ID</th>
+                  <th>Date &amp; Time</th>
+                  <th>Ticket Type</th>
+                  <th>Quantity</th>
+                  <th>Amount</th>
+                  <th>Payment Mode</th>
+                  <th>Issued By</th>
+                </tr>
+              </thead>
+              <tbody id="counterTableBody">
+                <tr><td colspan="7">Loading counter tickets...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="qrlogs" class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>QR Scanner Logs</h3>
+              <p>Security view of scan outcomes. No overrides or resets.</p>
+            </div>
+          </div>
+
+          <div class="filters">
+            <label>
+              <span>Date</span>
+              <input type="date" id="logDateFilter" />
+            </label>
+            <label class="search-field">
+              <span>Search Booking ID</span>
+              <input type="search" id="logSearchInput" placeholder="BK-..." />
+            </label>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Booking ID</th>
+                  <th>Scan Date &amp; Time</th>
+                  <th>Gate / Scanner ID</th>
+                  <th>Scan Result</th>
+                </tr>
+              </thead>
+              <tbody id="logTableBody">
+                <tr><td colspan="4">Loading scan logs...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="tariffs" class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Tariff Management</h3>
+              <p>Adjust future prices only. Past bookings stay unchanged.</p>
+            </div>
+          </div>
+
+          <form id="tariffForm" class="tariff-grid">
+            <input type="hidden" name="id" />
+            <label>
+              <span>Ticket Category</span>
+              <input type="text" name="category" placeholder="Adult / Child / Parking" required />
+            </label>
+            <label>
+              <span>Price</span>
+              <input type="number" name="price" min="0" step="1" required />
+            </label>
+            <label>
+              <span>Status</span>
+              <select name="status">
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </label>
+            <button type="submit" class="btn primary full">Save Tariff</button>
+            <p id="tariffMessage" class="form-feedback" aria-live="polite"></p>
+          </form>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticket Category</th>
+                  <th>Price</th>
+                  <th>Status</th>
+                  <th>Last Updated</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tariffTableBody">
+                <tr><td colspan="5">Loading tariffs...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="adoptions" class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Animal Adoption Management</h3>
+              <p>Monitor adoption records. Certificates only after payment success.</p>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Adoption ID</th>
+                  <th>Adopter Name</th>
+                  <th>Animal</th>
+                  <th>Species</th>
+                  <th>Duration</th>
+                  <th>Contribution</th>
+                  <th>Payment Status</th>
+                  <th>Certificate Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adoptionTableBody">
+                <tr><td colspan="9">Loading adoptions...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="reports" class="panel">
+          <div class="panel-header">
+            <div>
+              <h3>Admin Reports</h3>
+              <p>Simple reporting for operational oversight.</p>
+            </div>
+          </div>
+
+          <div class="reports-grid">
+            <form id="dailyReportForm" class="report-card">
+              <h4>Daily Summary</h4>
+              <label>
+                <span>Date</span>
+                <input type="date" name="date" required />
+              </label>
+              <button class="btn primary" type="submit">Generate</button>
+              <div id="dailyReportResult" class="report-result"></div>
+            </form>
+
+            <form id="rangeReportForm" class="report-card">
+              <h4>Date Range Report</h4>
+              <label>
+                <span>From</span>
+                <input type="date" name="from" required />
+              </label>
+              <label>
+                <span>To</span>
+                <input type="date" name="to" required />
+              </label>
+              <button class="btn primary" type="submit">Generate</button>
+              <div id="rangeReportResult" class="report-result"></div>
+            </form>
+
+            <form id="adoptionReportForm" class="report-card">
+              <h4>Adoption Revenue</h4>
+              <label>
+                <span>Date Range</span>
+                <input type="date" name="from" required />
+                <input type="date" name="to" required />
+              </label>
+              <button class="btn primary" type="submit">Generate</button>
+              <div id="adoptionReportResult" class="report-result"></div>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="bookingDetailModal">
+      <form method="dialog" class="modal">
+        <header>
+          <h3>Booking Details</h3>
+          <button type="submit" aria-label="Close">×</button>
+        </header>
+        <div class="modal-body" id="bookingDetailBody"></div>
+      </form>
+    </dialog>
+
+    <dialog id="manualEntryModal">
+      <form method="dialog" id="manualEntryForm" class="modal">
+        <header>
+          <h3>Manual Entry</h3>
+          <button type="submit" aria-label="Close">×</button>
+        </header>
+        <div class="modal-body">
+          <p id="manualEntryBooking"></p>
+          <label>
+            <span>Reason (required)</span>
+            <textarea name="reason" rows="3" required placeholder="Scanner down at Gate 2"></textarea>
+          </label>
+        </div>
+        <footer>
+          <button type="submit" class="btn primary">Confirm Manual Entry</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="adoptionDetailModal">
+      <form method="dialog" class="modal">
+        <header>
+          <h3>Adoption Details</h3>
+          <button type="submit" aria-label="Close">×</button>
+        </header>
+        <div class="modal-body" id="adoptionDetailBody"></div>
+      </form>
+    </dialog>
+
+    <dialog id="extendAdoptionModal">
+      <form method="dialog" id="extendAdoptionForm" class="modal">
+        <header>
+          <h3>Extend Adoption</h3>
+          <button type="submit" aria-label="Close">×</button>
+        </header>
+        <div class="modal-body">
+          <p id="extendAdoptionLabel"></p>
+          <label>
+            <span>Extend by (days)</span>
+            <input type="number" name="days" min="1" step="1" required />
+          </label>
+        </div>
+        <footer>
+          <button class="btn primary" type="submit">Extend</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <script type="module" src="./admin-script.js"></script>
+  </body>
+</html>

@@ -1,0 +1,377 @@
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Poppins:wght@300;400;500;600;700&display=swap');
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 143 16% 18%;
+
+  --primary: 142 71% 45%;
+  --primary-foreground: 0 0% 100%;
+  --primary-light: 142 71% 55%;
+  --primary-dark: 143 64% 24%;
+
+  --secondary: 48 96% 54%;
+  --secondary-foreground: 143 16% 18%;
+  --secondary-light: 48 96% 64%;
+
+  --muted: 35 10% 92%;
+  --muted-foreground: 143 12% 40%;
+  --accent: 48 96% 54%;
+  --accent-foreground: 143 16% 18%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 143 20% 85%;
+  --input: 143 20% 85%;
+  --ring: 142 71% 45%;
+
+  --gradient-forest: linear-gradient(135deg, #0b3b22 0%, #1f6f3c 50%, #22c55e 100%);
+  --gradient-sunshine: linear-gradient(135deg, #facc15 0%, #fef3c7 100%);
+  --gradient-hero: linear-gradient(135deg, rgba(11, 59, 34, 0.75) 0%, rgba(34, 197, 94, 0.55) 100%);
+
+  /* stronger, neutral shadows so cards stand out on white background */
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 14px 34px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 20px 48px rgba(0, 0, 0, 0.16);
+
+  --radius: 0.75rem;
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html {
+  scroll-behavior: smooth;
+  min-height: 100%;
+  overflow-y: auto;
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    margin: 0;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'Poppins', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    overflow-y: auto; /* keep vertical scrolling available on mobile */
+    min-height: 100vh;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: hsl(var(--foreground));
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: #166534;
+  }
+
+  .serif-heading {
+    font-family: 'Merriweather', 'Poppins', serif;
+  }
+
+  /* Hero title styling */
+  .hero-title {
+    text-shadow: 2px 2px 10px rgba(0,0,0,0.7);
+    line-height: 1.02;
+  }
+
+  /* Animal modal helpers */
+  .animal-modal {
+    /* width and height constrained; dialog is centered by the parent flexbox */
+    width: 90%;
+    max-width: 900px;
+    max-height: 85vh;
+  }
+
+  .animal-modal-body {
+    overflow-y: auto;
+    /* subtract header height (70px) to ensure the body fits inside the modal */
+    max-height: calc(85vh - 110px);
+    padding-right: 1rem; /* prevent scrollbar from covering content */
+  }
+
+  .animal-modal .animal-portrait img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: 10px;
+  }
+
+  @media (max-width: 767px) {
+    .animal-modal {
+      width: 95%;
+      max-height: 90vh;
+    }
+
+    .animal-modal-body {
+      max-height: calc(90vh - 110px);
+    }
+  }
+
+  p {
+    text-align: justify;
+  }
+
+  /* Ensure Tamil subtitles inside rule cards are centered and occupy full width */
+  .rule-card-tamil {
+    text-align: center;
+    display: block;
+    width: 100%;
+    margin-top: 0.3125rem; /* ~5px */
+  }
+
+  /* Objectives/feature cards: prefer left-aligned text to avoid large gaps from justified text */
+  .feature-card p {
+    text-align: left;
+  }
+
+  a {
+    transition: var(--transition-smooth);
+  }
+
+  /* Header nav link styling: cleaner modern look with floating yellow underline (pill) */
+  .header-nav-link {
+    position: relative;
+    color: #333333; /* default dark gray text */
+    background: transparent; /* ensure no background */
+    padding-bottom: 0.45rem; /* space so indicator doesn't touch text */
+    white-space: nowrap; /* prevent wrapping */
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600; /* semi-bold */
+  }
+
+  /* Hover / active text color (brand dark green) */
+  .header-nav-link:hover,
+  .header-nav-link[aria-current='page'],
+  .header-nav-link.is-active {
+    color: hsl(var(--primary));
+  }
+
+  /* Yellow pill indicator (small rounded underline / "smile") */
+  .header-nav-link::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 3px; /* slightly below the text */
+    width: 0;
+    height: 3px; /* subtle line */
+    background-color: #FACC15; /* brand yellow */
+    border-radius: 10px;
+    transition: width 200ms cubic-bezier(.2,.9,.2,1), opacity 160ms ease;
+    opacity: 0;
+  }
+
+  /* Hover expands the pill; active shows a small visible pill */
+  .header-nav-link:hover::after {
+    width: 20px; /* hover width */
+    opacity: 1;
+  }
+
+  .header-nav-link[aria-current='page']::after,
+  .header-nav-link.is-active::after {
+    width: 20px; /* active width */
+    opacity: 1;
+  }
+
+  /* Slightly reduce space below nav text on smaller screens */
+  @media (max-width: 640px) {
+    .header-nav-link {
+      padding-bottom: 0.35rem;
+      font-weight: 500;
+    }
+    .header-nav-link::after {
+      bottom: 2px;
+      height: 3px;
+    }
+  }
+
+  /* Dropdown arrow refinement */
+  .nav-arrow {
+    display: inline-block;
+    vertical-align: middle;
+    font-size: 0.7em; /* smaller arrow */
+    margin-left: 5px; /* bring it closer to the text */
+    line-height: 1; /* keep it centered */
+    transform: translateY(1px); /* nudge for visual centering */
+  }
+
+  @media (max-width: 640px) {
+    .nav-arrow { font-size: 0.85em; margin-left: 6px; }
+  }
+
+  /* Header multi-logo layout */
+  .header-container {
+    width: 100%;
+    /* remove max-width so header spans full browser width */
+    margin: 0;
+    /* make header taller and more spacious */
+    padding: 15px 10px 15px 5px; /* top right bottom left */
+    padding-left: 5px; /* push logos closer to the viewport edge */
+    min-height: 90px; /* ensure substantial header presence */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    box-sizing: border-box;
+  }
+
+  .header-logo-row {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* slightly reduced gap to save horizontal space */
+    flex-wrap: nowrap;
+  }
+
+  .header-logo-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    margin-left: 0; /* ensure logos start at the very left of the header container */
+  }
+
+  .header-nav-wrapper {
+    margin-left: auto; /* push nav to the right edge */
+    padding-right: clamp(8px, 2vw, 32px);
+    min-width: 0; /* prevent flex items from growing beyond container */
+  }
+
+  /* precise column gap for nav links (overrides Tailwind classes if needed) */
+  .header-nav-links {
+    column-gap: 12px;
+  }
+
+  .header-logo-row img {
+    display: block;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    max-height: 60px; /* increase all logos to 60px */
+  }
+
+  .header-logo-left,
+  .header-logo-center,
+  .header-logo-right {
+    max-height: 60px;
+    height: auto;
+    width: auto;
+  }
+
+  @media (max-width: 640px) {
+    .header-logo-row {
+      gap: 10px;
+    }
+    .header-container {
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 14px;
+    }
+    .header-logo-group {
+      width: 100%;
+      justify-content: flex-start;
+      gap: 8px;
+    }
+    .header-logo-row img {
+      max-height: 44px;
+    }
+    .header-logo-left,
+    .header-logo-right {
+      max-height: 40px;
+    }
+    .header-logo-center {
+      max-height: 44px;
+    }
+  }
+}
+
+@layer utilities {
+  .gradient-forest {
+    background-image: var(--gradient-forest);
+  }
+
+  .gradient-sunshine {
+    background-image: var(--gradient-sunshine);
+  }
+
+  .gradient-hero {
+    background-image: var(--gradient-hero);
+  }
+
+  .page-enter {
+    animation: fadeInUp 0.5s ease-out;
+  }
+
+  @keyframes ask-fox-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 16px rgba(250, 204, 21, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(250, 204, 21, 0);
+    }
+  }
+
+  .ask-fox-pulse {
+    animation: ask-fox-pulse 2.2s infinite;
+  }
+
+    body.no-floating-buttons #adopt-now-button,
+    body.no-floating-buttons #ask-fox-button {
+      display: none !important;
+    }
+
+  @keyframes adopt-now-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(250, 204, 21, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(250, 204, 21, 0);
+    }
+  }
+
+  .adopt-now-pulse {
+    animation: adopt-now-pulse 2.5s infinite;
+  }
+}
+
+@layer utilities {
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Issue Counter Ticket | Kurumbapatti Zoo</title>
+    <link rel="stylesheet" href="./counter.css" />
+  </head>
+  <body class="counter-body" data-page="issue">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Kurumbapatti Zoological Park</p>
+        <h1>Counter Ticket Issue</h1>
+        <p class="muted">Rates mirror the online portal (tickets/zoo). Collect payment, then generate the QR ticket.</p>
+      </div>
+      <div class="top-actions">
+        <div class="badge">Counter Console</div>
+        <button id="show-history" class="btn ghost">History</button>
+        <button id="logout" class="btn ghost">Logout</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="panel span-2">
+        <header class="panel-head">
+          <h2>Tickets & Add-ons</h2>
+          <p>Use official tariff codes; set quantities per guest and vehicle.</p>
+        </header>
+        <div class="table">
+          <div class="table-row header">
+            <div>Item</div>
+            <div>Rate</div>
+            <div>Qty</div>
+            <div class="amount">Subtotal</div>
+          </div>
+          <div class="table" id="ticket-rows"></div>
+        </div>
+      </section>
+
+      <section class="panel span-2 pay-panel">
+        <form id="pay-form">
+          <div class="totals">
+            <div>
+              <p class="muted">Items Total</p>
+              <h2 id="total">₹0.00</h2>
+            </div>
+            <div>
+              <p class="muted">Payment Mode</p>
+              <select id="payment-mode" required>
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="upi">UPI</option>
+                <option value="split">Split Cash + UPI</option>
+              </select>
+            </div>
+            <div>
+              <p class="muted">Amounts / Ref</p>
+              <div class="pay-modes">
+                <input type="number" min="0" step="0.01" id="cash-amount" placeholder="Cash amount" />
+                <input type="number" min="0" step="0.01" id="upi-amount" placeholder="UPI amount (for UPI or Split)" />
+                <input type="text" id="reference" placeholder="Approval / UTR" />
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="submit" class="btn primary">Confirm & Generate QR</button>
+          </div>
+          <p id="pay-error" class="error"></p>
+        </form>
+      </section>
+
+      <section class="panel span-2 ticket-panel">
+        <header class="panel-head">
+          <h2>Printable Ticket (Counter)</h2>
+          <p class="muted">Layout mirrors the official printable ticket for gate validation.</p>
+        </header>
+        <article class="ticket" id="ticket" aria-label="Counter ticket">
+          <header class="ticket-header">
+            <div class="title-group">
+              <p class="label">Government of Tamil Nadu</p>
+              <h3>Kurumbapatti Zoological Park, Salem</h3>
+              <p>Official Entry Ticket · Show at gate</p>
+            </div>
+            <div class="logo-box">Logo / Seal</div>
+          </header>
+
+          <section class="info-grid" aria-label="Ticket identifiers">
+            <div class="field"><div class="label">Ticket ID</div><div class="value" id="ticket-id">CNT-000000</div></div>
+            <div class="field"><div class="label">Ticket Source</div><div class="value" id="ticket-source">COUNTER</div></div>
+            <div class="field"><div class="label">Visit Date</div><div class="value" id="visit-date">--</div></div>
+            <div class="field"><div class="label">Issue Date & Time</div><div class="value" id="ticket-date">--</div></div>
+            <div class="field"><div class="label">Payment</div><div class="value" id="ticket-payment">--</div></div>
+          </section>
+
+          <section aria-label="Ticket breakdown">
+            <table>
+              <thead>
+                <tr><th>Category</th><th class="qty">Qty</th><th class="price">Price</th><th class="amount">Amount</th></tr>
+              </thead>
+              <tbody id="ticket-body"></tbody>
+            </table>
+            <div class="totals"><span>Total Amount Paid:</span><span id="ticket-total">₹0.00</span></div>
+          </section>
+
+          <section class="qr-area" aria-label="QR and entry notes">
+            <div>
+              <p style="margin:0 0 6px; font-weight:700;">Ticket Type: Zoo Entry</p>
+              <ul class="note-list">
+                <li>Valid for single entry only.</li>
+                <li>Entry timings: 09:00 AM – 05:00 PM.</li>
+                <li>Closed on Tuesdays</li>
+                <li>Scan QR at gate; keep until exit.</li>
+              </ul>
+            </div>
+            <div class="qr-box" id="ticket-qr">QR CODE</div>
+            <p style="grid-column: 1 / -1; margin: 0; font-size: 0.9rem; color: var(--muted);">Scan this QR code at the entry gate</p>
+          </section>
+
+          <footer class="footer">
+            <div>Thank you for visiting Kurumbapatti Zoological Park.</div>
+            <div>Help Desk: 0427-2912197 · info@kurumbapattizoo.com</div>
+            <div>Ticket once used is invalid for re-entry.</div>
+          </footer>
+        </article>
+        <div class="actions" style="margin-top:8px;">
+          <button id="print-ticket" class="btn">Print</button>
+          <button id="new-booking" class="btn">New Booking</button>
+        </div>
+      </section>
+
+      <section class="panel span-2 history-panel">
+        <header class="panel-head">
+          <h2>Recent Counter Tickets</h2>
+          <p class="muted">Quickly reprint tickets issued today or drill into history with filters.</p>
+        </header>
+        <div class="log-grid">
+          <article class="log-card">
+            <header class="log-head">
+              <h3>Today&apos;s Tickets</h3>
+              <p class="muted">Latest 20 counter tickets issued.</p>
+            </header>
+            <div class="table-scroll">
+              <table class="log-table" aria-label="Today&apos;s counter tickets">
+                <thead>
+                  <tr>
+                    <th>Booking ID</th>
+                    <th>Issued</th>
+                    <th class="right">Total</th>
+                    <th>Payment</th>
+                    <th>Issued By</th>
+                    <th>Status</th>
+                    <th class="right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="today-tickets-body"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="log-card">
+            <header class="log-head">
+              <h3>Ticket History</h3>
+              <p class="muted">Filter by issued date and payment mode.</p>
+            </header>
+            <div class="history-filters" aria-label="History filters">
+              <label>
+                <span>Date</span>
+                <input type="date" id="history-date" />
+              </label>
+              <label>
+                <span>Payment Mode</span>
+                <select id="history-mode">
+                  <option value="all">All</option>
+                  <option value="cash">Cash</option>
+                  <option value="card">Card</option>
+                  <option value="upi">UPI</option>
+                  <option value="split">Split</option>
+                </select>
+              </label>
+            </div>
+            <div class="table-scroll">
+              <table class="log-table" aria-label="Historical counter tickets">
+                <thead>
+                  <tr>
+                    <th>Booking ID</th>
+                    <th>Issued At</th>
+                    <th class="right">Total</th>
+                    <th>Payment</th>
+                    <th>Status</th>
+                    <th class="right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="history-body"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <section id="ticket-modal" class="modal" role="dialog" aria-modal="true" hidden>
+      <div class="modal-dialog" role="document">
+        <header class="modal-head">
+          <h3>Ticket Details</h3>
+          <button id="modal-close" class="btn ghost" type="button">Close</button>
+        </header>
+        <dl class="modal-meta">
+          <div>
+            <dt>Booking ID</dt>
+            <dd data-modal-id>--</dd>
+          </div>
+          <div>
+            <dt>Issued On</dt>
+            <dd data-modal-issued>--</dd>
+          </div>
+          <div>
+            <dt>Payment</dt>
+            <dd data-modal-payment>--</dd>
+          </div>
+          <div>
+            <dt>Total</dt>
+            <dd data-modal-total>₹0.00</dd>
+          </div>
+          <div>
+            <dt>Entry Status</dt>
+            <dd data-modal-status>--</dd>
+          </div>
+          <div>
+            <dt>Issued By</dt>
+            <dd data-modal-source>Counter Staff</dd>
+          </div>
+        </dl>
+        <div class="modal-body">
+          <div class="modal-table-wrap">
+            <table class="log-table" aria-label="Ticket line items">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th class="qty">Qty</th>
+                  <th class="price">Price</th>
+                  <th class="right">Amount</th>
+                </tr>
+              </thead>
+              <tbody id="modal-ticket-body"></tbody>
+            </table>
+          </div>
+          <aside class="modal-qr" id="modal-qr" aria-label="QR token">QR CODE</aside>
+        </div>
+      </div>
+    </section>
+
+    <script type="module" src="./counter.js"></script>
+  </body>
+</html>

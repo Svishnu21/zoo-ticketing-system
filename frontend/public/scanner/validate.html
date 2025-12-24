@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR Validation | Kurumbapatti Zoo</title>
+    <link rel="stylesheet" href="./scanner.css" />
+  </head>
+  <body class="scanner-body">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Kurumbapatti Zoological Park</p>
+        <h1>Gate QR Validation</h1>
+      </div>
+      <div class="top-actions">
+        <div class="badge" id="scannerGate">Gate: --</div>
+        <div class="badge secondary" id="scannerUser">Scanner: --</div>
+        <button id="logoutBtn" class="btn ghost">Logout</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="panel cam-panel">
+        <header class="panel-head">
+          <h2>Camera Scanner</h2>
+          <p>Point at QR. Uses device camera.</p>
+        </header>
+        <div class="camera-box" id="cameraBox">
+          <div class="camera-overlay">Camera preview placeholder</div>
+          <button id="startCamera" class="btn primary">Start Scan</button>
+          <button id="stopCamera" class="btn" type="button">Stop</button>
+        </div>
+        <p class="muted">Camera permissions required. If camera fails, use manual entry.</p>
+      </section>
+
+      <section class="panel manual-panel">
+        <header class="panel-head">
+          <h2>Manual QR Input</h2>
+          <p>Fallback for damaged or unreadable codes.</p>
+        </header>
+        <form id="manualForm" class="manual-form">
+          <label>
+            <span>QR Token</span>
+            <input type="text" id="manualInput" name="qr" placeholder="Paste or type QR token" required />
+          </label>
+          <div class="manual-actions">
+            <button class="btn primary" type="submit">Validate</button>
+            <button class="btn" type="reset">Clear</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel status-panel" id="statusPanel">
+        <p class="eyebrow">Scan Result</p>
+        <h2 id="statusTitle">Awaiting Scan</h2>
+        <p id="statusMessage" class="muted">Scan a QR code to validate entry.</p>
+      </section>
+
+      <section class="panel log-panel">
+        <header class="panel-head">
+          <h2>Recent Scans (this device)</h2>
+          <p>Last 10 results. Read-only.</p>
+        </header>
+        <div class="log-list" id="logList"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./scanner.js"></script>
+  </body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kurumbapatti Zoo — Adoption Success</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@600;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --forest-green: #0b3b2e;
+        --accent-yellow: #ffd54f;
+        --gold-border: #c6a766;
+        --cream: #fffdf6;
+        --ink: #1f1f1f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'Poppins', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        background: radial-gradient(circle at top, #fefcf4, #f4f1e4 55%, #e7e0c7);
+        color: var(--forest-green);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 16px 80px;
+      }
+
+      .certificate-shell {
+        width: min(900px, 100%);
+        background: var(--cream);
+        border-radius: 32px;
+        padding: 48px 32px 56px;
+        border: 6px double var(--gold-border);
+        box-shadow: 0 35px 90px rgba(11, 59, 46, 0.12);
+        text-align: center;
+        position: relative;
+      }
+
+      .badge {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        margin: 0 auto 18px;
+        background: linear-gradient(145deg, #2b8d4a, #1f6d39);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 16px 30px rgba(11, 59, 46, 0.25);
+      }
+
+      .badge svg {
+        width: 46px;
+        height: 46px;
+        color: #ffffff;
+      }
+
+      h1 {
+        font-family: 'Merriweather', serif;
+        font-size: clamp(2rem, 4vw, 2.8rem);
+        margin: 0;
+        color: var(--forest-green);
+        letter-spacing: 0.04em;
+      }
+
+      .subtitle {
+        margin: 14px auto 28px;
+        font-size: 1.1rem;
+        color: rgba(11, 59, 46, 0.75);
+        max-width: 560px;
+      }
+
+      .details-grid {
+        margin: 32px auto 40px;
+        padding: 24px 18px;
+        border: 2px dashed rgba(11, 59, 46, 0.2);
+        border-radius: 24px;
+        display: grid;
+        gap: 20px;
+      }
+
+      .detail-item {
+        font-family: 'Merriweather', serif;
+        font-size: 1.1rem;
+      }
+
+      .detail-label {
+        display: block;
+        text-transform: uppercase;
+        letter-spacing: 0.4em;
+        font-size: 0.7rem;
+        color: rgba(11, 59, 46, 0.55);
+        margin-bottom: 6px;
+        font-family: 'Poppins', sans-serif;
+      }
+
+      .detail-value {
+        font-size: 1.4rem;
+        color: var(--ink);
+      }
+
+      .actions {
+        margin-top: 24px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        justify-content: center;
+      }
+
+      .button {
+        border-radius: 999px;
+        padding: 14px 32px;
+        font-size: 0.95rem;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 2px solid transparent;
+      }
+
+      .button-primary {
+        background: var(--accent-yellow);
+        color: var(--forest-green);
+        border-color: var(--accent-yellow);
+        box-shadow: 0 16px 30px rgba(255, 213, 79, 0.35);
+      }
+
+      .button-outline {
+        background: transparent;
+        color: var(--forest-green);
+        border-color: var(--forest-green);
+      }
+
+      .button:hover {
+        transform: translateY(-2px);
+      }
+
+      .ribbon {
+        position: absolute;
+        inset: 20px;
+        border: 1px solid rgba(198, 167, 102, 0.4);
+        border-radius: 24px;
+        pointer-events: none;
+      }
+
+      @media (max-width: 640px) {
+        .certificate-shell {
+          padding: 40px 20px;
+          border-radius: 22px;
+        }
+
+        .details-grid {
+          padding: 20px 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="certificate-shell" id="certificate">
+      <div class="ribbon"></div>
+      <div class="badge" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6L9 17l-5-5" />
+        </svg>
+      </div>
+      <h1>Adoption Successful!</h1>
+      <p class="subtitle">Thank you for becoming a wildlife guardian. Your support helps us nourish, protect, and celebrate biodiversity every single day.</p>
+
+      <div class="details-grid" data-list>
+        <div class="detail-item">
+          <span class="detail-label">Proudly Presented To</span>
+          <span class="detail-value" data-visitor>Name</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">For Adopting</span>
+          <span class="detail-value" data-animal>Animal</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Duration</span>
+          <span class="detail-value" data-duration>—</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Contribution</span>
+          <span class="detail-value" data-amount>₹ 0.00</span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="button button-primary" id="download-btn" type="button">Download Certificate</button>
+        <button class="button button-outline" id="home-btn" type="button">Back to Home</button>
+      </div>
+    </main>
+
+    <script>
+      const SUMMARY_KEY = 'adoptionSelection'
+      const VISITOR_KEY = 'adoptionVisitor'
+      const FLOW_KEY = 'adoptionFlow'
+
+      const visitorField = document.querySelector('[data-visitor]')
+      const animalField = document.querySelector('[data-animal]')
+      const durationField = document.querySelector('[data-duration]')
+      const amountField = document.querySelector('[data-amount]')
+      const downloadBtn = document.getElementById('download-btn')
+      const homeBtn = document.getElementById('home-btn')
+
+      const formatCurrency = (value) =>
+        `₹ ${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+      const loadData = () => {
+        let summary = null
+        let selections = null
+        let visitor = null
+        try {
+          selections = JSON.parse(localStorage.getItem('adoptionSelections'))
+        } catch (err) {
+          selections = null
+        }
+        try {
+          summary = JSON.parse(localStorage.getItem(SUMMARY_KEY))
+        } catch (err) {
+          summary = null
+        }
+        try {
+          visitor = JSON.parse(localStorage.getItem(VISITOR_KEY))
+        } catch (err) {
+          visitor = null
+        }
+        return { summary, selections, visitor }
+      }
+
+      const fillCertificate = () => {
+        const { summary, selections, visitor } = loadData()
+        visitorField.textContent = visitor?.name || 'Esteemed Visitor'
+
+        if (Array.isArray(selections) && selections.length) {
+          // list animal names
+          animalField.textContent = selections.map((s) => s.name).join(', ')
+          // duration: show per-item breakdown
+          durationField.textContent = selections
+            .map((s) => `${s.name}: ${s.durationMonths || 0} month(s) ${s.durationDays || 0} day(s)`)
+            .join(' | ')
+          const total = selections.reduce((acc, it) => acc + (it.priceINR || 0), 0)
+          amountField.textContent = formatCurrency(total)
+        } else {
+          animalField.textContent = summary?.items ? summary.items.map((i) => i.name).join(', ') : 'Our Beloved Animal'
+          const durationParts = []
+          if (summary?.items && summary.items.length) {
+            durationField.textContent = summary.items.map((i) => `${i.name}: ${i.durationDays || 0} day(s)`).join(' | ')
+          } else {
+            durationField.textContent = 'Custom Duration'
+          }
+          amountField.textContent = formatCurrency(summary?.amount || 0)
+        }
+
+        // clear flow flag so future ticket payments use normal success page
+        localStorage.removeItem(FLOW_KEY)
+      }
+
+      downloadBtn.addEventListener('click', () => {
+        window.print()
+      })
+
+      homeBtn.addEventListener('click', () => {
+        window.location.href = '/'
+      })
+
+      fillCertificate()
+    </script>
+  </body>
+</html>
