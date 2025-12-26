@@ -28,7 +28,7 @@ const zooTicketCard: TariffCard = {
   id: 'zoo',
   title: {
     en: 'Zoo tickets',
-    ta: 'ஜூ டிக்கெட்டுகள்',
+    ta: 'பூங்கா  டிக்கெட்டுகள்',
   },
   tagline: {
     en: 'Explore every habitat with curated passes',

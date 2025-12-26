@@ -34,7 +34,13 @@ export function PhotoLightbox({ image, onClose, onPrev, onNext }: PhotoLightboxP
       </button>
 
   <div className="max-w-4xl overflow-hidden rounded-3xl bg-white shadow-lg">
-        <img src={image.image} alt={image.title[language]} className="h-[70vh] w-full rounded-2xl object-cover" />
+        <img
+          src={image.image}
+          alt={image.title[language]}
+          className="h-[70vh] w-full rounded-2xl object-cover"
+          loading="lazy"
+          decoding="async"
+        />
         <div className="p-4 text-center text-lg font-semibold text-forest-green">
           {image.title[language]}
         </div>

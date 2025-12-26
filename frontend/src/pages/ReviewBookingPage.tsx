@@ -38,7 +38,8 @@ export function ReviewBookingPage() {
 
   const ticketTypeId = state.ticketTypeId ?? 'zoo'
   const totalAmount = state.totalAmount ?? 0
-  const formattedTotal = state.formattedTotal ?? totalAmount.toLocaleString('en-IN')
+  const formattedTotal =
+    state.formattedTotal ?? totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
   const ticketTypeLabel = ticketTypeLabels[ticketTypeId]?.[language] ?? ticketTypeLabels.zoo[language]
 
   const bookingDateLabel = useMemo(() => {
@@ -296,7 +297,7 @@ export function ReviewBookingPage() {
                   >
                     <span className="text-sm font-semibold">{item.label}</span>
                     <span className="text-sm font-medium">
-                      × {item.quantity} · ₹ {item.total.toLocaleString('en-IN')}
+                      × {item.quantity} · ₹ {item.total.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 ))}

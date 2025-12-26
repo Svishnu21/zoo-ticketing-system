@@ -2,7 +2,7 @@ import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import aboutParkImage from '@/assets/images/about_park.jpg'
+import aboutParkImage from '@/assets/images/heroslide1.webp'
 import { Button } from '@/components/ui/Button'
 
 const animalAdoptionPrices = {
@@ -64,7 +64,7 @@ type RowErrors = {
 }
 
 const formatCurrency = (value: number): string =>
-  value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  value.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 
 const loadCartItems = () => {
   try {
@@ -307,7 +307,9 @@ export function ChooseAdoptionPage() {
             src={aboutParkImage}
             alt="Leafy canopy across the park"
             className="h-full w-full object-cover opacity-35"
-            loading="lazy"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-forest-green/40 via-forest-green/15 to-soft-bg/80" />
         </div>

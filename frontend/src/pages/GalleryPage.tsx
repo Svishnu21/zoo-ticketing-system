@@ -41,7 +41,13 @@ export function GalleryPage() {
               onClick={() => handleOpen(index)}
               className="group overflow-hidden rounded-2xl shadow-lg transition-transform duration-300 ease-smooth hover:-translate-y-1 hover:scale-105 hover:shadow-2xl"
             >
-              <img src={image.image} alt={image.title[language]} className="h-64 w-full rounded-2xl object-cover" />
+              <img
+                src={image.image}
+                alt={image.title[language]}
+                className="h-64 w-full rounded-2xl object-cover"
+                loading="lazy"
+                decoding="async"
+              />
               <div className="px-4 py-3 text-left text-sm font-semibold text-forest-green">
                 {image.title[language]}
               </div>

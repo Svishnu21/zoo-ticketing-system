@@ -30,6 +30,16 @@ export function HeroSlider() {
 
   return (
     <section className="relative w-full flex justify-center mt-5">
+      {/* Preload the first hero image for faster first paint */}
+      <img
+        src={slides[0]?.image}
+        alt=""
+        className="hidden"
+        loading="eager"
+        decoding="async"
+        fetchPriority="high"
+        aria-hidden
+      />
       <div className="w-[95%] max-w-[1400px] h-[70vh] rounded-[30px] overflow-hidden shadow-2xl relative">
         {slides.map((slide, index) => (
           <div

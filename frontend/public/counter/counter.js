@@ -7,11 +7,11 @@ const TICKET_TYPES = [
   { id: 'differentlyAbled', name: 'Differently Abled', detail: 'Accessible entry', price: 0, category: 'Entry Tickets' },
 
   { id: 'parkingLMV', name: 'Parking - 4 Wheeler (LMV)', price: 50, category: 'Parking' },
-  { id: 'parkingHMV', name: 'Parking - 6 Wheeler (HMV)', price: 100, category: 'Parking' },
+  { id: 'parkingHMV', name: 'Parking - 4 Wheeler (HMV)', price: 100, category: 'Parking' },
   { id: 'parkingTwoThree', name: 'Parking - 2 & 3 Wheeler', price: 20, category: 'Parking' },
 
   { id: 'batteryAdult', name: 'Battery Vehicle - Adult', price: 50, category: 'Transport' },
-  { id: 'batteryChild', name: 'Battery Vehicle - Child', price: 30, category: 'Transport' },
+  { id: 'batteryChild', name: 'Battery Vehicle - Child (5-12 yrs)', price: 30, category: 'Transport' },
 
   { id: 'videoCamera', name: 'Video Camera', detail: 'Does not include commercial shoots', price: 150, category: 'Camera / Add-ons' },
 ];

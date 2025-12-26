@@ -5,210 +5,142 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Kurumbapatti Zoological Park — Printable Ticket</title>
     <style>
-      /* ---------- Base styles: simple, print-friendly, B/W safe ---------- */
-      :root {
-        color-scheme: light;
-        --ink: #111;
-        --muted: #444;
-        --border: #d1d5db;
-        --surface: #ffffff;
-      }
-
+      :root { color-scheme: light; }
       * { box-sizing: border-box; }
 
       body {
         margin: 0;
-        background: #f5f6f7;
-        font-family: Arial, 'Segoe UI', system-ui, sans-serif;
-        color: var(--ink);
+        background: #fff;
+        color: #000;
+        font-family: "Courier New", Consolas, Monaco, Menlo, monospace;
         display: flex;
         justify-content: center;
-        padding: 18px 10px;
       }
 
       main {
         width: 100%;
-        max-width: 760px;
-        display: grid;
-        gap: 12px;
-        justify-items: center;
-      }
-
-      /* ---------- Ticket shell ---------- */
-      .ticket {
-        width: 100%;
-        max-width: 780px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 14px;
-        display: grid;
-        gap: 10px;
-        page-break-inside: avoid;
-      }
-
-      .header {
-        display: grid;
-        grid-template-columns: 1fr 110px;
-        gap: 10px;
-        align-items: center;
-      }
-
-      .logo-box {
-        width: 100%;
-        max-width: 110px;
-        height: 70px;
-        border: 1px dashed var(--border);
-        display: grid;
-        place-items: center;
-        font-size: 0.85rem;
-        color: var(--muted);
-      }
-
-      .title-group h1 { margin: 0; font-size: 1.1rem; letter-spacing: 0.02em; }
-      .title-group p { margin: 2px 0 0; color: var(--muted); font-size: 0.9rem; }
-
-      /* ---------- Key fields ---------- */
-      .info-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 8px;
-      }
-
-      .field { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; }
-      .field .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-      .field .value { font-size: 0.95rem; font-weight: 700; margin-top: 1px; }
-
-      /* ---------- Breakdown table ---------- */
-      table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-      th, td { border: 1px solid var(--border); padding: 6px; text-align: left; }
-      th { background: #f3f4f6; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
-      td.qty, td.price, td.amount { text-align: right; }
-
-      .totals {
         display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-        margin-top: 6px;
-        font-weight: 700;
-        font-size: 0.95rem;
-      }
-
-      /* ---------- QR block ---------- */
-      .qr-area {
-        display: grid;
-        grid-template-columns: 1fr 140px;
-        gap: 12px;
+        flex-direction: column;
         align-items: center;
+        justify-content: flex-start;
+        padding: 16px 0;
+        gap: 12px;
       }
 
-      .qr-box {
-        width: 140px;
-        height: 140px;
-        border: 1px solid var(--ink);
-        display: grid;
-        place-items: center;
-        font-weight: 700;
-        text-align: center;
-        font-size: 0.9rem;
+      .ticket {
+        width: 340px;
+        max-width: calc(100vw - 24px);
+        border: 1px solid #000;
+        padding: 12px;
+        line-height: 1.35;
+        page-break-inside: avoid;
+        background: #fff;
+        margin-bottom: 0;
       }
 
-      .note-list { margin: 0; padding-left: 16px; color: var(--muted); font-size: 0.9rem; }
-      .note-list li { margin: 4px 0; }
+      .header { text-align: center; }
+      .header .gov { font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase; }
+      .header .zoo { margin: 2px 0; font-weight: 700; font-size: 1rem; }
+      .header .title { margin: 0; font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.08em; }
 
-      /* ---------- Footer ---------- */
-      .footer {
-        border-top: 1px solid var(--border);
-        padding-top: 8px;
-        font-size: 0.88rem;
-        color: var(--muted);
-        display: grid;
-        gap: 3px;
-      }
+      .divider { border-top: 1px dashed #000; margin: 8px 0; }
 
-      /* ---------- Actions (hidden in print) ---------- */
-      .actions { display: flex; gap: 10px; justify-content: flex-end; width: 100%; }
-      .btn { padding: 10px 14px; border: 1px solid var(--border); background: #f3f4f6; cursor: pointer; border-radius: 6px; font-weight: 700; }
-      .btn:hover { background: #e5e7eb; }
+      .meta { display: grid; gap: 4px; font-size: 0.92rem; }
+      .meta-row { display: flex; justify-content: space-between; }
+      .meta-label { text-transform: uppercase; letter-spacing: 0.04em; }
+      .meta-value { font-weight: 700; }
 
-      /* ---------- Print rules ---------- */
+      table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin-top: 6px; font-family: inherit; font-variant-numeric: tabular-nums; }
+      th, td { padding: 4px 0; text-align: left; border-bottom: 1px dashed #000; }
+      th { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      td.qty, td.price, td.amount { text-align: right; }
+      tbody tr:last-child td { border-bottom: 1px solid #000; }
+
+      .total { display: flex; justify-content: space-between; font-weight: 700; margin-top: 6px; padding-top: 6px; border-top: 2px solid #000; }
+
+      .qr-block { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 10px 0 4px; }
+      .qr-label { font-weight: 700; }
+      .qr-box { width: 140px; height: 140px; border: 1px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 700; text-align: center; }
+
+      .notes { width: 100%; font-size: 0.9rem; margin: 6px 0 0; padding: 0; list-style: none; }
+      .notes li { margin: 2px 0; }
+
+      .footer { text-align: center; font-size: 0.9rem; margin-top: 6px; line-height: 1.3; }
+
+      .actions { display: flex; gap: 8px; justify-content: center; margin-top: 0; }
+      .btn { border: 1px solid #000; background: #fff; padding: 8px 10px; font-weight: 700; font-family: inherit; cursor: pointer; text-decoration: none; color: #000; }
+      .btn:focus-visible { outline: 2px solid #000; outline-offset: 2px; }
+      .btn-print { background: #16a34a; border-color: #16a34a; color: #fff; }
+      .btn-print:hover { background: #15803d; border-color: #15803d; }
+      .btn-home { background: #dc2626; border-color: #dc2626; color: #fff; }
+      .btn-home:hover { background: #b91c1c; border-color: #b91c1c; }
+
       @media print {
-        body { background: #fff; padding: 0; }
-        main { max-width: 80mm; width: 100%; }
-        .ticket { border-radius: 0; border: 1px solid #000; padding: 12px; max-width: 80mm; }
-        .header { grid-template-columns: 1fr; }
-        .logo-box { height: 60px; }
-        .qr-area { grid-template-columns: 1fr; }
+        body { background: #fff; }
+        main { padding: 0; }
+        .ticket { width: 80mm; max-width: 80mm; border: 1px solid #000; margin: 0 auto; }
         .actions { display: none; }
-        th { background: #fff; }
       }
     </style>
   </head>
   <body>
     <main>
-      <!-- Printable Zoo Ticket Template -->
       <article class="ticket" aria-label="Kurumbapatti Zoological Park Ticket">
         <header class="header">
-          <div class="title-group">
-            <p class="label" style="margin:0; font-size:0.78rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted);">Government of Tamil Nadu</p>
-            <h1>Kurumbapatti Zoological Park, Salem</h1>
-            <p>Official Entry Ticket · Keep this for gate validation</p>
-          </div>
-          <div class="logo-box">Logo / Seal</div>
+          <div class="gov">Government of Tamil Nadu</div>
+          <div class="zoo">Kurumbapatti Zoological Park, Salem</div>
+          <div class="title">Zoo Ticket</div>
         </header>
 
-        <!-- Key ticket identifiers -->
-        <section class="info-grid" aria-label="Ticket identifiers">
-          <div class="field"><div class="label">Ticket ID</div><div class="value">KPZ-2025-784231</div></div>
-          <div class="field"><div class="label">Ticket Source</div><div class="value">ONLINE</div></div>
-          <div class="field"><div class="label">Visit Date</div><div class="value">28 Dec 2025</div></div>
-          <div class="field"><div class="label">Issue Date & Time</div><div class="value">18 Dec 2025, 10:24 AM</div></div>
-          <div class="field"><div class="label">Payment Mode</div><div class="value">UPI</div></div>
+        <div class="divider"></div>
+
+        <section class="meta" aria-label="Ticket identifiers">
+          <div class="meta-row"><span class="meta-label">Ticket ID</span><span class="meta-value">KPZ-2025-784231</span></div>
+          <div class="meta-row"><span class="meta-label">Ticket Source</span><span class="meta-value">ONLINE</span></div>
+          <div class="meta-row"><span class="meta-label">Visit Date</span><span class="meta-value">28 Dec 2025</span></div>
+          <div class="meta-row"><span class="meta-label">Issue Date & Time</span><span class="meta-value">18 Dec 2025, 10:24 AM</span></div>
+          <div class="meta-row"><span class="meta-label">Payment Mode</span><span class="meta-value">UPI</span></div>
         </section>
 
-        <!-- Ticket breakdown table -->
+        <div class="divider"></div>
+
         <section aria-label="Ticket breakdown">
           <table>
             <thead>
               <tr><th>Category</th><th class="qty">Qty</th><th class="price">Price</th><th class="amount">Amount</th></tr>
             </thead>
             <tbody>
-              <tr><td>Entry - Adult</td><td class="qty">2</td><td class="price">₹ 50.00</td><td class="amount">₹ 100.00</td></tr>
-              <tr><td>Entry - Child (5-12)</td><td class="qty">1</td><td class="price">₹ 10.00</td><td class="amount">₹ 10.00</td></tr>
-              <tr><td>Parking - 4 Wheeler (LMV)</td><td class="qty">1</td><td class="price">₹ 50.00</td><td class="amount">₹ 50.00</td></tr>
-              <tr><td>Video Camera</td><td class="qty">1</td><td class="price">₹ 150.00</td><td class="amount">₹ 150.00</td></tr>
+              <tr><td>Entry - Adult</td><td class="qty">2</td><td class="price">50.00</td><td class="amount">100.00</td></tr>
+              <tr><td>Entry - Child (5-12)</td><td class="qty">1</td><td class="price">10.00</td><td class="amount">10.00</td></tr>
+              <tr><td>Parking - 4 Wheeler (LMV)</td><td class="qty">1</td><td class="price">50.00</td><td class="amount">50.00</td></tr>
+              <tr><td>Video Camera</td><td class="qty">1</td><td class="price">150.00</td><td class="amount">150.00</td></tr>
             </tbody>
           </table>
-          <div class="totals"><span>Total Amount Paid:</span><span>₹ 310.00</span></div>
+          <div class="total"><span>Total Amount Paid</span><span>INR 310.00</span></div>
         </section>
 
-        <!-- QR and entry notes -->
-        <section class="qr-area" aria-label="QR and entry notes">
-          <div>
-            <p style="margin:0 0 6px; font-weight:700;">Ticket Type: Zoo Entry</p>
-            <ul class="note-list">
-              <li>Valid for single entry only.</li>
-              <li>Entry timings: 09:00 AM – 05:00 PM.</li>
-              <li>Closed on Tuesdays (weekly holiday).</li>
-              <li>Keep this ticket until you exit the park.</li>
-            </ul>
-          </div>
+        <div class="divider"></div>
+
+        <section class="qr-block" aria-label="QR and entry notes">
+          <div class="qr-label">Ticket Type: Zoo Entry</div>
           <div class="qr-box" aria-label="QR code placeholder">QR CODE</div>
-          <p style="grid-column: 1 / -1; margin: 0; font-size: 0.9rem; color: var(--muted);">Scan this QR code at the entry gate</p>
+          <ul class="notes">
+            <li>Single entry only.</li>
+            <li>Entry timings: 09:00 AM – 05:00 PM.</li>
+            <li>Closed on Tuesdays (weekly holiday).</li>
+            <li>Keep this ticket until you exit the park.</li>
+          </ul>
         </section>
 
-        <!-- Footer / disclaimer -->
-        <footer class="footer">
-          <div>Thank you for visiting Kurumbapatti Zoological Park.</div>
-          <div>Help Desk: 0427-2912197 · info@kurumbapattizoo.com</div>
+        <div class="footer">
+          <div>Scan this QR code at the entry gate.</div>
           <div>Ticket once used is invalid for re-entry.</div>
-        </footer>
+        </div>
       </article>
 
-      <!-- On-screen helper (hidden in print) -->
       <div class="actions">
-        <button class="btn" type="button" onclick="window.print()">Print Ticket</button>
-        <a class="btn" href="/">Back to Home</a>
+        <button class="btn btn-print" type="button" onclick="window.print()">Print Ticket</button>
+        <a class="btn btn-home" href="/">Back to Home</a>
       </div>
     </main>
   </body>

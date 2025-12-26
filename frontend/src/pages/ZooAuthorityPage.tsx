@@ -1,4 +1,4 @@
-import safariImage from '@/assets/images/safari.jpg'
+import safariImage from '@/assets/images/heroslide2.webp'
 
 export function ZooAuthorityPage() {
   return (
@@ -9,7 +9,9 @@ export function ZooAuthorityPage() {
             src={safariImage}
             alt="Placeholder signage for Tamilnadu zoos"
             className="h-full w-full object-cover opacity-30"
-            loading="lazy"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-forest-green/35 to-soft-bg/70" />
         </div>

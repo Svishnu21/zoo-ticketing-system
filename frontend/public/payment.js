@@ -14,7 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const ADOPTION_FLOW_KEY = 'adoptionFlow'
   const ADOPTION_SELECTION_KEY = 'adoptionSelection'
   const ADOPTION_SELECTIONS_KEY = 'adoptionSelections'
-  const adoptionFlowActive = localStorage.getItem(ADOPTION_FLOW_KEY) === 'true'
+  // Consider adoption flow active only when the flag is set AND there is adoption selection data saved.
+  const rawAdoptionData = localStorage.getItem(ADOPTION_SELECTIONS_KEY) || localStorage.getItem(ADOPTION_SELECTION_KEY)
+  const adoptionFlowActive = localStorage.getItem(ADOPTION_FLOW_KEY) === 'true' && !!rawAdoptionData
   const successRedirect = adoptionFlowActive ? '/adoption-success.html' : '/success.html'
   const successButtonLabel = adoptionFlowActive ? 'View Certificate' : 'Get Your Ticket'
 

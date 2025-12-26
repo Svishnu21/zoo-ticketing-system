@@ -95,7 +95,7 @@ export function CartOverlay({
                   >
                     <div>
                       <h3 className="text-base font-semibold">{item.label}</h3>
-                      <p className="text-sm text-forest-green/70">₹ {item.price.toLocaleString('en-IN')} each</p>
+                      <p className="text-sm text-forest-green/70">₹ {item.price.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} each</p>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2 rounded-2xl border border-forest-green/25 bg-forest-green/10 px-3 py-2">
@@ -121,7 +121,7 @@ export function CartOverlay({
                           <Plus size={18} aria-hidden="true" />
                         </button>
                       </div>
-                      <p className="w-20 text-right text-base font-semibold">₹ {lineTotal.toLocaleString('en-IN')}</p>
+                      <p className="w-20 text-right text-base font-semibold">₹ {lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</p>
                     </div>
                   </article>
                 )

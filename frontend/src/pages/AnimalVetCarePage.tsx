@@ -1,4 +1,4 @@
-import aboutParkImage from '@/assets/images/about_park.jpg'
+import aboutParkImage from '@/assets/images/heroslide1.webp'
 export function AnimalVetCarePage() {
   return (
     <div className="page-enter space-y-16 bg-soft-bg pb-20">
@@ -8,7 +8,9 @@ export function AnimalVetCarePage() {
             src={aboutParkImage}
             alt="Veterinary care backdrop with leafy canopy"
             className="h-full w-full object-cover opacity-35"
-            loading="lazy"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-forest-green/45 via-forest-green/20 to-soft-bg/70" />
         </div>

@@ -78,7 +78,10 @@ export function ParkingTicketSelectionPage() {
       ),
     [selectedSlots],
   )
-  const formattedTotal = useMemo(() => totalAmount.toLocaleString('en-IN'), [totalAmount])
+  const formattedTotal = useMemo(
+    () => totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
+    [totalAmount],
+  )
 
   const dateOptions = useMemo(() => {
     const today = new Date()

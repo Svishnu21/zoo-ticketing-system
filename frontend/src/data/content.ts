@@ -1,48 +1,48 @@
-import heroSlide1 from '@/assets/images/heroslide1.png'
-import heroSlide2 from '@/assets/images/heroslide2.png'
-import heroSlide3 from '@/assets/images/heroslide3.png'
-import mam1 from '@/assets/images/mam1.JPG'
-import mam2 from '@/assets/images/mam2.JPG'
-import mam3 from '@/assets/images/mam3.JPG'
-import mam4 from '@/assets/images/mam4.JPG'
-import mam5 from '@/assets/images/mam5.JPG'
-import mam6 from '@/assets/images/mam6.JPG'
-import aqua1 from '@/assets/images/aqua1.JPG'
-import aqua2 from '@/assets/images/aqua2.JPG'
-import aqua3 from '@/assets/images/aqua3.png'
-import aqua4 from '@/assets/images/aqua4.png'
-import bird1 from '@/assets/images/bird1.png'
-import bird2 from '@/assets/images/bird2.JPG'
-import bird3 from '@/assets/images/bird3.JPG'
-import bird4 from '@/assets/images/bird4.JPG'
-import fac1 from '@/assets/images/fac1.jpg'
-import fac2 from '@/assets/images/fac2.jpg'
-import fac3 from '@/assets/images/fac3.jpg'
-import fac4 from '@/assets/images/fac4.jpg'
-import fac5 from '@/assets/images/fac5.JPG'
-import fac6 from '@/assets/images/fac6.JPG'
-import fac7 from '@/assets/images/fac7.jpg'
-import fac8 from '@/assets/images/fac8.JPG'
-import fac9 from '@/assets/images/fac9.jpg'
-import fac10 from '@/assets/images/fac10.jpg'
-import fac11 from '@/assets/images/fac11.jpeg'
-import fac12 from '@/assets/images/fac12.jpg'
-import ruleGallery1 from '@/assets/images/pond rules.jpg'
-import ruleGallery2 from '@/assets/images/park rules2.jpg'
-import ruleGallery3 from '@/assets/images/park rules 3.jpg'
-import safariImage from '@/assets/images/safari.jpg'
-import gall1 from '@/assets/images/Gallery/gall1.JPG'
-import gall2 from '@/assets/images/Gallery/gall2.JPG'
-import gall3 from '@/assets/images/Gallery/gall3.JPG'
-import gall4 from '@/assets/images/Gallery/gall4.JPG'
-import gall5 from '@/assets/images/Gallery/gall5.JPG'
-import gall6 from '@/assets/images/Gallery/gall6.JPG'
-import gall7 from '@/assets/images/Gallery/gall7.JPG'
-import gall8 from '@/assets/images/Gallery/gall8.JPG'
-import gall9 from '@/assets/images/Gallery/gall9.JPG'
-import gall10 from '@/assets/images/Gallery/gall10.JPG'
-import gall11 from '@/assets/images/Gallery/gall11.JPG'
-import gall12 from '@/assets/images/Gallery/gall12.JPG'
+import heroSlide1 from '@/assets/images/heroslide1.webp'
+import heroSlide2 from '@/assets/images/heroslide2.webp'
+import heroSlide3 from '@/assets/images/heroslide3.webp'
+import mam1 from '@/assets/images/Mammals/Spotted Deer.webp'
+import mam2 from '@/assets/images/Mammals/Sambar Deer.webp'
+import mam3 from '@/assets/images/Mammals/Bonnet Macaque.webp'
+import mam4 from '@/assets/images/Mammals/Rhesus Macaque.webp'
+import mam5 from '@/assets/images/Mammals/Bengal Fox.webp'
+import mam6 from '@/assets/images/Mammals/Golden Jackal.webp'
+import aqua1 from '@/assets/images/aquarium.webp'
+import aqua2 from '@/assets/images/aquarium.webp'
+import aqua3 from '@/assets/images/aquarium.webp'
+import aqua4 from '@/assets/images/aquarium.webp'
+import bird1 from '@/assets/images/birds/Alexandrine Parakeet.webp'
+import bird2 from '@/assets/images/birds/Indian Peafowl.webp'
+import bird3 from '@/assets/images/birds/Grey Pelican.webp'
+import bird4 from '@/assets/images/birds/Painted Stork.webp'
+import fac1 from '@/assets/images/fac1.webp'
+import fac2 from '@/assets/images/fac2.webp'
+import fac3 from '@/assets/images/fac3.webp'
+import fac4 from '@/assets/images/fac4.webp'
+import fac5 from '@/assets/images/fac5.webp'
+import fac6 from '@/assets/images/fac6.webp'
+import fac7 from '@/assets/images/fac7.webp'
+import fac8 from '@/assets/images/fac8.webp'
+import fac9 from '@/assets/images/fac9.webp'
+import fac10 from '@/assets/images/fac10.webp'
+import fac11 from '@/assets/images/fac11.webp'
+import fac12 from '@/assets/images/fac12.webp'
+import ruleGallery1 from '@/assets/images/pond rules.webp'
+import ruleGallery2 from '@/assets/images/park rules2.webp'
+import ruleGallery3 from '@/assets/images/park rules 3.webp'
+import safariImage from '@/assets/images/heroslide2.webp'
+import gall1 from '@/assets/images/Gallery/gall1.webp'
+import gall2 from '@/assets/images/Gallery/gall2.webp'
+import gall3 from '@/assets/images/Gallery/gall3.webp'
+import gall4 from '@/assets/images/Gallery/gall4.webp'
+import gall5 from '@/assets/images/Gallery/gall5.webp'
+import gall6 from '@/assets/images/Gallery/gall6.webp'
+import gall7 from '@/assets/images/Gallery/gall7.webp'
+import gall8 from '@/assets/images/Gallery/gall8.webp'
+import gall9 from '@/assets/images/Gallery/gall9.webp'
+import gall10 from '@/assets/images/Gallery/gall10.webp'
+import gall11 from '@/assets/images/Gallery/gall11.webp'
+import gall12 from '@/assets/images/Gallery/gall12.webp'
 
 import { navItems } from './navigation'
 
@@ -616,10 +616,10 @@ export const tariffItems: TariffItem[] = [
   { id: 'childEntry', price: 10, label: { en: 'Entry - Child (5-12 yrs)', ta: 'நுழைவு - குழந்தை (5-12)' } },
   { id: 'videoCamera', price: 150, label: { en: 'Video Camera (Does not include videography for commercial programs, short movies, etc.)', ta: 'வீடியோ கேமரா (வணிக நிகழ்ச்சிகள், குறும்படங்கள் போன்றவற்றுக்கான வீடியோ பதிவை உள்ளடக்காது)' } },
   { id: 'parkingLMV', price: 50, label: { en: 'Parking - 4 Wheeler (LMV)', ta: 'நிறுத்தம் - 4 சக்கர (LMV)' } },
-  { id: 'parkingHMV', price: 100, label: { en: 'Parking - 6 Wheeler (HMV)', ta: 'நிறுத்தம் - 6 சக்கர (HMV)' } },
+  { id: 'parkingHMV', price: 100, label: { en: 'Parking - 4 Wheeler (HMV)', ta: 'நிறுத்தம் - 4 சக்கர (HMV)' } },
   { id: 'parkingTwoThree', price: 20, label: { en: 'Parking - 2 & 3 Wheeler', ta: 'நிறுத்தம் - 2 & 3 சக்கர' } },
   { id: 'batteryAdult', price: 50, label: { en: 'Battery Vehicle - Adult', ta: 'மின்வாகனம் - பெரியவர்' } },
-  { id: 'batteryChild', price: 30, label: { en: 'Battery Vehicle - Child', ta: 'மின்வாகனம் - குழந்தை' } },
+  { id: 'batteryChild', price: 30, label: { en: 'Battery Vehicle - Child (5-12 yrs)', ta: 'மின்வாகனம் - குழந்தை (5-12)' } },
 ]
 
 export interface FeeTableRow {
@@ -661,8 +661,8 @@ export const visitorInfo = {
   reach: {
     heading: { en: 'How to Reach Us', ta: 'எங்களை எவ்வாறு அணைவது' },
     address: {
-      en: `Kurumbapatti Zoological Park\nYercaud Foothills\nSalem - 636012`,
-      ta: `குரும்பப்பட்டி உயிரியல் பூங்கா\nசெட்டிச்சவடி கிராமம் அருகில்\nசேலம் - 636012`,
+      en: `Kurumbapatti Zoological Park\nNear Yercaud Foothills\nSalem - 636008`,
+      ta: `குரும்பப்பட்டி உயிரியல் பூங்கா\nசெட்டிச்சவடி கிராமம் அருகில்\nசேலம் - 636008`,
     },
   },
 }

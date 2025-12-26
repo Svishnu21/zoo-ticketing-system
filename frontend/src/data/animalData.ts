@@ -16,7 +16,7 @@ export const animalData: AnimalDetail[] = [
     id: 'indian-peafowl',
     commonName: 'Indian Peafowl',
     scientificName: 'Pavo cristatus',
-    image: 'birds/Indian Peafowl.jpg',
+    image: 'birds/Indian Peafowl.webp',
     sections: [
       {
         label: 'Lifespan',
@@ -60,7 +60,7 @@ export const animalData: AnimalDetail[] = [
     id: 'white-peafowl',
     commonName: 'White Peafowl',
     scientificName: 'Pavo cristatus (leucistic form)',
-    image: 'birds/white peafowl.jpg',
+    image: 'birds/white peafowl.webp',
     sections: [
       {
         label: 'Important Note',
@@ -109,7 +109,7 @@ export const animalData: AnimalDetail[] = [
     id: 'grey-pelican',
     commonName: 'Grey (Spot-billed) Pelican',
     scientificName: 'Pelecanus philippensis',
-    image: 'birds/Grey Pelican.jpeg',
+    image: 'birds/Grey Pelican.webp',
     sections: [
       {
         label: 'Lifespan',
@@ -151,7 +151,7 @@ export const animalData: AnimalDetail[] = [
     id: 'grey-heron',
     commonName: 'Grey Heron',
     scientificName: 'Ardea cinerea',
-    image: 'birds/Grey Heron.jpeg',
+    image: 'birds/Grey Heron.webp',
     sections: [
       {
         label: 'Lifespan',
@@ -191,7 +191,7 @@ export const animalData: AnimalDetail[] = [
     id: 'painted-stork',
     commonName: 'Painted Stork',
     scientificName: 'Mycteria leucocephala',
-    image: 'birds/Painted Stork.jpeg',
+    image: 'birds/Painted Stork.webp',
     sections: [
       {
         label: 'Lifespan',
@@ -231,7 +231,7 @@ export const animalData: AnimalDetail[] = [
     id: 'grey-partridge',
     commonName: 'Grey Partridge',
     scientificName: 'Perdix perdix',
-    image: 'birds/Grey Partridge.jpeg',
+    image: 'birds/Grey Partridge.webp',
     sections: [
       {
         label: 'Lifespan',
@@ -269,7 +269,7 @@ export const animalData: AnimalDetail[] = [
     id: 'cockatiel',
     commonName: 'Cockatiel',
     scientificName: 'Nymphicus hollandicus',
-    image: 'birds/Cockatiel.jpeg',
+    image: 'birds/Cockatiel.webp',
     sections: [
       {
         label: 'Lifespan',
@@ -314,7 +314,7 @@ export const animalData: AnimalDetail[] = [
     id: 'rose-ringed-parakeet',
     commonName: 'Rose-ringed Parakeet',
     scientificName: 'Psittacula krameri',
-    image: 'birds/Rose-ringed Parakeet.jpeg',
+    image: 'birds/Rose-ringed Parakeet.webp',
     sections: [
       {
         label: 'Lifespan',
@@ -360,7 +360,7 @@ export const animalData: AnimalDetail[] = [
     id: 'alexandrine-parakeet',
     commonName: 'Alexandrine Parakeet',
     scientificName: 'Psittacula eupatria',
-    image: 'birds/Alexandrine Parakeet.jpg',
+    image: 'birds/Alexandrine Parakeet.webp',
     sections: [
       {
         label: 'Lifespan',
@@ -406,7 +406,7 @@ export const animalData: AnimalDetail[] = [
     id: 'budgerigar',
     commonName: 'Budgerigar',
     scientificName: 'Melopsittacus undulatus',
-    image: 'birds/Budgerigar.jpg',
+    image: 'birds/Budgerigar.webp',
     sections: [
       {
         label: 'Lifespan',
@@ -442,7 +442,7 @@ export const animalData: AnimalDetail[] = [
     id: 'spotted-deer',
     commonName: 'Spotted Deer',
     scientificName: 'Axis axis',
-    image: 'Mammals/Spotted Deer.jpeg',
+    image: 'Mammals/Spotted Deer.webp',
     sections: [
       {
         label: 'Life Span',
@@ -476,7 +476,7 @@ export const animalData: AnimalDetail[] = [
     id: 'sambar-deer',
     commonName: 'Sambar Deer',
     scientificName: 'Rusa unicolor',
-    image: 'Mammals/Sambar Deer.jpg',
+    image: 'Mammals/Sambar Deer.webp',
     sections: [
       {
         label: 'Life Span',
@@ -510,7 +510,7 @@ export const animalData: AnimalDetail[] = [
     id: 'bonnet-macaque',
     commonName: 'Bonnet Macaque',
     scientificName: 'Macaca radiata',
-    image: 'Mammals/Bonnet Macaque.jpg',
+    image: 'Mammals/Bonnet Macaque.webp',
     sections: [
       {
         label: 'Life Span',
@@ -545,7 +545,7 @@ export const animalData: AnimalDetail[] = [
     id: 'rhesus-macaque',
     commonName: 'Rhesus Macaque',
     scientificName: 'Macaca mulatta',
-    image: 'Mammals/Rhesus Macaque.jpg',
+    image: 'Mammals/Rhesus Macaque.webp',
     sections: [
       {
         label: 'Life Span',
@@ -580,7 +580,7 @@ export const animalData: AnimalDetail[] = [
     id: 'bengal-fox',
     commonName: 'Bengal Fox',
     scientificName: 'Vulpes bengalensis',
-    image: 'Mammals/Bengal Fox.jpg',
+    image: 'Mammals/Bengal Fox.webp',
     sections: [
       {
         label: 'Life Span',
@@ -615,7 +615,7 @@ export const animalData: AnimalDetail[] = [
     id: 'golden-jackal',
     commonName: 'Golden Jackal',
     scientificName: 'Canis aureus',
-    image: 'Mammals/Golden Jackal.jpg',
+    image: 'Mammals/Golden Jackal.webp',
     sections: [
       {
         label: 'Life Span',
@@ -651,7 +651,7 @@ export const animalData: AnimalDetail[] = [
     id: 'asian-palm-civet',
     commonName: 'Asian Palm Civet',
     scientificName: 'Paradoxurus hermaphroditus',
-    image: 'Mammals/Asian Palm Civet.jpeg',
+    image: 'Mammals/Asian Palm Civet.webp',
     sections: [
       {
         label: 'Life Span',
@@ -687,7 +687,7 @@ export const animalData: AnimalDetail[] = [
     id: 'marsh-crocodile',
     commonName: 'Marsh Crocodile',
     scientificName: 'Crocodylus palustris',
-    image: 'Reptiles/Marsh Crocodile.jpg',
+    image: 'Reptiles/Marsh Crocodile.webp',
     sections: [
       {
         label: 'Life Span',
@@ -722,7 +722,7 @@ export const animalData: AnimalDetail[] = [
     id: 'red-eared-slider',
     commonName: 'Red Eared Slider',
     scientificName: 'Trachemys scripta elegans',
-    image: 'Reptiles/Red Eared Slider.jpg',
+    image: 'Reptiles/Red Eared Slider.webp',
     sections: [
       {
         label: 'Life Span',
@@ -759,7 +759,7 @@ export const animalData: AnimalDetail[] = [
     id: 'indian-star-tortoise',
     commonName: 'Indian Star Tortoise',
     scientificName: 'Geochelone elegans',
-    image: 'Reptiles/Indian Star Tortoise.jpg',
+    image: 'Reptiles/Indian Star Tortoise.webp',
     sections: [
       {
         label: 'Life Span',
@@ -794,7 +794,7 @@ export const animalData: AnimalDetail[] = [
     id: 'rock-python',
     commonName: 'Indian Rock Python',
     scientificName: 'Python molurus',
-    image: 'Reptiles/Indian Rock Python.jpg',
+    image: 'Reptiles/Indian Rock Python.webp',
     sections: [
       {
         label: 'Life Span',

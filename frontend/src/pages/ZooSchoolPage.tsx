@@ -1,4 +1,4 @@
-import aboutParkImage from '@/assets/images/about_park.jpg'
+import aboutParkImage from '@/assets/images/heroslide1.webp'
 
 export function ZooSchoolPage() {
   return (
@@ -9,7 +9,9 @@ export function ZooSchoolPage() {
             src={aboutParkImage}
             alt="Sunlit canopy welcoming learners"
             className="h-full w-full object-cover opacity-35"
-            loading="lazy"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-forest-green/45 via-forest-green/20 to-soft-bg/70" />
         </div>

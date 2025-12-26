@@ -30,8 +30,8 @@ export const navItems: NavItem[] = [
     path: '/tariff',
     labels: { en: 'Tariff', ta: 'கட்டணங்கள்' },
     children: [
-      { path: '/tariff', labels: { en: 'Zoo Tariff', ta: 'ஜூ கட்டணங்கள்' } },
-      { path: '/tickets/zoo', labels: { en: 'Book Zoo Tickets', ta: 'ஜூ டிக்கெட்டுகள்' } },
+      { path: '/tariff', labels: { en: 'Zoo Tariff', ta: 'பூங்கா கட்டணங்கள்' } },
+      { path: '/tickets/zoo', labels: { en: 'Book Zoo Tickets', ta: 'பூங்கா  டிக்கெட்டுகள்' } },
       { path: '/adoption', labels: { en: 'Wild Animal Adoption', ta: 'வன விலங்கு தத்தெடுதல்' } },
     ],
   },

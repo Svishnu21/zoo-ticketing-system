@@ -7,12 +7,19 @@ import type { AnimalDetail } from '@/data/animalData'
 import { animalData } from '@/data/animalData'
 
 // Load all images from the assets folder so we can resolve image filenames stored in data
-const imageModules = import.meta.glob('/src/assets/images/**/*.{jpg,jpeg,png}', { eager: true, as: 'url' }) as Record<string, string>
+const imageModules = import.meta.glob('/src/assets/images/**/*.{jpg,jpeg,png,webp}', {
+  eager: true,
+  as: 'url',
+}) as Record<string, string>
 
 function resolveImage(filename?: string) {
   if (!filename) return ''
   const candidate = `/src/assets/images/${filename}`
   if (imageModules[candidate]) return imageModules[candidate]
+
+  const withWebp = candidate.replace(/\.(jpe?g|png)$/i, '.webp')
+  if (imageModules[withWebp]) return imageModules[withWebp]
+
   // fallback: try lowercase or simple variants
   const lower = filename.toLowerCase()
   const found = Object.keys(imageModules).find((p) => p.toLowerCase().endsWith(lower))
@@ -85,7 +92,13 @@ function AnimalCard({ id, name, scientific, Icon, onViewDetails, image }: Animal
       <div className="relative h-48 w-full overflow-hidden bg-white rounded-t-[10px]">
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={image} alt={name} className="w-full h-full object-cover rounded-t-[10px]" />
+          <img
+            src={image}
+            alt={name}
+            className="w-full h-full object-cover rounded-t-[10px]"
+            loading="lazy"
+            decoding="async"
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <Icon className="h-12 w-12 text-forest-green/80 transition duration-300 ease-smooth group-hover:scale-110" />
@@ -153,10 +166,13 @@ export function AnimalInfoPage() {
   return (
     <div className="page-enter space-y-16 bg-white pb-28">
       <section className="relative isolate overflow-hidden bg-forest-green">
-        <div className="container py-16">
+        <div className="container py-16 flex items-center justify-center">
           <div className="mx-auto max-w-3xl space-y-4 text-center">
             <h1 className="serif-heading text-4xl font-black text-[#FACC15] mx-auto">Wild Animals</h1>
             <p className="text-base font-medium text-white md:text-lg">Meet the wild residents of the park</p>
+            <p className="mt-2 max-w-2xl text-sm text-white/90 mx-auto">
+              Concise species profiles, habitat notes, and conservation highlights quick facts to enrich your visit.
+            </p>
           </div>
         </div>
       </section>
@@ -245,7 +261,13 @@ function AnimalDetailModal({ animal, imageUrl, onClose }: AnimalDetailModalProps
               <div className="animal-portrait mt-3 h-[320px] w-full overflow-hidden rounded-[10px] bg-white/70 text-center text-lg font-semibold text-forest-green/70">
                   {imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={imageUrl} alt={animal.commonName} className="w-full h-full object-cover" />
+                    <img
+                      src={imageUrl}
+                      alt={animal.commonName}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
                   ) : (
                     'Image placeholder'
                   )}

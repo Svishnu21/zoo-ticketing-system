@@ -28,6 +28,7 @@ export function ZooChartPage() {
             alt={language === 'en' ? 'Kurumbapatti Zoo organisational chart' : 'குரும்பட்டி பூங்கா அமைப்பு வரைபடம்'}
             className="w-full rounded-2xl object-cover"
             loading="lazy"
+            decoding="async"
           />
         </div>
 

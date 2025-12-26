@@ -1,4 +1,4 @@
-import aboutParkImage from '@/assets/images/about_park.jpg'
+import aboutParkImage from '@/assets/images/heroslide1.webp'
 import { Button } from '@/components/ui/Button'
 
 export function AnnualReportsPage() {
@@ -10,7 +10,9 @@ export function AnnualReportsPage() {
             src={aboutParkImage}
             alt="Sunlight filtering through lush leaves"
             className="h-full w-full object-cover opacity-30"
-            loading="lazy"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-forest-green/45 via-forest-green/25 to-soft-bg/70" />
         </div>

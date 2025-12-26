@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/Button'
 import { HeroSlider } from '@/components/hero/HeroSlider'
 import { welcomeContent } from '@/data/content'
 import { useLanguage } from '@/providers/LanguageProvider'
-import mammalsImage from '@/assets/images/animals.jpg'
-import aquariumImage from '@/assets/images/aquarium.jpg'
-import birdsImage from '@/assets/images/birds.jpg'
-import butterflyImage from '@/assets/images/butterfly park.jpeg'
-import visitIllustration from '@/assets/images/visit us.jpg'
+import mammalsImage from '@/assets/images/animals.webp'
+import aquariumImage from '@/assets/images/aquarium.webp'
+import birdsImage from '@/assets/images/birds.webp'
+import butterflyImage from '@/assets/images/butterfly park.webp'
+import visitIllustration from '@/assets/images/visit us.webp'
 
 export function HomePage() {
   const { language } = useLanguage()
@@ -154,6 +154,7 @@ export function HomePage() {
                     alt={`${card.title.en} | ${card.title.ta}`}
                     className="h-full w-full transform rounded-2xl object-cover transition duration-500 ease-smooth group-hover:scale-110"
                     loading="lazy"
+                    decoding="async"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                   <figcaption className="absolute bottom-0 left-0 w-full space-y-4 p-6">
@@ -196,6 +197,7 @@ export function HomePage() {
                 alt={language === 'en' ? 'Friendly park illustration' : 'அன்பான பூங்கா விளக்கப்படம்'}
                 className="h-full w-full rounded-2xl object-cover"
                 loading="lazy"
+                decoding="async"
               />
             </div>
             <div className="flex flex-col justify-center">

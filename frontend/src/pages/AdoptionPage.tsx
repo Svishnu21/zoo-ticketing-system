@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-import aboutParkImage from '@/assets/images/about_park.jpg'
+import aboutParkImage from '@/assets/images/heroslide1.webp'
 import { Button } from '@/components/ui/Button'
 
 export function AdoptionPage() {
@@ -12,7 +12,9 @@ export function AdoptionPage() {
             src={aboutParkImage}
             alt="Leafy canopy welcoming visitors"
             className="h-full w-full object-cover opacity-35"
-            loading="lazy"
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-forest-green/40 via-forest-green/20 to-soft-bg/70" />
         </div>
@@ -59,7 +61,7 @@ export function AdoptionPage() {
 
               <h2 className="text-3xl font-bold text-forest-green md:text-4xl">Offline Adoption</h2>
               <p>
-                For offline adoption programmes, adopters need to take a DD/Cheque in favour of "The Member Secretary, Zoo Authority of Tamil Nadu" and send with a covering letter addressed to the "District Forest Officer, Salem Division, Kurumbapatti Zoological Park, Salem - 636012".
+                For offline adoption programmes, adopters need to take a DD/Cheque in favour of "The Member Secretary, Zoo Authority of Tamil Nadu" and send with a covering letter addressed to the "District Forest Officer, Salem Division, Kurumbapatti Zoological Park, Salem - 636008".
               </p>
             </div>
           </div>

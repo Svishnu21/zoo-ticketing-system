@@ -16,7 +16,13 @@ export function SafariPage() {
 
         <div className="grid items-center gap-12 md:grid-cols-2">
           <div className="overflow-hidden rounded-2xl shadow-lg transition-transform duration-300 ease-smooth hover:scale-105 hover:shadow-2xl">
-            <img src={safariContent.image} alt={safariContent.heading[language]} className="w-full rounded-2xl object-cover" />
+            <img
+              src={safariContent.image}
+              alt={safariContent.heading[language]}
+              className="w-full rounded-2xl object-cover"
+              loading="lazy"
+              decoding="async"
+            />
           </div>
           <div className="space-y-6">
             <h2 className="text-3xl font-bold text-forest-green">{safariContent.heading[language]}</h2>

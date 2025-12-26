@@ -1,6 +1,6 @@
-import butterflyOne from '@/assets/images/butterfly1.jpg'
-import butterflyTwo from '@/assets/images/butterfly2.jpeg'
-import ourAnimalsBanner from '@/assets/images/our_animals_banner.jpg'
+import butterflyOne from '@/assets/images/butterfly park.webp'
+import butterflyTwo from '@/assets/images/birds.webp'
+import ourAnimalsBanner from '@/assets/images/animals.webp'
 import { animals } from '@/data/content'
 import { useLanguage } from '@/providers/LanguageProvider'
 

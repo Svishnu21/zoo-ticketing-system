@@ -44,7 +44,7 @@ const addOnCategoryLabels: Record<AddOnCategory, LocalizedText> = {
 const addOnCategoryOrder: AddOnCategory[] = ['parking', 'transport', 'camera']
 
 const formatCurrency = (value: number) =>
-  `₹ ${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  `₹ ${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 
 const getTariffPrice = (id: string): number => {
   const match = tariffItems.find((item) => item.id === id)
@@ -115,8 +115,8 @@ const addOnOptions: AddOnOption[] = [
   {
     id: 'parkingHMV',
     label: {
-      en: 'Parking - 6 Wheeler (HMV)',
-      ta: 'நிறுத்தம் - 6 சக்கர (HMV)',
+      en: 'Parking - 4 Wheeler (HMV)',
+      ta: 'நிறுத்தம் - 4 சக்கர (HMV)',
     },
     price: getTariffPrice('parkingHMV'),
     category: 'parking',
@@ -142,8 +142,8 @@ const addOnOptions: AddOnOption[] = [
   {
     id: 'batteryChild',
     label: {
-      en: 'Battery Vehicle - Child',
-      ta: 'மின்வாகனம் - குழந்தை',
+      en: 'Battery Vehicle - Child (5-12 yrs)',
+      ta: 'மின்வாகனம் - குழந்தை (5-12)',
     },
     price: getTariffPrice('batteryChild'),
     category: 'transport',
@@ -187,7 +187,10 @@ export function ZooTicketSelectionPage() {
     )
     return ticketTotal + addOnTotal
   }, [selectedTickets, addOnQuantities])
-  const formattedTotal = useMemo(() => totalAmount.toLocaleString('en-IN'), [totalAmount])
+  const formattedTotal = useMemo(
+    () => totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
+    [totalAmount],
+  )
 
   const dateOptions = useMemo(() => {
     const today = new Date()
