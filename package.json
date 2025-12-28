@@ -4,9 +4,21 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npm --prefix frontend run dev",
+    "dev": "npm run dev:info && concurrently \"npm run server\" \"npm --prefix frontend run dev\"",
+    "dev:info": "echo Starting backend and frontend together (concurrently)",
     "build": "npm --prefix frontend run build",
     "start": "npm --prefix frontend run start",
+    "server": "node backend/server.js",
     "install:frontend": "npm --prefix frontend install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "mongoose": "^9.0.2",
+    "qrcode": "^1.5.3"
   }
 }

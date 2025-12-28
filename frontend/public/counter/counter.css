@@ -191,6 +191,11 @@ body.counter-body {
 .pay-modes input { width: 9rem; }
 .pay-modes input[type='text'] { width: 14rem; }
 
+.pay-mode-block { display: flex; flex-direction: column; gap: 0.4rem; margin: 0.4rem 0; }
+.mode-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.btn.pill { border-radius: 999px; padding: 0.55rem 1rem; }
+.btn.pill.active { background: var(--primary); color: #fff; border-color: rgba(15, 61, 145, 0.4); box-shadow: 0 8px 16px rgba(15, 61, 145, 0.18); }
+
 .actions {
   display: flex;
   gap: 0.75rem;
@@ -274,6 +279,58 @@ body.counter-body {
   font-weight: 700;
   background: #fff;
   font-size: 0.9rem;
+}
+.qr-box img { width: 100%; height: 100%; object-fit: contain; }
+
+/* Printable ticket style (matches online success page) */
+.ticket-print {
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  border: 1px solid #000;
+  padding: 12px;
+  line-height: 1.35;
+  background: #fff;
+  margin-bottom: 0;
+  font-family: "Courier New", Consolas, Monaco, Menlo, monospace;
+  color: #000;
+}
+
+.ticket-print .header { text-align: center; }
+.ticket-print .gov { font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.ticket-print .zoo { margin: 2px 0; font-weight: 700; font-size: 1rem; }
+.ticket-print .title { margin: 0; font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.08em; }
+
+.ticket-print .divider { border-top: 1px dashed #000; margin: 8px 0; }
+.ticket-print .meta { display: grid; gap: 4px; font-size: 0.92rem; }
+.ticket-print .meta-row { display: flex; justify-content: space-between; }
+.ticket-print .meta-label { text-transform: uppercase; letter-spacing: 0.04em; }
+.ticket-print .meta-value { font-weight: 700; }
+
+.ticket-print table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin-top: 6px; font-family: inherit; font-variant-numeric: tabular-nums; }
+.ticket-print th,
+.ticket-print td { padding: 4px 0; text-align: left; border-bottom: 1px dashed #000; }
+.ticket-print th { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.ticket-print td.qty,
+.ticket-print td.price,
+.ticket-print td.amount { text-align: right; }
+.ticket-print tbody tr:last-child td { border-bottom: 1px solid #000; }
+
+.ticket-print .total { display: flex; justify-content: space-between; font-weight: 700; margin-top: 6px; padding-top: 6px; border-top: 2px solid #000; }
+
+.ticket-print .qr-block { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 10px 0 4px; }
+.ticket-print .qr-label { font-weight: 700; }
+.ticket-print .qr-box { width: 140px; height: 140px; border: 1px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 700; text-align: center; }
+
+.ticket-print .notes { width: 100%; font-size: 0.9rem; margin: 6px 0 0; padding: 0; list-style: none; }
+.ticket-print .notes li { margin: 2px 0; }
+
+.ticket-print .footer { text-align: center; font-size: 0.9rem; margin-top: 6px; line-height: 1.3; color: #000; }
+
+@media print {
+  body.counter-body { background: #fff; padding: 0; }
+  .grid, .panel { box-shadow: none !important; }
+  .ticket-print { width: 80mm; max-width: 80mm; border: 1px solid #000; margin: 0 auto; }
+  .actions, .topbar, .pay-panel, .history-panel, .table-row.header, .category-row, .table-row { display: none !important; }
 }
 
 .history-panel { display: flex; flex-direction: column; gap: 1.2rem; }

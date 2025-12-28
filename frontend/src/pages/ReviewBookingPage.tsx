@@ -15,7 +15,7 @@ interface ReviewBookingStateItem {
 }
 
 interface ReviewBookingState {
-  ticketTypeId: 'zoo' | 'parking' | 'aquarium' | 'safari'
+  ticketTypeId: 'zoo' | 'parking' | 'safari'
   totalAmount: number
   formattedTotal?: string
   selectedDateLabel?: string
@@ -26,9 +26,11 @@ interface ReviewBookingState {
 const ticketTypeLabels: Record<ReviewBookingState['ticketTypeId'], { en: string; ta: string }> = {
   zoo: { en: 'Zoo', ta: 'ஜூ' },
   parking: { en: 'Parking', ta: 'நிறுத்துமிடம்' },
-  aquarium: { en: 'Aquarium', ta: 'ஆக்வேரியம்' },
   safari: { en: 'Safari', ta: 'சஃபாரி' },
 }
+
+const apiBase = '' // Use relative paths; Vite proxy handles backend routing in dev
+const defaultPaymentMode = import.meta.env.VITE_DEFAULT_PAYMENT_MODE ?? 'online'
 
 export function ReviewBookingPage() {
   const { language } = useLanguage()
@@ -72,6 +74,7 @@ export function ReviewBookingPage() {
   const [timeLeft, setTimeLeft] = useState(0)
   const [isGenerateDisabled, setIsGenerateDisabled] = useState(false)
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
+  const [isSubmittingBooking, setIsSubmittingBooking] = useState(false)
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false)
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false)
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false)
@@ -228,12 +231,70 @@ export function ReviewBookingPage() {
   }
 
   const handleProceedToPayment = () => {
-    if (!hasAcceptedTerms) {
+    if (!hasAcceptedTerms || isSubmittingBooking) {
       return
     }
 
-    setIsConfirmationOpen(false)
-    window.location.href = '/payment.html'
+    const visitDate = state.selectedDateKey
+    if (!visitDate) {
+      setSubmissionStatus('error')
+      setSubmissionMessage(
+        language === 'en' ? 'Select a visit date before proceeding.' : 'தொடருவதற்கு முன் வருகை தேதியைத் தேர்ந்தெடுக்கவும்.',
+      )
+      return
+    }
+
+    const payload = {
+      visitDate,
+      paymentMode: defaultPaymentMode,
+      paymentStatus: 'PAID',
+      items: summaryItems.map((item) => ({
+        itemCode: item.id,
+        itemLabel: item.label,
+        quantity: item.quantity,
+      })),
+      visitorName: visitorName.trim(),
+      visitorEmail: visitorEmail.trim(),
+      visitorMobile: visitorMobile.trim(),
+    }
+
+    setIsSubmittingBooking(true)
+    setSubmissionStatus('verifying')
+    setSubmissionMessage(language === 'en' ? 'Confirming your booking…' : 'உங்கள் முன்பதிவை உறுதிப்படுத்துகிறது…')
+
+    fetch(`${apiBase}/api/bookings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok || data?.success !== true) {
+          const message = data?.message || (language === 'en' ? 'Unable to create booking.' : 'முன்பதிவை உருவாக்க முடியவில்லை.')
+          console.error('Booking failed:', message, data)
+          throw new Error(message)
+        }
+        // Always redirect with the ticketId returned by the backend; clients must never invent or reuse IDs
+        const ticketId = data?.ticketId
+        if (!ticketId) {
+          throw new Error(language === 'en' ? 'Ticket ID missing in response.' : 'பதில்-இல் Ticket ID இல்லை.')
+        }
+        // Persist the latest ticketId for any legacy flows that may need it (e.g., static payment redirect)
+        sessionStorage.setItem('latestTicketId', ticketId)
+        setSubmissionStatus('success')
+        setSubmissionMessage(language === 'en' ? 'Booking confirmed.' : 'முன்பதிவு உறுதிப்படுத்தப்பட்டது.')
+        setIsConfirmationOpen(false)
+        window.location.href = `/success.html?ticketId=${encodeURIComponent(ticketId)}`
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : language === 'en' ? 'Booking failed.' : 'முன்பதிவு தோல்வியடைந்தது.'
+        setSubmissionStatus('error')
+        setSubmissionMessage(message)
+      })
+      .finally(() => {
+        setIsSubmittingBooking(false)
+        setIsVerifyingOtp(false)
+      })
   }
 
   return (

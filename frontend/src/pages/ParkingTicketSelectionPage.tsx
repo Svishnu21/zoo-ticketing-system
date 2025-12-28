@@ -23,7 +23,7 @@ const getTariffPrice = (id: string): number => {
 
 const parkingOptions: ParkingOption[] = [
   {
-    id: 'parkingLMV',
+    id: 'parking_4w_lmv',
     label: {
       en: '4 Wheeler (LMV)',
       ta: '4 சக்கர (LMV)',
@@ -32,10 +32,10 @@ const parkingOptions: ParkingOption[] = [
       en: 'Standard parking for light motor vehicles',
       ta: 'ஒளி வாகனங்களுக்கு சாதாரண நிறுத்துமிடம்',
     },
-    price: getTariffPrice('parkingLMV'),
+    price: getTariffPrice('parking_4w_lmv'),
   },
   {
-    id: 'parkingHMV',
+    id: 'parking_4w_hmv',
     label: {
       en: '4 Wheeler (HMV)',
       ta: '4 சக்கர (HMV)',
@@ -44,10 +44,10 @@ const parkingOptions: ParkingOption[] = [
       en: 'Dedicated bays for heavy motor vehicles',
       ta: 'கனரக வாகனங்களுக்கு ஒதுக்கப்பட்ட நிறுத்துமிடம்',
     },
-    price: getTariffPrice('parkingHMV'),
+    price: getTariffPrice('parking_4w_hmv'),
   },
   {
-    id: 'parkingTwoThree',
+    id: 'parking_2w_3w',
     label: {
       en: '2 & 3 Wheeler',
       ta: '2 & 3 சக்கர',
@@ -56,7 +56,7 @@ const parkingOptions: ParkingOption[] = [
       en: 'Covered parking for two and three wheelers',
       ta: '2 மற்றும் 3 சக்கர வாகனங்களுக்கு பாதுகாப்பான நிறுத்தம்',
     },
-    price: getTariffPrice('parkingTwoThree'),
+    price: getTariffPrice('parking_2w_3w'),
   },
 ]
 

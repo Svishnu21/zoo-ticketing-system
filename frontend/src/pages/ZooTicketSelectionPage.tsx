@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { MAX_QTY_PER_ITEM } from '@/constants/limits'
 import { ArrowLeft, Megaphone } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -53,7 +54,7 @@ const getTariffPrice = (id: string): number => {
 
 const zooTicketOptions: ZooTicketOption[] = [
   {
-    id: 'adultEntry',
+    id: 'zoo_adult',
     label: {
       en: 'Adult',
       ta: 'பெரியவர்',
@@ -62,10 +63,10 @@ const zooTicketOptions: ZooTicketOption[] = [
       en: 'Adult (12 years and above)',
       ta: 'பெரியவர் (12 வயது மற்றும் அதற்கு மேல்)',
     },
-    price: getTariffPrice('adultEntry'),
+    price: getTariffPrice('zoo_adult'),
   },
   {
-    id: 'childEntry',
+    id: 'zoo_child',
     label: {
       en: 'Child',
       ta: 'குழந்தை',
@@ -74,10 +75,10 @@ const zooTicketOptions: ZooTicketOption[] = [
       en: 'Child (5 – 12 years)',
       ta: 'குழந்தை (5 – 12 வயது)',
     },
-    price: getTariffPrice('childEntry'),
+    price: getTariffPrice('zoo_child'),
   },
   {
-    id: 'differentlyAbled',
+    id: 'zoo_differently_abled',
     label: {
       en: 'Differently Abled',
       ta: 'விதிவிலக்கானவர்கள்',
@@ -89,7 +90,7 @@ const zooTicketOptions: ZooTicketOption[] = [
     price: 0,
   },
   {
-    id: 'childBelow5',
+    id: 'zoo_child_free',
     label: {
       en: 'Children (below 5)',
       ta: '5-க்கு கீழ் குழந்தைகள்',
@@ -104,57 +105,57 @@ const zooTicketOptions: ZooTicketOption[] = [
 
 const addOnOptions: AddOnOption[] = [
   {
-    id: 'parkingLMV',
+    id: 'parking_4w_lmv',
     label: {
       en: 'Parking - 4 Wheeler (LMV)',
       ta: 'நிறுத்தம் - 4 சக்கர (LMV)',
     },
-    price: getTariffPrice('parkingLMV'),
+    price: getTariffPrice('parking_4w_lmv'),
     category: 'parking',
   },
   {
-    id: 'parkingHMV',
+    id: 'parking_4w_hmv',
     label: {
       en: 'Parking - 4 Wheeler (HMV)',
       ta: 'நிறுத்தம் - 4 சக்கர (HMV)',
     },
-    price: getTariffPrice('parkingHMV'),
+    price: getTariffPrice('parking_4w_hmv'),
     category: 'parking',
   },
   {
-    id: 'parkingTwoThree',
+    id: 'parking_2w_3w',
     label: {
       en: 'Parking - 2 & 3 Wheeler',
       ta: 'நிறுத்தம் - 2 & 3 சக்கர',
     },
-    price: getTariffPrice('parkingTwoThree'),
+    price: getTariffPrice('parking_2w_3w'),
     category: 'parking',
   },
   {
-    id: 'batteryAdult',
+    id: 'battery_vehicle_adult',
     label: {
       en: 'Battery Vehicle - Adult',
       ta: 'மின்வாகனம் - பெரியவர்',
     },
-    price: getTariffPrice('batteryAdult'),
+    price: getTariffPrice('battery_vehicle_adult'),
     category: 'transport',
   },
   {
-    id: 'batteryChild',
+    id: 'battery_vehicle_child',
     label: {
       en: 'Battery Vehicle - Child (5-12 yrs)',
       ta: 'மின்வாகனம் - குழந்தை (5-12)',
     },
-    price: getTariffPrice('batteryChild'),
+    price: getTariffPrice('battery_vehicle_child'),
     category: 'transport',
   },
   {
-    id: 'videoCamera',
+    id: 'camera_video',
     label: {
       en: 'Video Camera',
       ta: 'வீடியோ கேமரா',
     },
-    price: getTariffPrice('videoCamera'),
+    price: getTariffPrice('camera_video'),
     category: 'camera',
   },
 ]
@@ -239,7 +240,11 @@ export function ZooTicketSelectionPage() {
   )
 
   const updateTicketQuantity = useCallback((id: string, quantity: number) => {
-    const sanitized = Number.isNaN(quantity) ? 0 : Math.max(0, quantity)
+    let sanitized = Number.isNaN(quantity) ? 0 : Math.max(0, quantity)
+    if (sanitized > MAX_QTY_PER_ITEM) {
+      sanitized = MAX_QTY_PER_ITEM
+      window.alert(`Maximum allowed quantity per ticket type is ${MAX_QTY_PER_ITEM}.`)
+    }
     setSelectedTickets((prev) => {
       if (sanitized <= 0) {
         if (!(id in prev)) {
@@ -272,7 +277,11 @@ export function ZooTicketSelectionPage() {
   )
 
   const updateAddOnQuantity = useCallback((id: string, quantity: number) => {
-    const sanitized = Number.isNaN(quantity) ? 0 : Math.max(0, quantity)
+    let sanitized = Number.isNaN(quantity) ? 0 : Math.max(0, quantity)
+    if (sanitized > MAX_QTY_PER_ITEM) {
+      sanitized = MAX_QTY_PER_ITEM
+      window.alert(`Maximum allowed quantity per ticket type is ${MAX_QTY_PER_ITEM}.`)
+    }
     setAddOnQuantities((prev) => {
       if (sanitized <= 0) {
         if (!(id in prev)) {

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kurumbapatti Zoological Park — Printable Ticket (Counter)</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: #fff;
+        color: #000;
+        font-family: "Courier New", Consolas, Monaco, Menlo, monospace;
+        display: flex;
+        justify-content: center;
+      }
+
+      main {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 16px 0;
+        gap: 12px;
+      }
+
+      .ticket {
+        width: 340px;
+        max-width: calc(100vw - 24px);
+        border: 1px solid #000;
+        padding: 12px;
+        line-height: 1.35;
+        page-break-inside: avoid;
+        background: #fff;
+        margin-bottom: 0;
+      }
+
+      .header { text-align: center; }
+      .header .gov { font-size: 0.82rem; letter-spacing: 0.08em; text-transform: uppercase; }
+      .header .zoo { margin: 2px 0; font-weight: 700; font-size: 1rem; }
+      .header .title { margin: 0; font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.08em; }
+
+      .divider { border-top: 1px dashed #000; margin: 8px 0; }
+
+      .meta { display: grid; gap: 4px; font-size: 0.92rem; }
+      .meta-row { display: flex; justify-content: space-between; }
+      .meta-label { text-transform: uppercase; letter-spacing: 0.04em; }
+      .meta-value { font-weight: 700; }
+
+      table { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin-top: 6px; font-family: inherit; font-variant-numeric: tabular-nums; }
+      th, td { padding: 4px 0; text-align: left; border-bottom: 1px dashed #000; }
+      th { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; }
+      td.qty, td.price, td.amount { text-align: right; }
+      tbody tr:last-child td { border-bottom: 1px solid #000; }
+
+      .total { display: flex; justify-content: space-between; font-weight: 700; margin-top: 6px; padding-top: 6px; border-top: 2px solid #000; }
+
+      .qr-block { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 10px 0 4px; }
+      .qr-label { font-weight: 700; }
+      .qr-box { width: 140px; height: 140px; border: 1px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 700; text-align: center; }
+
+      .notes { width: 100%; font-size: 0.9rem; margin: 6px 0 0; padding: 0; list-style: none; }
+      .notes li { margin: 2px 0; }
+
+      .footer { text-align: center; font-size: 0.9rem; margin-top: 6px; line-height: 1.3; }
+
+      .actions { display: flex; gap: 8px; justify-content: center; margin-top: 0; }
+      .btn { border: 1px solid #000; background: #fff; padding: 8px 10px; font-weight: 700; font-family: inherit; cursor: pointer; text-decoration: none; color: #000; }
+      .btn:focus-visible { outline: 2px solid #000; outline-offset: 2px; }
+      .btn-print { background: #16a34a; border-color: #16a34a; color: #fff; }
+      .btn-print:hover { background: #15803d; border-color: #15803d; }
+      .btn-home { background: #dc2626; border-color: #dc2626; color: #fff; }
+      .btn-home:hover { background: #b91c1c; border-color: #b91c1c; }
+/* =========================
+   PRINT – THERMAL ONLY
+========================= */
+      @media print {
+        /* Hide EVERYTHING */
+        body * { visibility: hidden; }
+
+        /* Show only ticket */
+        #print-area, #print-area * { visibility: visible; }
+
+        /* Position ticket properly */
+        #print-area {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 58mm; /* change to 80mm if printer supports */
+          margin: 0;
+          padding: 0;
+          page-break-inside: avoid;
+        }
+
+        /* Remove browser margins */
+        @page { size: 58mm auto; margin: 0; }
+
+        /* Hide buttons */
+        .no-print { display: none !important; }
+      }
+    </style>
+    <script type="module" src="/successcounter.js"></script>
+  </head>
+  <body>
+    <main>
+      <div id="print-area">
+        <article class="ticket" aria-label="Kurumbapatti Zoological Park Ticket">
+          <header class="header">
+            <div class="gov">Government of Tamil Nadu</div>
+            <div class="zoo">Kurumbapatti Zoological Park, Salem</div>
+            <div class="title">Zoo Ticket</div>
+          </header>
+
+          <div class="divider"></div>
+
+          <section class="meta" aria-label="Ticket identifiers">
+            <div class="meta-row"><span class="meta-label">Ticket ID</span><span class="meta-value" id="ticketId">—</span></div>
+            <div class="meta-row"><span class="meta-label">Ticket Source</span><span class="meta-value" id="ticketSource">COUNTER</span></div>
+            <div class="meta-row"><span class="meta-label">Visit Date</span><span class="meta-value" id="visitDate">—</span></div>
+            <div class="meta-row"><span class="meta-label">Issue Date & Time</span><span class="meta-value" id="issueDate">—</span></div>
+            <div class="meta-row"><span class="meta-label">Payment Mode</span><span class="meta-value" id="paymentMode">—</span></div>
+          </section>
+
+          <div class="divider"></div>
+
+          <section aria-label="Ticket breakdown">
+            <table>
+              <thead>
+                <tr><th>Category</th><th class="qty">Qty</th><th class="price">Price</th><th class="amount">Amount</th></tr>
+              </thead>
+              <tbody id="ticketItems">
+                <tr><td colspan="4">Loading…</td></tr>
+              </tbody>
+            </table>
+            <div class="total"><span>Total Amount Paid</span><span id="totalAmount">—</span></div>
+          </section>
+
+          <div class="divider"></div>
+
+          <section class="qr-block" aria-label="QR and entry notes">
+            <div class="qr-label">Ticket Type</div>
+            <div class="qr-box" aria-label="QR code placeholder"><img id="qrImage" alt="QR code" style="width: 140px; height: 140px; object-fit: contain;" /></div>
+            <ul class="notes">
+              <li>Single entry only.</li>
+              <li>Entry timings: 09:00 AM – 05:00 PM.</li>
+              <li>Closed on Tuesdays (weekly holiday).</li>
+              <li>Keep this ticket until you exit the park.</li>
+            </ul>
+          </section>
+
+          <div class="footer">
+            <div>Scan this QR code at the entry gate.</div>
+            <div>Ticket once used is invalid for re-entry.</div>
+          </div>
+        </article>
+      </div>
+
+      <div class="actions no-print">
+        <button class="btn btn-print" type="button" onclick="window.print()">Print Ticket</button>
+        <a class="btn btn-home" href="/counter/issue.html">Back to Counter</a>
+      </div>
+      <div id="errorMessage" class="no-print" role="alert" style="color: #b91c1c; font-weight: 700; text-align: center;"></div>
+    </main>
+  </body>
+</html>

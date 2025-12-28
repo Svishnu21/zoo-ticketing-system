@@ -28,11 +28,15 @@ Production-ready React + Vite build for the Kurumbapatti Zoological Park. The si
 # Install dependencies
 npm install
 
-# Start development server
+# Start full-stack dev (frontend + backend via proxy). Vite runs at localhost:5173 and proxies /api, /qr, /scanner to the backend (default 5000, override BACKEND_PORT).
 npm run dev
 
-# Start booking API server (requires .env configuration)
+# Start booking API server only (requires .env configuration)
 npm run server
+
+# Notes on validation & payload ownership
+# - Frontend sends minimal item data (code/name/qty); backend owns pricing and caps quantities at 100 per item.
+# - OTP and payment flows are static in dev; backend remains the authority for totals and ticket issuance.
 
 # Lint source
 npm run lint
@@ -88,5 +92,17 @@ npm run preview
 3. Run `npm run server` to start the Express + Mongoose API. You should see a confirmation message once the connection succeeds.
 4. While developing, the front-end posts to `http://localhost:5000/api/bookings`. Override this by defining `VITE_API_BASE_URL` in a Vite environment file if you deploy the backend elsewhere.
 5. When visitors complete OTP verification on the Review Booking page, their booking summary, visitor details, submitted OTP, and total are persisted to the configured MongoDB collection.
+
+### Backend endpoints
+
+- POST /api/bookings – Creates a booking, recalculates totals from the server-side tariff list, issues a secure QR token (random only; no ticket details inside), and returns booking + payment metadata.
+- GET /api/bookings/:id – Returns a booking summary (by MongoDB id or ticketId) without exposing the QR token hash.
+- POST /api/scanner/validate – Gate-side validator that accepts a QR token, enforces same-day entry, and atomically marks the token as used to block replays.
+
+### Seeding pricing
+
+- Add your pricing rows to `seeds/ticketPricing.json`.
+- Run `node scripts/seed-ticket-pricing.mjs` (requires MONGODB_URI in `.env`).
+- Booking calls always reload pricing from the database—no code defaults are used at runtime.
 
 Enjoy building with the Kurumbapatti Zoological Park experience! If you need additional integrations or API wiring, feel free to extend the components above.

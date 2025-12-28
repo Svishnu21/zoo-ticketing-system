@@ -82,6 +82,7 @@
         .actions { display: none; }
       }
     </style>
+    <script type="module" src="/js/success.js"></script>
   </head>
   <body>
     <main>
@@ -95,11 +96,11 @@
         <div class="divider"></div>
 
         <section class="meta" aria-label="Ticket identifiers">
-          <div class="meta-row"><span class="meta-label">Ticket ID</span><span class="meta-value">KPZ-2025-784231</span></div>
+          <div class="meta-row"><span class="meta-label">Ticket ID</span><span class="meta-value" id="ticketId">—</span></div>
           <div class="meta-row"><span class="meta-label">Ticket Source</span><span class="meta-value">ONLINE</span></div>
-          <div class="meta-row"><span class="meta-label">Visit Date</span><span class="meta-value">28 Dec 2025</span></div>
-          <div class="meta-row"><span class="meta-label">Issue Date & Time</span><span class="meta-value">18 Dec 2025, 10:24 AM</span></div>
-          <div class="meta-row"><span class="meta-label">Payment Mode</span><span class="meta-value">UPI</span></div>
+          <div class="meta-row"><span class="meta-label">Visit Date</span><span class="meta-value" id="visitDate">—</span></div>
+          <div class="meta-row"><span class="meta-label">Issue Date & Time</span><span class="meta-value" id="issueDate">—</span></div>
+          <div class="meta-row"><span class="meta-label">Payment Mode</span><span class="meta-value" id="paymentMode">—</span></div>
         </section>
 
         <div class="divider"></div>
@@ -109,21 +110,18 @@
             <thead>
               <tr><th>Category</th><th class="qty">Qty</th><th class="price">Price</th><th class="amount">Amount</th></tr>
             </thead>
-            <tbody>
-              <tr><td>Entry - Adult</td><td class="qty">2</td><td class="price">50.00</td><td class="amount">100.00</td></tr>
-              <tr><td>Entry - Child (5-12)</td><td class="qty">1</td><td class="price">10.00</td><td class="amount">10.00</td></tr>
-              <tr><td>Parking - 4 Wheeler (LMV)</td><td class="qty">1</td><td class="price">50.00</td><td class="amount">50.00</td></tr>
-              <tr><td>Video Camera</td><td class="qty">1</td><td class="price">150.00</td><td class="amount">150.00</td></tr>
+            <tbody id="ticketItems">
+              <tr><td colspan="4">Loading…</td></tr>
             </tbody>
           </table>
-          <div class="total"><span>Total Amount Paid</span><span>INR 310.00</span></div>
+          <div class="total"><span>Total Amount Paid</span><span id="totalAmount">—</span></div>
         </section>
 
         <div class="divider"></div>
 
         <section class="qr-block" aria-label="QR and entry notes">
-          <div class="qr-label">Ticket Type: Zoo Entry</div>
-          <div class="qr-box" aria-label="QR code placeholder">QR CODE</div>
+          <div class="qr-label">Ticket Type</div>
+          <div class="qr-box" aria-label="QR code placeholder"><img id="qrImage" alt="QR code" style="width: 140px; height: 140px; object-fit: contain;" /></div>
           <ul class="notes">
             <li>Single entry only.</li>
             <li>Entry timings: 09:00 AM – 05:00 PM.</li>
@@ -142,6 +140,7 @@
         <button class="btn btn-print" type="button" onclick="window.print()">Print Ticket</button>
         <a class="btn btn-home" href="/">Back to Home</a>
       </div>
+      <div id="errorMessage" role="alert" style="color: #b91c1c; font-weight: 700; text-align: center;"></div>
     </main>
   </body>
 </html>

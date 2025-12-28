@@ -26,7 +26,8 @@
           <p>Point at QR. Uses device camera.</p>
         </header>
         <div class="camera-box" id="cameraBox">
-          <div class="camera-overlay">Camera preview placeholder</div>
+          <video id="cameraVideo" playsinline muted></video>
+          <canvas id="cameraCanvas" hidden></canvas>
           <button id="startCamera" class="btn primary">Start Scan</button>
           <button id="stopCamera" class="btn" type="button">Stop</button>
         </div>
@@ -35,13 +36,31 @@
 
       <section class="panel manual-panel">
         <header class="panel-head">
-          <h2>Manual QR Input</h2>
-          <p>Fallback for damaged or unreadable codes.</p>
+          <h2>Manual Validation</h2>
+          <p>Fallback when the scanner cannot read the QR.</p>
         </header>
         <form id="manualForm" class="manual-form">
           <label>
-            <span>QR Token</span>
+            <span>Validation Mode</span>
+            <select id="validationMode" name="mode">
+              <option value="qr" selected>QR Token (default)</option>
+              <option value="ticket">Ticket ID (fallback)</option>
+            </select>
+          </label>
+          <p id="manualWarning" class="warning-text hidden" aria-live="polite">Manual entry should be used only if QR scan fails.</p>
+          <label>
+            <span id="manualInputLabel">QR Token</span>
             <input type="text" id="manualInput" name="qr" placeholder="Paste or type QR token" required />
+          </label>
+          <label id="manualReasonField" class="hidden">
+            <span>Reason for manual entry</span>
+            <input
+              type="text"
+              id="manualReason"
+              name="reason"
+              placeholder="e.g., Camera malfunction / QR damaged"
+              autocomplete="off"
+            />
           </label>
           <div class="manual-actions">
             <button class="btn primary" type="submit">Validate</button>
@@ -65,6 +84,7 @@
       </section>
     </main>
 
+    <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
     <script type="module" src="./scanner.js"></script>
   </body>
 </html>

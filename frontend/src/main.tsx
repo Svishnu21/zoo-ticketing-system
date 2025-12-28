@@ -16,7 +16,6 @@ import { TariffPage } from '@/pages/TariffPage'
 import { ZooPage } from '@/pages/ZooPage'
 import { ZooTicketSelectionPage } from '@/pages/ZooTicketSelectionPage'
 import { ParkingTicketSelectionPage } from '@/pages/ParkingTicketSelectionPage'
-import { AquariumTicketSelectionPage } from '@/pages/AquariumTicketSelectionPage'
 import { SafariTicketSelectionPage } from '@/pages/SafariTicketSelectionPage'
 import { ReviewBookingPage } from '@/pages/ReviewBookingPage'
 import { TermsPage } from '@/pages/TermsPage'
@@ -81,7 +80,6 @@ createRoot(document.getElementById('root')!).render(
             <Route path="tariff" element={<TariffPage />} />
             <Route path="tickets/zoo" element={<ZooTicketSelectionPage />} />
             <Route path="tickets/parking" element={<ParkingTicketSelectionPage />} />
-            <Route path="tickets/aquarium" element={<AquariumTicketSelectionPage />} />
             <Route path="tickets/safari" element={<SafariTicketSelectionPage />} />
             <Route path="tickets/review" element={<ReviewBookingPage />} />
             <Route path="rules" element={<ParkRulesPage />} />

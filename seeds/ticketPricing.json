@@ -1,0 +1,12 @@
+[
+  { "categoryCode": "adultEntry", "categoryName": "Entry - Adult", "price": 50, "isActive": true },
+  { "categoryCode": "childEntry", "categoryName": "Entry - Child (5-12 yrs)", "price": 10, "isActive": true },
+  { "categoryCode": "childBelow5", "categoryName": "Entry - Child (below 5)", "price": 0, "isActive": true },
+  { "categoryCode": "differentlyAbled", "categoryName": "Entry - Differently Abled", "price": 0, "isActive": true },
+  { "categoryCode": "videoCamera", "categoryName": "Video Camera (non-commercial use)", "price": 150, "isActive": true },
+  { "categoryCode": "parking4WheelerLMV", "categoryName": "Parking - 4 Wheeler (LMV)", "price": 50, "isActive": true },
+  { "categoryCode": "parking4WheelerHMV", "categoryName": "Parking - 4 Wheeler (HMV)", "price": 100, "isActive": true },
+  { "categoryCode": "parking2Wheeler", "categoryName": "Parking - 2 & 3 Wheeler", "price": 20, "isActive": true },
+  { "categoryCode": "batteryVehicleAdult", "categoryName": "Battery Vehicle - Adult", "price": 50, "isActive": true },
+  { "categoryCode": "batteryVehicleChild", "categoryName": "Battery Vehicle - Child (5-12 yrs)", "price": 30, "isActive": true }
+]

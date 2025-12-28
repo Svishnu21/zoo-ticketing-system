@@ -1,3 +1,5 @@
+import { formatDateTime } from '/js/utils/dateUtils.js'
+
 const credentials = {
 	username: 'admin',
 	password: 'admin@123',
@@ -740,13 +742,6 @@ function detailList(pairs) {
 
 function formatINR(value) {
 	return `₹ ${Number(value || 0).toLocaleString('en-IN')}`
-}
-
-function formatDateTime(value) {
-	if (!value) return '—'
-	const date = new Date(value)
-	if (Number.isNaN(date.getTime())) return value
-	return `${date.toISOString().slice(0, 10)} ${date.toTimeString().slice(0, 5)}`
 }
 
 function pillClass(status) {

@@ -7,10 +7,6 @@ import mam3 from '@/assets/images/Mammals/Bonnet Macaque.webp'
 import mam4 from '@/assets/images/Mammals/Rhesus Macaque.webp'
 import mam5 from '@/assets/images/Mammals/Bengal Fox.webp'
 import mam6 from '@/assets/images/Mammals/Golden Jackal.webp'
-import aqua1 from '@/assets/images/aquarium.webp'
-import aqua2 from '@/assets/images/aquarium.webp'
-import aqua3 from '@/assets/images/aquarium.webp'
-import aqua4 from '@/assets/images/aquarium.webp'
 import bird1 from '@/assets/images/birds/Alexandrine Parakeet.webp'
 import bird2 from '@/assets/images/birds/Indian Peafowl.webp'
 import bird3 from '@/assets/images/birds/Grey Pelican.webp'
@@ -462,42 +458,6 @@ export const animals: AnimalCard[] = [
     },
     image: 'https://images.unsplash.com/photo-1501238295340-c810d3c15611?auto=format&fit=crop&w=900&q=80',
   },
-  {
-    category: 'Reptiles',
-    name: { en: 'Asian Arowana', ta: 'ஆசிய அரோவானா' },
-    description: {
-      en: 'A shimmering freshwater giant revered across Asia for its elegance.',
-      ta: 'அழகிய தோற்றத்தால் ஆசியா முழுவதும் மதிக்கப்படும் மின்னும் நீர்வாழ் வீரன்.',
-    },
-    image: aqua1,
-  },
-  {
-    category: 'Reptiles',
-    name: { en: 'Clownfish Habitat', ta: 'கிளவுன் மீன் வாழிடம்' },
-    description: {
-      en: 'Playful reef residents weaving through vibrant anemone gardens.',
-      ta: 'வண்ணமயமான நெலும்புல்களில் துள்ளித் திரியும் பாறைத் தீவினர்கள்.',
-    },
-    image: aqua2,
-  },
-  {
-    category: 'Reptiles',
-    name: { en: 'Lionfish Lagoon', ta: 'சிங்க மீன் வளைகுடா' },
-    description: {
-      en: 'Dramatic spines and elegant fins gliding through crystal-clear waters.',
-      ta: 'அதிகப்படியான முள், நேர்த்தியான இறகுகளுடன் தெளிந்த நீரில் மிதக்கும் அழகுகள்.',
-    },
-    image: aqua3,
-  },
-  {
-    category: 'Reptiles',
-    name: { en: 'Jellyfish Drift', ta: 'ஜெல்லி மீன் மிதவை' },
-    description: {
-      en: 'Translucent drifters pulsing with hypnotic bioluminescent glow.',
-      ta: 'மயக்கும் ஒளிச்சொட்டுகளுடன் மிதக்கும் வெளிப்படையான நீரியல் உயிரினங்கள்.',
-    },
-    image: aqua4,
-  },
 ]
 
 export interface FacilityCard {
@@ -612,14 +572,14 @@ export interface TariffItem {
 }
 
 export const tariffItems: TariffItem[] = [
-  { id: 'adultEntry', price: 50, label: { en: 'Entry - Adult', ta: 'நுழைவு - பெரியவர்' } },
-  { id: 'childEntry', price: 10, label: { en: 'Entry - Child (5-12 yrs)', ta: 'நுழைவு - குழந்தை (5-12)' } },
-  { id: 'videoCamera', price: 150, label: { en: 'Video Camera (Does not include videography for commercial programs, short movies, etc.)', ta: 'வீடியோ கேமரா (வணிக நிகழ்ச்சிகள், குறும்படங்கள் போன்றவற்றுக்கான வீடியோ பதிவை உள்ளடக்காது)' } },
-  { id: 'parkingLMV', price: 50, label: { en: 'Parking - 4 Wheeler (LMV)', ta: 'நிறுத்தம் - 4 சக்கர (LMV)' } },
-  { id: 'parkingHMV', price: 100, label: { en: 'Parking - 4 Wheeler (HMV)', ta: 'நிறுத்தம் - 4 சக்கர (HMV)' } },
-  { id: 'parkingTwoThree', price: 20, label: { en: 'Parking - 2 & 3 Wheeler', ta: 'நிறுத்தம் - 2 & 3 சக்கர' } },
-  { id: 'batteryAdult', price: 50, label: { en: 'Battery Vehicle - Adult', ta: 'மின்வாகனம் - பெரியவர்' } },
-  { id: 'batteryChild', price: 30, label: { en: 'Battery Vehicle - Child (5-12 yrs)', ta: 'மின்வாகனம் - குழந்தை (5-12)' } },
+  { id: 'zoo_adult', price: 50, label: { en: 'Entry - Adult', ta: 'நுழைவு - பெரியவர்' } },
+  { id: 'zoo_child', price: 10, label: { en: 'Entry - Child (5-12 yrs)', ta: 'நுழைவு - குழந்தை (5-12)' } },
+  { id: 'camera_video', price: 150, label: { en: 'Video Camera (Does not include videography for commercial programs, short movies, etc.)', ta: 'வீடியோ கேமரா (வணிக நிகழ்ச்சிகள், குறும்படங்கள் போன்றவற்றுக்கான வீடியோ பதிவை உள்ளடக்காது)' } },
+  { id: 'parking_4w_lmv', price: 50, label: { en: 'Parking - 4 Wheeler (LMV)', ta: 'நிறுத்தம் - 4 சக்கர (LMV)' } },
+  { id: 'parking_4w_hmv', price: 100, label: { en: 'Parking - 4 Wheeler (HMV)', ta: 'நிறுத்தம் - 4 சக்கர (HMV)' } },
+  { id: 'parking_2w_3w', price: 20, label: { en: 'Parking - 2 & 3 Wheeler', ta: 'நிறுத்தம் - 2 & 3 சக்கர' } },
+  { id: 'battery_vehicle_adult', price: 50, label: { en: 'Battery Vehicle - Adult', ta: 'மின்வாகனம் - பெரியவர்' } },
+  { id: 'battery_vehicle_child', price: 30, label: { en: 'Battery Vehicle - Child (5-12 yrs)', ta: 'மின்வாகனம் - குழந்தை (5-12)' } },
 ]
 
 export interface FeeTableRow {
@@ -630,18 +590,18 @@ export interface FeeTableRow {
 }
 
 export const feeStructure: FeeTableRow[] = [
-  { id: 'adultEntry', serial: 1, description: tariffItems[0].label, fee: 50 },
-  { id: 'childEntry', serial: 2, description: tariffItems[1].label, fee: 10 },
+  { id: 'zoo_adult', serial: 1, description: tariffItems[0].label, fee: 50 },
+  { id: 'zoo_child', serial: 2, description: tariffItems[1].label, fee: 10 },
 
-  { id: 'differentlyAbled', serial: 3, description: { en: 'Differently Abled', ta: 'விதிவிலக்கானவர்கள்' }, fee: 0 },
-  { id: 'childBelow5', serial: 4, description: { en: 'Children (below 5)', ta: '5-க்கு கீழ் குழந்தைகள்' }, fee: 0 },
+  { id: 'zoo_differently_abled', serial: 3, description: { en: 'Differently Abled', ta: 'விதிவிலக்கானவர்கள்' }, fee: 0 },
+  { id: 'zoo_child_free', serial: 4, description: { en: 'Children (below 5)', ta: '5-க்கு கீழ் குழந்தைகள்' }, fee: 0 },
 
-  { id: 'camera', serial: 5, description: tariffItems[2].label, fee: 150 },
-  { id: 'parkingLMV', serial: 6, description: tariffItems[3].label, fee: 50 },
-  { id: 'parkingHMV', serial: 7, description: tariffItems[4].label, fee: 100 },
-  { id: 'parkingTwoThree', serial: 8, description: tariffItems[5].label, fee: 20 },
-  { id: 'batteryAdult', serial: 9, description: tariffItems[6].label, fee: 50 },
-  { id: 'batteryChild', serial: 10, description: tariffItems[7].label, fee: 30 },
+  { id: 'camera_video', serial: 5, description: tariffItems[2].label, fee: 150 },
+  { id: 'parking_4w_lmv', serial: 6, description: tariffItems[3].label, fee: 50 },
+  { id: 'parking_4w_hmv', serial: 7, description: tariffItems[4].label, fee: 100 },
+  { id: 'parking_2w_3w', serial: 8, description: tariffItems[5].label, fee: 20 },
+  { id: 'battery_vehicle_adult', serial: 9, description: tariffItems[6].label, fee: 50 },
+  { id: 'battery_vehicle_child', serial: 10, description: tariffItems[7].label, fee: 30 },
 ]
 
 export const visitorInfo = {

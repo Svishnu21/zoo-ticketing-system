@@ -137,6 +137,20 @@ body.scanner-body {
   color: var(--text);
 }
 
+.manual-form select {
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 0.8rem;
+  background: #fff;
+  color: var(--text);
+}
+
+.warning-text {
+  color: var(--orange);
+  font-weight: 700;
+  margin: 0;
+}
+
 .manual-actions {
   display: flex;
   gap: 0.7rem;
@@ -201,6 +215,21 @@ body.scanner-body {
 .log-result.success { color: var(--green); }
 .log-result.danger { color: var(--red); }
 .log-result.warning { color: var(--orange); }
+
+.chip {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(15, 61, 145, 0.1);
+  color: var(--blue);
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.hidden {
+  display: none !important;
+}
 
 
 .btn {

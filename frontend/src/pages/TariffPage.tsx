@@ -36,7 +36,7 @@ const zooTicketCard: TariffCard = {
   },
   href: '/tickets/zoo',
   icon: Trees,
-  startingPrice: priceById.adultEntry,
+  startingPrice: priceById.zoo_adult,
   theme: {
     background: 'bg-[#E8F5E9]',
     border: 'border-[#A8D5B6]',

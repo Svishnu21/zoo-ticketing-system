@@ -69,12 +69,19 @@ function initValidate() {
   const logoutBtn = document.getElementById('logoutBtn')
   const manualForm = document.getElementById('manualForm')
   const manualInput = document.getElementById('manualInput')
+  const modeSelect = document.getElementById('validationMode')
+  const manualWarning = document.getElementById('manualWarning')
+  const manualInputLabel = document.getElementById('manualInputLabel')
+  const manualReasonField = document.getElementById('manualReasonField')
+  const manualReasonInput = document.getElementById('manualReason')
   const statusPanel = document.getElementById('statusPanel')
   const statusTitle = document.getElementById('statusTitle')
   const statusMessage = document.getElementById('statusMessage')
   const startCamera = document.getElementById('startCamera')
   const stopCamera = document.getElementById('stopCamera')
   const logList = document.getElementById('logList')
+  const videoEl = document.getElementById('cameraVideo')
+  const canvasEl = document.getElementById('cameraCanvas')
 
   let resetTimer = null
 
@@ -120,7 +127,7 @@ function initValidate() {
         (log) => `
           <div class="log-row">
             <div>${log.time}</div>
-            <div>${log.bookingId}</div>
+            <div>${log.bookingId} <span class="chip">${log.mode || 'QR'}</span></div>
             <div class="log-result ${log.statusClass}">${log.result}</div>
           </div>
         `,
@@ -130,33 +137,136 @@ function initValidate() {
 
   renderLogs(JSON.parse(sessionStorage.getItem(logKey) || '[]'))
 
+  const updateManualModeUI = (mode = modeSelect?.value || 'qr') => {
+    const isTicketMode = mode === 'ticket'
+    if (manualWarning) manualWarning.classList.toggle('hidden', !isTicketMode)
+    if (manualReasonField) manualReasonField.classList.toggle('hidden', !isTicketMode)
+    if (manualInputLabel) manualInputLabel.textContent = isTicketMode ? 'Ticket ID' : 'QR Token'
+    if (manualInput)
+      manualInput.placeholder = isTicketMode ? 'Enter Ticket ID (fallback use only)' : 'Paste or type QR token'
+  }
+
+  updateManualModeUI()
+  modeSelect?.addEventListener('change', (event) => updateManualModeUI(event.target.value))
+
   manualForm?.addEventListener('submit', async (event) => {
     event.preventDefault()
-    const token = manualInput?.value?.trim()
-    if (!token) return
-    await handleValidation(token)
+    const mode = modeSelect?.value || 'qr'
+    const tokenOrId = manualInput?.value?.trim()
+
+    if (!tokenOrId) {
+      setStatus('warning', 'Input required', 'Provide the QR token or ticket ID.')
+      return
+    }
+
+    if (mode === 'ticket') {
+      const reason = manualReasonInput?.value?.trim()
+      if (!reason) {
+        setStatus('warning', 'Reason required', 'Manual entry needs a reason to proceed.')
+        manualReasonInput?.focus()
+        return
+      }
+      await handleManualTicket(tokenOrId, reason)
+    } else {
+      await handleQrValidation(tokenOrId)
+    }
+
     manualForm.reset()
+    updateManualModeUI(modeSelect?.value || 'qr')
     manualInput?.focus()
   })
 
-  startCamera?.addEventListener('click', () => {
-    setStatus('', 'Camera ready', 'Point the camera at the QR code.')
-    // Hook actual camera + decoder here in production.
-  })
+  let _stream = null
+  let _scanning = false
+  let _raf = null
 
-  stopCamera?.addEventListener('click', () => {
+  const stopVideoAndScan = () => {
+    _scanning = false
+    if (_raf) cancelAnimationFrame(_raf)
+    try {
+      if (videoEl) {
+        videoEl.pause()
+        try { videoEl.srcObject = null } catch (e) {}
+      }
+      if (_stream) {
+        _stream.getTracks().forEach((t) => t.stop())
+        _stream = null
+      }
+    } catch (err) {
+      console.warn('Error stopping camera', err)
+    }
     setStatus('', 'Scanning paused', 'Camera stopped. Use manual input to continue.')
-  })
+  }
 
-  async function handleValidation(token) {
+  const startVideoAndScan = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('danger', 'Camera unsupported', 'This browser cannot access the camera.')
+      return
+    }
+
+    try {
+      _stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      if (videoEl) {
+        videoEl.srcObject = _stream
+        await videoEl.play()
+      }
+
+      setStatus('', 'Camera ready', 'Point the camera at the QR code.')
+      _scanning = true
+
+      const ctx = canvasEl && canvasEl.getContext ? canvasEl.getContext('2d') : null
+
+      const scanFrame = () => {
+        if (!_scanning) return
+        try {
+          const w = videoEl.videoWidth || 640
+          const h = videoEl.videoHeight || 480
+          if (canvasEl) {
+            if (canvasEl.width !== w || canvasEl.height !== h) {
+              canvasEl.width = w
+              canvasEl.height = h
+            }
+          }
+
+          if (ctx && videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+            ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height)
+            const imageData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height)
+            const code = typeof jsQR === 'function' ? jsQR(imageData.data, canvasEl.width, canvasEl.height) : null
+            if (code && code.data) {
+              // Found a QR payload — stop camera and validate
+              stopVideoAndScan()
+              handleQrValidation(code.data)
+              return
+            }
+          }
+        } catch (err) {
+          console.warn('Scan frame error', err)
+        }
+        _raf = requestAnimationFrame(scanFrame)
+      }
+
+      _raf = requestAnimationFrame(scanFrame)
+    } catch (err) {
+      setStatus('danger', 'Camera Error', err?.message || 'Failed to access camera')
+      if (_stream) {
+        try { _stream.getTracks().forEach((t) => t.stop()) } catch (e) {}
+        _stream = null
+      }
+    }
+  }
+
+  startCamera?.addEventListener('click', () => startVideoAndScan())
+  stopCamera?.addEventListener('click', () => stopVideoAndScan())
+
+  async function handleQrValidation(token) {
     setStatus('', 'Validating…', 'Checking with backend for authenticity and usage status.')
     try {
-      const result = await mockValidateWithBackend(token)
+      const result = await validateWithBackend(token, auth.gateId)
       const now = new Date()
       const stamp = `${now.toISOString().slice(0, 10)} ${now.toTimeString().slice(0, 5)}`
-      appendLog({ bookingId: result.bookingId, result: result.label, statusClass: result.className, time: stamp })
+      appendLog({ bookingId: result.ticketId, result: result.label, statusClass: result.className, time: stamp, mode: result.mode || 'QR' })
       if (result.className === 'success') {
-        setStatus('success', 'VALID – ALLOW ENTRY', `Marked as used at ${stamp}.`)
+        setStatus('success', 'VALID – ALLOW ENTRY', result.detail || `Marked as used at ${stamp}.`)
       } else if (result.className === 'warning') {
         setStatus('warning', result.label.toUpperCase(), result.detail)
       } else {
@@ -166,52 +276,96 @@ function initValidate() {
       setStatus('danger', 'Network / Validation Error', error.message || 'Check Internet Connection')
     }
   }
+
+  async function handleManualTicket(ticketId, reason) {
+    setStatus('', 'Manual validation…', 'Using ticket ID fallback. Record the reason for audit.')
+    try {
+      const result = await validateTicketIdWithBackend(ticketId, reason, auth.gateId)
+      const now = new Date()
+      const stamp = `${now.toISOString().slice(0, 10)} ${now.toTimeString().slice(0, 5)}`
+      appendLog({ bookingId: result.ticketId, result: result.label, statusClass: result.className, time: stamp, mode: result.mode || 'MANUAL' })
+      if (result.className === 'success') {
+        setStatus('success', 'VALID – ALLOW ENTRY', result.detail || `Manual entry recorded at ${stamp}.`)
+      } else if (result.className === 'warning') {
+        setStatus('warning', result.label.toUpperCase(), result.detail)
+      } else {
+        setStatus('danger', result.label.toUpperCase(), result.detail)
+      }
+    } catch (error) {
+      setStatus('danger', 'Manual Validation Failed', error.message || 'Unable to validate ticket ID')
+    }
+  }
 }
 
-async function mockValidateWithBackend(token) {
-  // Replace this with real backend call.
-  await wait(450)
-  if (token.toUpperCase() === 'NETERR') {
-    throw new Error('Check Internet Connection')
-  }
+async function validateWithBackend(token, gateId) {
+  const API_BASE = window.__API_BASE_URL || ''
+  const response = await fetch(`${API_BASE}/api/scanner/validate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, gateId }),
+  })
 
-  const normalized = token.trim().toUpperCase()
+  const payload = await response.json().catch(() => ({}))
 
-  if (normalized.startsWith('USED')) {
+  if (response.ok) {
     return {
-      bookingId: normalized.replace('USED-', '') || 'UNKNOWN',
-      label: 'Already Used',
-      detail: 'Entry already recorded for this ticket.',
-      className: 'danger',
-    }
-  }
-
-  if (normalized.startsWith('EXP')) {
-    return {
-      bookingId: normalized.replace('EXP-', '') || 'UNKNOWN',
-      label: 'Expired',
-      detail: 'Visit date is past. Deny entry.',
-      className: 'warning',
-    }
-  }
-
-  if (normalized.startsWith('QR-')) {
-    return {
-      bookingId: normalized,
+      ticketId: payload.ticketId || 'UNKNOWN',
       label: 'Valid – Allow Entry',
-      detail: 'Backend marked this booking as used and logged the scan.',
+      detail: payload.qrUsedAt ? `Marked as used at ${payload.qrUsedAt}` : 'Entry permitted.',
       className: 'success',
+      mode: 'QR',
     }
   }
 
-  return {
-    bookingId: normalized || 'UNKNOWN',
-    label: 'Invalid Ticket',
-    detail: 'Token failed signature or does not exist.',
-    className: 'danger',
+  const message = payload?.message || 'Validation failed.'
+
+  if (response.status === 409) {
+    return { ticketId: payload.ticketId || 'UNKNOWN', label: 'Already Used', detail: message, className: 'danger' }
   }
+  if (response.status === 404) {
+    return { ticketId: 'UNKNOWN', label: 'Invalid Ticket', detail: message, className: 'danger' }
+  }
+  if (response.status === 400) {
+    return { ticketId: 'UNKNOWN', label: 'Wrong Date', detail: message, className: 'warning' }
+  }
+
+  throw new Error(message)
 }
 
-function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+async function validateTicketIdWithBackend(ticketId, reason, gateId) {
+  const API_BASE = window.__API_BASE_URL || ''
+  const response = await fetch(`${API_BASE}/api/scanner/validate-ticket-id`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ticketId, gateId, reason }),
+  })
+
+  const payload = await response.json().catch(() => ({}))
+
+  if (response.ok) {
+    return {
+      ticketId: payload.ticketId || 'UNKNOWN',
+      label: 'Manual Valid – Allow Entry',
+      detail: payload.usedAt ? `Manual entry recorded at ${payload.usedAt}` : 'Entry permitted with ticket ID.',
+      className: 'success',
+      mode: 'MANUAL',
+    }
+  }
+
+  const message = payload?.message || 'Validation failed.'
+
+  if (response.status === 409) {
+    return { ticketId: payload.ticketId || 'UNKNOWN', label: 'Already Used', detail: message, className: 'danger', mode: 'MANUAL' }
+  }
+  if (response.status === 404) {
+    return { ticketId: 'UNKNOWN', label: 'Invalid Ticket', detail: message, className: 'danger', mode: 'MANUAL' }
+  }
+  if (response.status === 400) {
+    return { ticketId: 'UNKNOWN', label: 'Wrong Date / Input', detail: message, className: 'warning', mode: 'MANUAL' }
+  }
+  if (response.status === 403) {
+    return { ticketId: payload.ticketId || 'UNKNOWN', label: 'Payment Pending', detail: message, className: 'warning', mode: 'MANUAL' }
+  }
+
+  throw new Error(message)
 }

@@ -19,7 +19,6 @@ export function ZooPage() {
   const { language } = useLanguage()
 
   const mammals = buildGallery(animals, 'Mammals', 6)
-  const aquatic = buildGallery(animals, 'Reptiles', 4)
   const birds = buildGallery(animals, 'Birds', 4)
   const butterflies = [
     {
@@ -51,8 +50,8 @@ export function ZooPage() {
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center text-white">
           <p className="max-w-2xl text-sm text-white/85 md:text-base">
             {language === 'en'
-              ? 'Meet the incredible mammals, aquatic life, and birds that call Kurumbapatti home.'
-              : 'குரும்பட்டி வீட்டாகக் கொண்டுள்ள அற்புதமான பாலூட்டிகள், நீரியல் உயிர்கள் மற்றும் பறவைகளை சந்தியுங்கள்.'}
+              ? 'Meet the incredible mammals and birds that call Kurumbapatti home.'
+              : 'குரும்பட்டி வீட்டாகக் கொண்டுள்ள அற்புதமான பாலூட்டிகள் மற்றும் பறவைகளை சந்தியுங்கள்.'}
           </p>
         </div>
       </div>
@@ -96,44 +95,6 @@ export function ZooPage() {
                     {language === 'en'
                       ? 'Add a new mammal asset to complete this gallery tile.'
                       : 'இந்த தொகுப்பை நிரப்ப ஒரு புதிய பாலூட்டி படத்தை சேர்க்கவும்.'}
-                  </p>
-                </div>
-              )
-            ))}
-          </div>
-        </section>
-
-        <section className="space-y-8">
-          <header className="text-center">
-            <h2 className="text-3xl font-black text-forest-green md:text-4xl mx-auto">
-              {language === 'en' ? 'Aquarium Highlights' : 'அழகிய நீரியல் தொகுப்பு'}
-            </h2>
-            <p className="mt-2 text-base text-muted-foreground md:text-lg">
-              {language === 'en'
-                ? 'Dive into four serene aquatic habitats and their vibrant residents.'
-                : 'நான்கு அழகான நீரியல் வாழிடங்களையும் அவற்றின் வண்ணமயமான வாழ்வினங்களையும் காணுங்கள்.'}
-            </p>
-          </header>
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            {aquatic.map((animal, index) => (
-              animal ? (
-                <article key={animal.name.en} className={galleryCardClasses}>
-                  <img
-                    src={animal.image}
-                    alt={animal.name[language]}
-                    className="h-full w-full object-cover transition duration-500 ease-smooth group-hover:scale-105"
-                    loading="lazy"
-                  />
-                </article>
-              ) : (
-                <div key={`aquatic-placeholder-${index}`} className={galleryPlaceholderClasses}>
-                  <span className="text-lg font-semibold">
-                    {language === 'en' ? 'Aquarium slot open' : 'அக்வேரியம் இடம் திறந்திருக்கும்'}
-                  </span>
-                  <p className="mt-2 text-sm text-forest-green/80">
-                    {language === 'en'
-                      ? 'Drop in a new aquatic asset to showcase here.'
-                      : 'இங்கே காட்சிப்படுத்த புதிய நீரியல் படத்தைச் சேர்க்கவும்.'}
                   </p>
                 </div>
               )

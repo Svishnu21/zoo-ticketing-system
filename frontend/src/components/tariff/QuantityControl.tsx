@@ -1,4 +1,5 @@
 import { Minus, Plus } from 'lucide-react'
+import { MAX_QTY_PER_ITEM } from '@/constants/limits'
 
 import type { LocalizedText } from '@/data/content'
 import { useLanguage } from '@/providers/LanguageProvider'
@@ -19,7 +20,8 @@ export function QuantityControl({ label, price, value, onChange }: QuantityContr
   }
 
   const handleIncrease = () => {
-    onChange(value + 1)
+    if (value >= MAX_QTY_PER_ITEM) return
+    onChange(Math.min(MAX_QTY_PER_ITEM, value + 1))
   }
 
   return (

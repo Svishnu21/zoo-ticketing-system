@@ -5,7 +5,6 @@ import { HeroSlider } from '@/components/hero/HeroSlider'
 import { welcomeContent } from '@/data/content'
 import { useLanguage } from '@/providers/LanguageProvider'
 import mammalsImage from '@/assets/images/animals.webp'
-import aquariumImage from '@/assets/images/aquarium.webp'
 import birdsImage from '@/assets/images/birds.webp'
 import butterflyImage from '@/assets/images/butterfly park.webp'
 import visitIllustration from '@/assets/images/visit us.webp'
@@ -64,23 +63,6 @@ export function HomePage() {
       },
       image: birdsImage,
       to: '/zoo?focus=birds',
-    },
-    {
-      id: 'aquarium',
-      tag: {
-        en: 'Aquarium',
-        ta: 'அழகிய நீரவியல்',
-      },
-      title: {
-        en: 'Aquarium',
-        ta: 'நீரியல் உலகம்',
-      },
-      description: {
-        en: 'Dive into serene underwater habitats.',
-        ta: 'அமைதியான நீரியல் வாழ்விடங்களை அனுபவிக்கவும்.',
-      },
-      image: aquariumImage,
-      to: '/zoo?focus=aquarium',
     },
   ] as const
 

@@ -17,7 +17,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Consider adoption flow active only when the flag is set AND there is adoption selection data saved.
   const rawAdoptionData = localStorage.getItem(ADOPTION_SELECTIONS_KEY) || localStorage.getItem(ADOPTION_SELECTION_KEY)
   const adoptionFlowActive = localStorage.getItem(ADOPTION_FLOW_KEY) === 'true' && !!rawAdoptionData
-  const successRedirect = adoptionFlowActive ? '/adoption-success.html' : '/success.html'
+  const latestTicketId = sessionStorage.getItem('latestTicketId')
+  const successRedirect = adoptionFlowActive
+    ? '/adoption-success.html'
+    : latestTicketId
+      ? `/success.html?ticketId=${encodeURIComponent(latestTicketId)}`
+      : null
   const successButtonLabel = adoptionFlowActive ? 'View Certificate' : 'Get Your Ticket'
 
   const safeParse = (raw) => {
@@ -84,6 +89,10 @@ document.addEventListener('DOMContentLoaded', () => {
   })
 
   const redirectToSuccess = () => {
+    if (!successRedirect) {
+      alert('Ticket ID missing from booking response. Please complete booking again.')
+      return
+    }
     window.location.href = successRedirect
   }
 
