@@ -61,29 +61,11 @@ const RECENT_TICKETS_API = '/api/counter/tickets'
 const fmt = (val = 0) => `Rs ${Number(val || 0).toFixed(2)}`
 const qsa = (sel) => Array.from(document.querySelectorAll(sel))
 
-const todayParts = () => {
-  const d = new Date()
-  const dd = String(d.getDate()).padStart(2, '0')
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const yyyy = d.getFullYear()
-  return { iso: `${yyyy}-${mm}-${dd}`, display: `${dd}-${mm}-${yyyy}` }
-}
-
-const parseTotalAmount = () => Number((document.getElementById('total')?.textContent || '0').replace(/[^0-9.-]+/g, '')) || 0
-
 document.addEventListener('DOMContentLoaded', () => {
-  attachLogoutHandler()
   const page = document.body?.dataset?.page || ''
   if (page === 'issue') {
     console.log('✅ Counter issue page ready')
     loadTickets()
-    return
-  }
-
-  if (page === 'history') {
-    console.log('✅ Counter history page ready')
-    loadRecentTickets()
-    loadHistoryTable()
     return
   }
 
@@ -145,9 +127,7 @@ async function loadTickets() {
   renderTickets()
   qsa('.qty-input').forEach((input) => input.addEventListener('input', updateTotals))
   updateTotals()
-  setVisitDateToday()
   wirePaymentUI()
-  loadRecentTickets()
 }
 
 function renderTickets() {
@@ -178,111 +158,12 @@ function renderTickets() {
   })
 }
 
-async function loadRecentTickets() {
-  const list = document.getElementById('recent-list')
-  if (!list) return
-  try {
-    const resp = await fetch('/api/counter/recent')
-    if (!resp.ok) return
-    const data = await resp.json()
-    const tickets = Array.isArray(data) ? data : Array.isArray(data?.tickets) ? data.tickets : []
-    list.innerHTML = tickets.slice(0, 5).map(ticket => {
-      const entered = Boolean(ticket.qrUsed)
-      const statusText = entered ? 'ENTERED' : 'NOT ENTERED'
-      const statusClass = entered ? 'badge-entered' : 'badge-not-entered'
-      return `
-        <li class="recent-card">
-          <div class="recent-top">
-            <div class="recent-id">${ticket.ticketId}</div>
-            <div class="recent-meta">${fmtDateTime(ticket.issueDate)}</div>
-          </div>
-          <div class="recent-actions">
-            <span class="status-badge ${statusClass}">${statusText}</span>
-            <button class="reprint-btn" onclick="reprintTicket('${ticket.ticketId}')">Reprint</button>
-          </div>
-        </li>
-      `
-    }).join('')
-  } catch (err) {
-    console.warn('Failed to load recent tickets', err)
-  }
-}
-
-async function loadHistoryTable() {
-  const tbody = document.getElementById('history-rows')
-  if (!tbody) return
-  try {
-    const resp = await fetch('/api/counter/recent')
-    if (!resp.ok) return
-    const data = await resp.json()
-    const tickets = Array.isArray(data) ? data : Array.isArray(data?.tickets) ? data.tickets : []
-
-    const selectedMode = (document.getElementById('history-payment')?.value || 'ALL').toUpperCase()
-    const selectedDate = document.getElementById('history-date')?.value || ''
-
-    const filtered = tickets.filter((ticket) => {
-      const modeOk = selectedMode === 'ALL' || (ticket.paymentMode || '').toUpperCase() === selectedMode
-      if (!modeOk) return false
-      if (!selectedDate) return true
-      const issueIso = ticket.issueDate ? new Date(ticket.issueDate).toISOString().slice(0, 10) : ''
-      return issueIso === selectedDate
-    })
-
-    tbody.innerHTML = filtered
-      .map((ticket) => {
-        const entered = Boolean(ticket.qrUsed)
-        const statusText = entered ? 'ENTERED' : 'NOT ENTERED'
-        const statusClass = entered ? 'badge-entered' : 'badge-not-entered'
-        return `
-          <tr>
-            <td>${ticket.ticketId || ''}</td>
-            <td>${fmtDateOnly(ticket.visitDate)}</td>
-            <td>${fmtDateTime(ticket.issueDate)}</td>
-            <td>${(ticket.paymentMode || '').toUpperCase()}</td>
-            <td>${fmt(ticket.totalAmount)}</td>
-            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-          </tr>
-        `
-      })
-      .join('')
-
-    const dateInput = document.getElementById('history-date')
-    const modeInput = document.getElementById('history-payment')
-    if (dateInput && !dateInput._historyBound) {
-      dateInput.addEventListener('change', loadHistoryTable)
-      dateInput._historyBound = true
-    }
-    if (modeInput && !modeInput._historyBound) {
-      modeInput.addEventListener('change', loadHistoryTable)
-      modeInput._historyBound = true
-    }
-  } catch (err) {
-    console.warn('Failed to load history tickets', err)
-  }
-}
-
-function reprintTicket(ticketId) {
-  window.open(`/counter/success.html?ticketId=${ticketId}`, '_blank')
-}
-// Expose for inline `onclick` handlers in static HTML
-/* istanbul ignore next */
-if (typeof window !== 'undefined') window.reprintTicket = reprintTicket
-
-function setVisitDateToday() {
-  const visitInput = document.getElementById('visit-date-input')
-  const visitDisplay = document.getElementById('visit-date-display')
-  const { iso, display } = todayParts()
-  if (visitInput) visitInput.value = iso
-  if (visitDisplay) visitDisplay.textContent = display
-}
-
 // Payment UI for public page
 let paidConfirmedPublic = false
 function wirePaymentUI() {
   const modeContainer = document.querySelector('.mode-buttons')
   const cashInput = document.getElementById('cash-amount')
   const upiInput = document.getElementById('upi-amount')
-  const splitContainer = document.querySelector('.split-inputs')
   const form = document.getElementById('pay-form')
   const submitBtn = document.getElementById('submit-btn')
 
@@ -312,35 +193,28 @@ function wirePaymentUI() {
     r.addEventListener('change', () => {
       const mode = document.querySelector('input[name="paymentMode"]:checked')?.value
       if (mode === 'SPLIT') {
-        if (splitContainer) splitContainer.style.display = 'flex'
         if (cashInput) cashInput.style.display = 'inline-block'
         if (upiInput) upiInput.style.display = 'inline-block'
       } else {
-        if (splitContainer) splitContainer.style.display = 'none'
         if (cashInput) cashInput.style.display = 'none'
         if (upiInput) upiInput.style.display = 'none'
       }
       resetPaidState()
-      validateSplitAmounts()
     })
   })
 
   // hide split inputs initially unless split selected
   const sel = document.querySelector('input[name="paymentMode"]:checked')
   if (sel && sel.value === 'SPLIT') {
-    if (splitContainer) splitContainer.style.display = 'flex'
     if (cashInput) cashInput.style.display = 'inline-block'
     if (upiInput) upiInput.style.display = 'inline-block'
   } else {
-    if (splitContainer) splitContainer.style.display = 'none'
     if (cashInput) cashInput.style.display = 'none'
     if (upiInput) upiInput.style.display = 'none'
   }
 
-  if (cashInput) cashInput.addEventListener('input', () => { resetPaidState(); validateSplitAmounts() })
-  if (upiInput) upiInput.addEventListener('input', () => { resetPaidState(); validateSplitAmounts() })
-
-  validateSplitAmounts()
+  if (cashInput) cashInput.addEventListener('input', () => resetPaidState())
+  if (upiInput) upiInput.addEventListener('input', () => resetPaidState())
 
   // reset generate button until PAID
   disableGeneratePublic()
@@ -352,11 +226,8 @@ function wirePaymentUI() {
       showPayErrorPublic('Click PAID before generating ticket')
       return
     }
-    const total = parseTotalAmount()
+    const total = Number((document.getElementById('total')?.textContent || '0').replace(/[^0-9.-]+/g, '')) || 0
     const paymentMode = document.querySelector('input[name="paymentMode"]:checked')?.value || null
-    const visitDate = document.getElementById('visit-date-input')?.value || null
-    const splitValidation = paymentMode === 'SPLIT' ? validateSplitAmounts() : { valid: true }
-    if (paymentMode === 'SPLIT' && !splitValidation.valid) return
     let cash = 0, upi = 0
     if (paymentMode === 'CASH') cash = total
     else if (paymentMode === 'UPI') upi = total
@@ -370,59 +241,28 @@ function wirePaymentUI() {
       paymentBreakup: { cash, upi },
       items: getItemsPayloadPublic(),
       totalAmount: total,
-      ...(visitDate ? { visitDate } : {}),
     }
     fetch('/api/counter/bookings', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
     })
-      .then(async (r) => {
-        const body = await r.json().catch(() => ({}))
-        if (!r.ok) throw body
-        return body
-      })
-      .then((d) => {
-        const ticketId = d?.ticketId || d?.bookingId || d?.ticket?.ticketId
-        if (!ticketId) {
-          showPayErrorPublic('Ticket generated but ticketId missing')
-          return
-        }
-        if (typeof loadRecentTickets === 'function') {
-          try {
-            loadRecentTickets()
-          } catch (err) {
-            console.warn('Failed to refresh recent tickets', err)
-          }
-        }
-        window.location.href = `/counter/success.html?ticketId=${encodeURIComponent(ticketId)}`
-      })
-      .catch((err) => {
-        console.error(err)
-        const message = err?.message || err?.error || 'Failed to generate ticket'
-        showPayErrorPublic(message)
-      })
+      .then((r) => r.json())
+      .then((d) => { console.log('Generated', d); alert('Ticket generated'); resetPaidState(true) })
+      .catch((err) => { console.error(err); showPayErrorPublic('Failed to generate ticket') })
   })
 }
 
-function getItemsPayloadPublic() {
-  return qsa('.qty-input')
-    .map((input) => {
-      const qty = Math.max(0, Number(input.value) || 0)
-      return {
-        itemCode: input.dataset.code,
-        qty,
-      }
-    })
-    // send only selected items (qty > 0)
-    .filter((item) => item.qty > 0)
-}
+function getItemsPayloadPublic() { return qsa('.qty-input').map((input) => ({ itemCode: input.dataset.code, qty: Math.max(0, Number(input.value) || 0) })) }
 
 function onPaidClickPublic() {
   clearPayErrorPublic()
   const paymentMode = document.querySelector('input[name="paymentMode"]:checked')?.value || null
   if (!paymentMode) { showPayErrorPublic('Select a payment mode'); return }
-  if (paymentMode === 'SPLIT' && !validateSplitAmounts().valid) return
-
-  const total = parseTotalAmount()
+  const total = Number((document.getElementById('total')?.textContent || '0').replace(/[^0-9.-]+/g, '')) || 0
+  if (paymentMode === 'SPLIT') {
+    const cash = Number(document.getElementById('cash-amount')?.value) || 0
+    const upi = Number(document.getElementById('upi-amount')?.value) || 0
+    if (Math.abs((cash + upi) - total) > 0.009) { showPayErrorPublic('Cash + UPI must equal total'); paidConfirmedPublic = false; return }
+  }
   paidConfirmedPublic = true
   const paidStatus = document.getElementById('paid-status')
   if (paidStatus) paidStatus.style.display = 'inline'
@@ -437,31 +277,6 @@ function onPaidClickPublic() {
 function resetPaidState(preserve = false) { paidConfirmedPublic = false; const paidStatus = document.getElementById('paid-status'); if (paidStatus && !preserve) paidStatus.style.display = 'none'; disableGeneratePublic() }
 function enableGeneratePublic() { const b = document.getElementById('submit-btn'); if (b) b.disabled = false }
 function disableGeneratePublic() { const b = document.getElementById('submit-btn'); if (b) b.disabled = true }
-function validateSplitAmounts() {
-  const paidBtn = document.getElementById('paid-btn')
-  const paymentMode = document.querySelector('input[name="paymentMode"]:checked')?.value || null
-  if (!paidBtn) return { valid: false }
-  if (paymentMode !== 'SPLIT') {
-    paidBtn.disabled = false
-    clearPayErrorPublic()
-    return { valid: true }
-  }
-
-  const cash = Number(document.getElementById('cash-amount')?.value) || 0
-  const upi = Number(document.getElementById('upi-amount')?.value) || 0
-  const total = parseTotalAmount()
-
-  if (Math.abs(cash + upi - total) > 0.009) {
-    paidBtn.disabled = true
-    showPayErrorPublic('Cash + UPI must equal total')
-    paidConfirmedPublic = false
-    return { valid: false, cash, upi, total }
-  }
-
-  paidBtn.disabled = false
-  clearPayErrorPublic()
-  return { valid: true, cash, upi, total }
-}
 function showPayErrorPublic(msg) { const el = document.getElementById('pay-error'); if (el) { el.textContent = msg; el.style.display = 'block' } }
 function clearPayErrorPublic() { const el = document.getElementById('pay-error'); if (el) { el.textContent = ''; el.style.display = 'none' } }
 
@@ -482,8 +297,6 @@ function updateTotals() {
 
   const totalEl = document.getElementById('total')
   if (totalEl) totalEl.textContent = fmt(total)
-
-  validateSplitAmounts()
 }
 
 
@@ -588,15 +401,4 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
-}
-
-function attachLogoutHandler() {
-  const btn = document.getElementById('logout')
-  if (!btn) return
-  if (btn._logoutBound) return
-  btn.addEventListener('click', (e) => {
-    e.preventDefault()
-    window.location.href = '/counter/login.html'
-  })
-  btn._logoutBound = true
 }

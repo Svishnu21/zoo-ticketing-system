@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ticket History | Counter</title>
+    <link rel="stylesheet" href="./counter.css" />
+  </head>
+  <body class="counter-body" data-page="history">
+    <div class="counter-shell">
+      <aside class="sidebar" aria-label="Sidebar navigation">
+        <div class="sidebar-head">
+          <h2 class="sidebar-title">Counter Desk</h2>
+          <p class="sidebar-sub">Kurumbapatti Zoological Park</p>
+        </div>
+        <section class="recent-tickets" aria-label="Recent tickets">
+          <h3>Recent Tickets</h3>
+          <ul id="recent-list" class="ticket-list">
+            <!-- Recent tickets will be populated here -->
+          </ul>
+        </section>
+      </aside>
+
+      <div class="content-area">
+        <header class="header-bar">
+          <div class="header-spacer"></div>
+          <h1 class="page-title">Ticket History</h1>
+          <div class="header-actions">
+            <span class="badge">Counter Console</span>
+            <a class="btn ghost" href="/counter/issue.html">Issue Tickets</a>
+            <a class="btn ghost" href="/counter/history.html">History</a>
+            <button id="logout" class="btn ghost">Logout</button>
+          </div>
+        </header>
+
+        <main class="issue-main">
+          <section class="history-panel card">
+            <div class="section-head">
+              <h2 class="section-title">Ticket History</h2>
+              <p class="muted">View issued tickets by date and payment mode</p>
+            </div>
+            <div class="history-filters">
+              <label>
+                <span>Date</span>
+                <input type="date" id="history-date" />
+              </label>
+              <label>
+                <span>Payment Mode</span>
+                <select id="history-payment">
+                  <option value="ALL">All</option>
+                  <option value="CASH">Cash</option>
+                  <option value="UPI">UPI</option>
+                  <option value="SPLIT">Cash + UPI</option>
+                </select>
+              </label>
+            </div>
+            <div class="table-wrapper">
+              <table class="log-table" aria-label="Ticket history">
+                <thead>
+                  <tr>
+                    <th>Ticket ID</th>
+                    <th>Visit Date</th>
+                    <th>Issue Date</th>
+                    <th>Payment Mode</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="history-rows">
+                  <!-- History rows populated by existing scripts -->
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+    <script type="module" src="/js/counter.js"></script>
+  </body>
+</html>

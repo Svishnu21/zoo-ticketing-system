@@ -12,10 +12,10 @@ const __dirname = path.dirname(__filename)
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') })
 
 const PORT = Number(process.env.PORT) || 5000
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/zoo'
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/kurumbapatti-zoo'
 
 if (!process.env.MONGODB_URI) {
-  console.warn('⚠️ MONGODB_URI not set in .env — falling back to mongodb://127.0.0.1:27017/zoo')
+  console.warn('⚠️ MONGODB_URI not set in .env — falling back to mongodb://localhost:27017/kurumbapatti-zoo')
 }
 
 const startServer = async () => {

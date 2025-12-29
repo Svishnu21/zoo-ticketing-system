@@ -7,6 +7,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 
 // serve admin files placed under `public/admin`
 const adminDir = fileURLToPath(new URL('./public/admin', import.meta.url))
+// serve counter files placed under `public/counter`
+const counterDir = fileURLToPath(new URL('./public/counter', import.meta.url))
 
 const mimeTypes: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -67,6 +69,53 @@ function serveAdminPlugin(): Plugin {
   }
 }
 
+function serveCounterPlugin(): Plugin {
+  return {
+    name: 'serve-counter-directory',
+    configureServer(server: ViteDevServer) {
+      server.middlewares.use('/counter', (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+        if (!req.url) return next()
+
+        // Redirect bare /counter or /counter/ to the login page
+        if (req.url === '/' || req.url === '') {
+          res.statusCode = 302
+          res.setHeader('Location', '/counter/login.html')
+          res.end()
+          return
+        }
+
+        let relativePath = req.url === '/' ? '/login.html' : req.url
+        // remove query params
+        const [cleanPath] = relativePath.split('?')
+        relativePath = cleanPath
+
+        const targetPath = path.join(counterDir, relativePath)
+        if (!targetPath.startsWith(counterDir)) {
+          return next()
+        }
+
+        let filePath = targetPath
+        if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+          filePath = path.join(filePath, 'index.html')
+        }
+
+        if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+          return next()
+        }
+
+        const ext = path.extname(filePath)
+        const contentType = mimeTypes[ext] ?? 'application/octet-stream'
+        res.setHeader('Content-Type', contentType)
+        fs.createReadStream(filePath).pipe(res)
+      })
+    },
+    writeBundle() {
+      const distCounter = fileURLToPath(new URL('./dist/counter', import.meta.url))
+      copyDir(counterDir, distCounter)
+    },
+  }
+}
+
 function copyDir(src: string, dest: string) {
   if (!fs.existsSync(src)) return
   if (!fs.existsSync(dest)) {
@@ -85,7 +134,7 @@ function copyDir(src: string, dest: string) {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), serveAdminPlugin()],
+  plugins: [react(), serveAdminPlugin(), serveCounterPlugin()],
   server: {
     proxy: {
       '/api': {

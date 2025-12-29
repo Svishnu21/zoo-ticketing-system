@@ -50,6 +50,22 @@
 
 // const TOTAL_DAYS = 14
 
+import { useLanguage } from '@/providers/LanguageProvider'
+
+export function SafariTicketSelectionPage() {
+	const { language } = useLanguage()
+	return (
+		<section className="min-h-screen flex items-center justify-center">
+			<div className="mx-auto p-8 text-center">
+				<h1 className="text-2xl font-bold text-forest-green">
+					{language === 'en' ? 'Safari Ticket Selection' : 'சஃபாரி டிக்கெட் தேர்வு'}
+				</h1>
+				<p className="mt-4 text-muted-foreground">{language === 'en' ? 'Coming soon' : 'விரைவில் கிடைக்கும்'}</p>
+			</div>
+		</section>
+	)
+}
+
 // export function SafariTicketSelectionPage() {
 //   const { language } = useLanguage()
 //   const navigate = useNavigate()

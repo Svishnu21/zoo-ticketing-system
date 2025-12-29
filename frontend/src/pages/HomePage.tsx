@@ -7,6 +7,7 @@ import { useLanguage } from '@/providers/LanguageProvider'
 import mammalsImage from '@/assets/images/animals.webp'
 import birdsImage from '@/assets/images/birds.webp'
 import butterflyImage from '@/assets/images/butterfly park.webp'
+import aquariumImage from '@/assets/images/aquarium.webp'
 import visitIllustration from '@/assets/images/visit us.webp'
 
 export function HomePage() {
@@ -63,6 +64,23 @@ export function HomePage() {
       },
       image: birdsImage,
       to: '/zoo?focus=birds',
+    },
+    {
+      id: 'aquarium',
+      tag: {
+        en: 'AQUARIUM',
+        ta: 'அக்வேரியம்',
+      },
+      title: {
+        en: 'Aquarium',
+        ta: 'நீரியல் உலகம்',
+      },
+      description: {
+        en: 'Dive into serene underwater habitats.',
+        ta: 'Dive into serene underwater habitats.',
+      },
+      image: aquariumImage,
+      to: '/zoo?focus=aquarium',
     },
   ] as const
 

@@ -15,6 +15,7 @@ const __dirname = path.dirname(__filename)
 const PUBLIC_PATH = path.join(__dirname, '..', 'public')
 const FRONTEND_DIST = path.join(__dirname, '..', 'frontend', 'dist')
 const DIST_PATH = fs.existsSync(FRONTEND_DIST) ? FRONTEND_DIST : path.join(__dirname, '..', 'dist')
+const FRONTEND_PUBLIC = path.join(__dirname, '..', 'frontend', 'public')
 
 const staticHtmlRoutes = [
   { route: '/payment', file: 'payment.html' },
@@ -35,6 +36,12 @@ export const createApp = () => {
 
   if (fs.existsSync(PUBLIC_PATH)) {
     app.use(express.static(PUBLIC_PATH))
+  }
+
+  // Also serve frontend/public (unbuilt static assets) when present so
+  // requests like `/js/counter.js` resolve during development.
+  if (fs.existsSync(FRONTEND_PUBLIC)) {
+    app.use(express.static(FRONTEND_PUBLIC))
   }
 
   // Serve friendly routes for static HTML from /public
