@@ -11,6 +11,7 @@ export function Footer() {
     { id: 'terms', label: 'Terms & Conditions', path: '/terms' },
     { id: 'privacy', label: 'Privacy Policy', path: '/privacy' },
     { id: 'cancellation', label: 'Cancellation & Refund', path: '/cancellation' },
+    { id: 'disclaimer', label: 'Disclaimer', path: '/disclaimer' },
   ]
   const supportLinks = [
     { id: 'vet-care', label: 'Wild Animal Vet Care', path: '/support/animal-vet-care' },

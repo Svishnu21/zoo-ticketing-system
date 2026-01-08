@@ -21,6 +21,7 @@ import { ReviewBookingPage } from '@/pages/ReviewBookingPage'
 import { TermsPage } from '@/pages/TermsPage'
 import { PrivacyPage } from '@/pages/PrivacyPage'
 import { CancellationPage } from '@/pages/CancellationPage'
+import { DisclaimerPage } from '@/pages/DisclaimerPage'
 import { HowToReachPage } from '@/pages/HowToReachPage'
 import { ZooAuthorityPage } from '@/pages/ZooAuthorityPage'
 import { AdministrationPage } from '@/pages/AdministrationPage'
@@ -86,6 +87,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="terms" element={<TermsPage />} />
             <Route path="privacy" element={<PrivacyPage />} />
             <Route path="cancellation" element={<CancellationPage />} />
+            <Route path="disclaimer" element={<DisclaimerPage />} />
             <Route path="gallery" element={<GalleryPage />} />
             <Route path="others" element={<OthersPage />} />
             <Route path="others/zoo-chart" element={<ZooChartPage />} />

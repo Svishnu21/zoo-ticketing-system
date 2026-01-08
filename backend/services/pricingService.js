@@ -1,6 +1,7 @@
 import { TicketPricing } from '../models/TicketPricing.js'
 import { ApiError } from '../utils/errors.js'
 import { coerceQuantity, validateQuantity } from '../utils/pricing.js'
+import { ensureDefaultTicketPricing } from './pricingSeedService.js'
 
 const PRICING_MISSING_MESSAGE = 'Ticket pricing not configured'
 
@@ -29,6 +30,8 @@ export const ITEM_CODE_TO_CATEGORY_CODE = {
   // Zoo Entry
   zoo_adult: 'adultEntry',
   zoo_child: 'childEntry',
+  zoo_kid_zone: 'kidZoneEntry',
+  kidZoneEntry: 'kidZoneEntry',
   zoo_differently_abled: 'differentlyAbled',
   zoo_child_free: 'childBelow5',
 
@@ -46,6 +49,8 @@ export const ITEM_CODE_TO_CATEGORY_CODE = {
 }
 
 export const loadActivePricingMap = async () => {
+  await ensureDefaultTicketPricing()
+
   const pricings = await TicketPricing.find({ isActive: true }).lean()
 
   const pricingMap = {}

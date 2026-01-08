@@ -78,6 +78,18 @@ const zooTicketOptions: ZooTicketOption[] = [
     price: getTariffPrice('zoo_child'),
   },
   {
+    id: 'zoo_kid_zone',
+    label: {
+      en: 'Kid Zone (Below 6 Years)',
+      ta: 'குழந்தைகள் விளையாட்டு பகுதி (6 வயதிற்குக் கீழ்)',
+    },
+    description: {
+      en: 'Kids play & activity zone',
+      ta: 'குழந்தைகளுக்கான விளையாட்டு மற்றும் செயல்பாட்டு பகுதி',
+    },
+    price: getTariffPrice('zoo_kid_zone'),
+  },
+  {
     id: 'zoo_differently_abled',
     label: {
       en: 'Differently Abled',

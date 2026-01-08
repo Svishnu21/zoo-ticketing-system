@@ -21,8 +21,9 @@ const paymentSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
-paymentSchema.index({ ticketId: 1 }, { unique: true })
-paymentSchema.index({ providerPaymentId: 1 }, { unique: true, sparse: true })
+// `ticketId` and `providerPaymentId` have `unique: true` on their
+// schema paths above which creates the indexes. Removing duplicate
+// explicit index declarations to prevent Mongoose duplicate-index warnings.
 paymentSchema.index({ status: 1 })
 
 export const Payment = mongoose.model('Payment', paymentSchema)

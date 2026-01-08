@@ -38,9 +38,10 @@ const ticketPricingSchema = new mongoose.Schema(
 )
 
 // Keep legacy code uniqueness but also enforce itemCode uniqueness (case-sensitive)
-ticketPricingSchema.index({ code: 1 }, { unique: true })
-ticketPricingSchema.index({ itemCode: 1 }, { unique: true })
-ticketPricingSchema.index({ categoryCode: 1 }, { unique: true })
+// Indexes for `code`, `itemCode`, and `categoryCode` are declared
+// via `unique: true` on the schema paths above. Removing the
+// duplicate explicit `schema.index(...)` calls to avoid duplicate
+// index warnings from Mongoose.
 
 // Backfill itemCode from code when missing (for older documents)
 ticketPricingSchema.pre('validate', function backfillItemCode(next) {

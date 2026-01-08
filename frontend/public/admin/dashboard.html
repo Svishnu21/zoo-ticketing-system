@@ -127,8 +127,14 @@
             </table>
           </div>
 
+          <div class="pagination">
+            <button id="bookingPrevBtn" class="btn ghost">Previous</button>
+            <span id="bookingPageLabel">Page 1</span>
+            <button id="bookingNextBtn" class="btn ghost">Next</button>
+          </div>
+
           <div class="panel-note">
-            Cancel is only available for unpaid bookings. Manual entry requires a reason when scanners fail. Ticket quantities and payment amounts remain immutable.
+            Online bookings are read-only. Payment and entry statuses are sourced from backend systems. Only view details and resend communications are enabled.
           </div>
         </section>
 
@@ -149,9 +155,11 @@
               <input type="date" id="counterDateFilter" />
             </label>
             <div class="totals">
-              <p>Daily Total: <strong id="counterDailyTotal">₹ 0</strong></p>
+              <p>Daily Total (date only): <strong id="counterDailyTotal">—</strong></p>
             </div>
           </div>
+
+          <p id="counterContextLabel" class="panel-note">Showing all counter-issued tickets. Counter tickets are summary transactions — itemized ticket type and quantity are not stored and will not be displayed or inferred here. Amount and payment mode are the authoritative financial values.</p>
 
           <div class="table-wrapper">
             <table>
@@ -171,13 +179,19 @@
               </tbody>
             </table>
           </div>
+
+          <div class="pagination">
+            <button id="counterPrevBtn" class="btn ghost">Previous</button>
+            <span id="counterPageLabel">Page 1 of 1</span>
+            <button id="counterNextBtn" class="btn ghost">Next</button>
+          </div>
         </section>
 
         <section id="qrlogs" class="panel">
           <div class="panel-header">
             <div>
-              <h3>QR Scanner Logs</h3>
-              <p>Security view of scan outcomes. No overrides or resets.</p>
+              <h3>QR Scanner Logs – Security &amp; Audit View</h3>
+              <p>Read-only visibility of every scan attempt. No overrides, resets, or re-entry controls.</p>
             </div>
           </div>
 
@@ -213,7 +227,7 @@
           <div class="panel-header">
             <div>
               <h3>Tariff Management</h3>
-              <p>Adjust future prices only. Past bookings stay unchanged.</p>
+              <p>Online bookings only. Price updates apply to future purchases; past bookings and counter tickets stay unchanged.</p>
             </div>
           </div>
 
@@ -234,8 +248,11 @@
                 <option value="Inactive">Inactive</option>
               </select>
             </label>
-            <button type="submit" class="btn primary full">Save Tariff</button>
-            <p id="tariffMessage" class="form-feedback" aria-live="polite"></p>
+            <div class="tariff-actions">
+              <button type="submit" class="btn primary">Save Tariff</button>
+              <p id="tariffHelper" class="muted small"></p>
+              <p id="tariffMessage" class="form-feedback" aria-live="polite"></p>
+            </div>
           </form>
 
           <div class="table-wrapper">
@@ -341,25 +358,6 @@
           <button type="submit" aria-label="Close">×</button>
         </header>
         <div class="modal-body" id="bookingDetailBody"></div>
-      </form>
-    </dialog>
-
-    <dialog id="manualEntryModal">
-      <form method="dialog" id="manualEntryForm" class="modal">
-        <header>
-          <h3>Manual Entry</h3>
-          <button type="submit" aria-label="Close">×</button>
-        </header>
-        <div class="modal-body">
-          <p id="manualEntryBooking"></p>
-          <label>
-            <span>Reason (required)</span>
-            <textarea name="reason" rows="3" required placeholder="Scanner down at Gate 2"></textarea>
-          </label>
-        </div>
-        <footer>
-          <button type="submit" class="btn primary">Confirm Manual Entry</button>
-        </footer>
       </form>
     </dialog>
 

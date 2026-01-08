@@ -1,136 +1,25 @@
-import { formatDateTime } from '/js/utils/dateUtils.js'
-
 const credentials = {
 	username: 'admin',
 	password: 'admin@123',
 	otp: '0000',
 }
 
+const backendOrigin = window.location.origin.startsWith('http://localhost:5173')
+	? 'http://localhost:5000'
+	: window.location.origin
+const adminApiBase = `${backendOrigin}/admin`
 const today = new Date().toISOString().slice(0, 10)
 
 const state = {
-	bookings: [
-		{
-			id: 'BK-25001',
-			visitorName: 'S. Kumar',
-			mobile: '9000001234',
-			visitDate: today,
-			ticketCount: 4,
-			totalAmount: 800,
-			paymentStatus: 'Paid',
-			entryStatus: 'Entered',
-			channel: 'Online',
-			createdAt: '2025-12-17T08:45:00',
-			manualEntryReason: null,
-		},
-		{
-			id: 'BK-25002',
-			visitorName: 'Priya V',
-			mobile: '9000005678',
-			visitDate: today,
-			ticketCount: 2,
-			totalAmount: 400,
-			paymentStatus: 'Pending',
-			entryStatus: 'Not Entered',
-			channel: 'Online',
-			createdAt: '2025-12-17T10:15:00',
-			manualEntryReason: null,
-		},
-		{
-			id: 'BK-25003',
-			visitorName: 'R. Shankar',
-			mobile: '9884077001',
-			visitDate: today,
-			ticketCount: 3,
-			totalAmount: 600,
-			paymentStatus: 'Paid',
-			entryStatus: 'Not Entered',
-			channel: 'Online',
-			createdAt: '2025-12-17T11:05:00',
-			manualEntryReason: null,
-		},
-		{
-			id: 'BK-24099',
-			visitorName: 'Meena D',
-			mobile: '9600002200',
-			visitDate: '2025-12-17',
-			ticketCount: 5,
-			totalAmount: 1000,
-			paymentStatus: 'Paid',
-			entryStatus: 'Entered',
-			channel: 'Online',
-			createdAt: '2025-12-16T15:10:00',
-			manualEntryReason: null,
-		},
-		{
-			id: 'BK-24098',
-			visitorName: 'Demo Failure',
-			mobile: '9555512345',
-			visitDate: today,
-			ticketCount: 1,
-			totalAmount: 200,
-			paymentStatus: 'Failed',
-			entryStatus: 'Not Entered',
-			channel: 'Online',
-			createdAt: '2025-12-17T07:40:00',
-			manualEntryReason: null,
-		},
-	],
-	counterTickets: [
-		{ id: 'CT-18001', date: today, time: '09:35', type: 'Zoo Entry', quantity: 2, amount: 400, paymentMode: 'Cash', issuedBy: 'Counter-1' },
-		{ id: 'CT-18002', date: today, time: '11:10', type: 'Parking', quantity: 1, amount: 60, paymentMode: 'UPI', issuedBy: 'Counter-2' },
-		{ id: 'CT-17099', date: '2025-12-17', time: '15:25', type: 'Zoo Entry', quantity: 3, amount: 600, paymentMode: 'Card', issuedBy: 'Counter-1' },
-	],
-	scannerLogs: [
-		{ bookingId: 'BK-25001', timestamp: `${today}T10:05:00`, gate: 'Gate-1', result: 'Valid' },
-		{ bookingId: 'BK-25003', timestamp: `${today}T10:45:00`, gate: 'Gate-2', result: 'Valid' },
-		{ bookingId: 'BK-25002', timestamp: `${today}T10:50:00`, gate: 'Gate-2', result: 'Invalid' },
-		{ bookingId: 'BK-24099', timestamp: '2025-12-17T16:05:00', gate: 'Gate-1', result: 'Already Used' },
-	],
-	tariffs: [
-		{ id: 'TR-1', category: 'Adult', price: 200, status: 'Active', updatedAt: '2025-12-10' },
-		{ id: 'TR-2', category: 'Child', price: 120, status: 'Active', updatedAt: '2025-12-10' },
-		{ id: 'TR-3', category: 'Parking', price: 60, status: 'Active', updatedAt: '2025-12-12' },
-		{ id: 'TR-4', category: 'Camera', price: 80, status: 'Inactive', updatedAt: '2025-12-05' },
-	],
-	adoptions: [
-		{
-			id: 'ADP-1001',
-			adopterName: 'Priya Raman',
-			animalName: 'Asian Elephant',
-			species: 'Elephas maximus',
-			durationDays: 90,
-			contributionAmount: 45000,
-			paymentStatus: 'Paid',
-			certificateStatus: 'Pending',
-			startDate: '2025-12-01',
-			endDate: '2026-02-29',
-		},
-		{
-			id: 'ADP-1002',
-			adopterName: 'Kumaravel & Co.',
-			animalName: 'Spotted Deer',
-			species: 'Axis axis',
-			durationDays: 30,
-			contributionAmount: 12000,
-			paymentStatus: 'Paid',
-			certificateStatus: 'Issued',
-			startDate: '2025-11-20',
-			endDate: '2025-12-20',
-		},
-		{
-			id: 'ADP-1003',
-			adopterName: 'Student Group',
-			animalName: 'Indian Peafowl',
-			species: 'Pavo cristatus',
-			durationDays: 30,
-			contributionAmount: 8000,
-			paymentStatus: 'Pending',
-			certificateStatus: 'Not Ready',
-			startDate: '2025-12-15',
-			endDate: '2026-01-14',
-		},
-	],
+	bookings: [],
+	bookingPagination: { page: 1, limit: 20, total: 0, hasNext: false },
+	bookingFilters: { date: '', payment: 'all', entry: 'all', search: '' },
+	counterTickets: [],
+	counterPagination: { page: 1, limit: 100, total: 0, hasNext: false },
+	counterDate: '',
+	scannerLogs: [],
+	tariffs: [],
+	adoptions: [],
 }
 
 const page = window.location.pathname.split('/').pop() || 'login.html'
@@ -216,27 +105,33 @@ function setupNavigation() {
 }
 
 function renderOverview() {
-	const bookingsToday = state.bookings.filter((b) => b.visitDate === today)
-	const onlineCount = bookingsToday.length
+	const hasTodayFilter = state.bookingFilters?.date === today
+	const bookingsToday = hasTodayFilter ? state.bookings : []
+	const onlineCount = hasTodayFilter ? state.bookingPagination?.total ?? bookingsToday.length : 0
 	const counterToday = state.counterTickets.filter((t) => t.date === today)
-	const counterTicketsIssued = counterToday.reduce((sum, t) => sum + Number(t.quantity || 0), 0)
-	const revenueOnline = bookingsToday
-		.filter((b) => b.paymentStatus === 'Paid')
-		.reduce((sum, b) => sum + Number(b.totalAmount || 0), 0)
+	// Counter tickets are summary transactions; quantity/type not stored — do not infer or display counts.
+	const counterTicketsIssued = '--'
+	const revenueOnline = hasTodayFilter
+		? bookingsToday.filter((b) => (b.paymentStatus || '').toString().toUpperCase() === 'PAID').reduce((sum, b) => sum + Number(b.totalAmount || 0), 0)
+		: 0
 	const revenueCounter = counterToday.reduce((sum, t) => sum + Number(t.amount || 0), 0)
-	const entered = bookingsToday
-		.filter((b) => b.entryStatus.includes('Entered'))
-		.reduce((sum, b) => sum + Number(b.ticketCount || 0), 0)
-	const pending = bookingsToday.filter((b) => b.entryStatus.startsWith('Not')).length
+	const entered = hasTodayFilter
+		? bookingsToday
+				.filter((b) => (b.entryStatus || '').toString().toLowerCase().includes('entered'))
+				.reduce((sum, b) => sum + Number(b.ticketCount || 0), 0)
+		: 0
+	const pending = hasTodayFilter
+		? bookingsToday.filter((b) => (b.entryStatus || '').toString().toLowerCase().startsWith('not')).length
+		: 0
 
-	const onlineTrend = `${onlineCount} scheduled today`
+	const onlineTrend = hasTodayFilter ? `${onlineCount} scheduled today` : 'Apply Visit Date = today for live counts'
 
-	document.getElementById('metricOnlineToday').textContent = onlineCount.toString()
+	document.getElementById('metricOnlineToday').textContent = hasTodayFilter ? onlineCount.toString() : '--'
 	document.getElementById('metricOnlineTrend').textContent = onlineTrend
-	document.getElementById('metricCounterToday').textContent = counterTicketsIssued.toString()
-	document.getElementById('metricRevenueToday').textContent = formatINR(revenueOnline + revenueCounter)
-	document.getElementById('metricEntered').textContent = entered.toString()
-	document.getElementById('metricPending').textContent = pending.toString()
+	document.getElementById('metricCounterToday').textContent = '--'
+	document.getElementById('metricRevenueToday').textContent = hasTodayFilter ? formatINR(revenueOnline + revenueCounter) : '--'
+	document.getElementById('metricEntered').textContent = hasTodayFilter ? entered.toString() : '--'
+	document.getElementById('metricPending').textContent = hasTodayFilter ? pending.toString() : '--'
 }
 
 function setupBookings() {
@@ -247,65 +142,180 @@ function setupBookings() {
 	const tableBody = document.getElementById('bookingTableBody')
 	const bookingDetailModal = document.getElementById('bookingDetailModal')
 	const bookingDetailBody = document.getElementById('bookingDetailBody')
-	const manualEntryModal = document.getElementById('manualEntryModal')
-	const manualEntryForm = document.getElementById('manualEntryForm')
-	const manualEntryLabel = document.getElementById('manualEntryBooking')
+	const paginationLabel = document.getElementById('bookingPageLabel')
+	const prevBtn = document.getElementById('bookingPrevBtn')
+	const nextBtn = document.getElementById('bookingNextBtn')
 
 	if (!tableBody) return
 
-	let manualEntryTarget = null
+	let searchTimeout
+
+	const setLoading = (message) => {
+		tableBody.innerHTML = `<tr><td colspan="9">${message}</td></tr>`
+	}
+
+	const toTitle = (value) => (value ? value.toString().replace(/_/g, ' ') : '—')
+
+	const updatePagination = () => {
+		if (paginationLabel) {
+			const totalPages = Math.max(1, Math.ceil((state.bookingPagination.total || 0) / (state.bookingPagination.limit || 1)))
+			paginationLabel.textContent = `Page ${state.bookingPagination.page} of ${totalPages}`
+		}
+		if (prevBtn) prevBtn.disabled = state.bookingPagination.page <= 1
+		if (nextBtn) nextBtn.disabled = !state.bookingPagination.hasNext
+	}
 
 	const renderTable = () => {
-		const filters = {
-			date: dateFilter?.value,
-			payment: paymentFilter?.value ?? 'all',
-			entry: entryFilter?.value ?? 'all',
-			search: searchInput?.value?.trim().toLowerCase() ?? '',
-		}
-
-		const rows = state.bookings
-			.filter((b) => !filters.date || b.visitDate === filters.date)
-			.filter((b) => filters.payment === 'all' || b.paymentStatus === filters.payment)
-			.filter((b) => filters.entry === 'all' || b.entryStatus === filters.entry)
-			.filter((b) => {
-				if (!filters.search) return true
-				return b.id.toLowerCase().includes(filters.search) || b.mobile.toLowerCase().includes(filters.search)
-			})
-
-		if (!rows.length) {
-			tableBody.innerHTML = '<tr><td colspan="9">No bookings match the selected filters.</td></tr>'
+		if (!state.bookings.length) {
+			setLoading('No bookings found for the selected filters.')
+			updatePagination()
 			return
 		}
 
-		tableBody.innerHTML = rows
-			.map((b) => {
-				const disableCancel = b.paymentStatus === 'Paid' || b.paymentStatus === 'Cancelled'
-				const disableManualEntry = b.entryStatus.includes('Entered') || b.paymentStatus !== 'Paid' || b.paymentStatus === 'Cancelled'
-				return `
-					<tr>
-						<td>${b.id}</td>
-						<td>${b.visitorName}</td>
-						<td>${b.mobile}</td>
-						<td>${b.visitDate}</td>
-						<td>${b.ticketCount}</td>
-						<td>${formatINR(b.totalAmount)}</td>
-						<td><span class="status-pill ${pillClass(b.paymentStatus)}">${b.paymentStatus}</span></td>
-						<td><span class="status-pill ${pillClass(b.entryStatus)}">${b.entryStatus}</span></td>
-						<td class="actions">
-							<button class="link" data-action="view" data-id="${b.id}">View</button>
-							<button class="link danger" data-action="cancel" data-id="${b.id}" ${disableCancel ? 'disabled' : ''}>Cancel</button>
-							<button class="link" data-action="manual-entry" data-id="${b.id}" ${disableManualEntry ? 'disabled' : ''}>Mark Entry</button>
-						</td>
-					</tr>
-				`
-			})
+			tableBody.innerHTML = state.bookings
+				.map(
+					(b) => `
+				<tr>
+					<td>${b.ticketId}</td>
+					<td>${b.visitorName || '—'}</td>
+					<td>${b.visitorMobile || '—'}</td>
+					<td>${b.visitDate || '—'}</td>
+					<td>${formatCount(b.ticketCount ?? b.items)}</td>
+					<td>${formatINR(b.totalAmount)}</td>
+					<td><span class="status-pill ${pillClass(b.paymentStatus)}">${toTitle(b.paymentStatus)}</span></td>
+					<td><span class="status-pill ${pillClass(b.entryStatus)}">${b.entryStatus || 'Not Entered'}</span></td>
+					<td class="actions">
+						<button class="link" data-action="view" data-id="${b.ticketId}">View</button>
+						<button class="link" data-action="resend" data-id="${b.ticketId}" ${b.paymentStatus && b.paymentStatus.toString().toUpperCase() !== 'PAID' ? 'disabled' : ''}>Resend</button>
+					</td>
+				</tr>
+			`,
+			)
 			.join('')
+
+		updatePagination()
 	}
 
-	dateFilter?.addEventListener('change', renderTable)
-	paymentFilter?.addEventListener('change', renderTable)
-	entryFilter?.addEventListener('change', renderTable)
-	searchInput?.addEventListener('input', renderTable)
+	const buildQuery = (page = 1) => {
+		const params = new URLSearchParams()
+		const filters = {
+			visitDate: dateFilter?.value || '',
+			paymentStatus: paymentFilter?.value || 'all',
+			entryStatus: entryFilter?.value || 'all',
+			search: searchInput?.value?.trim() || '',
+			page,
+			limit: state.bookingPagination.limit,
+		}
+
+		state.bookingFilters = { date: filters.visitDate, payment: filters.paymentStatus, entry: filters.entryStatus, search: filters.search }
+
+		Object.entries(filters).forEach(([key, value]) => {
+			if (value && value !== 'all') params.set(key, value)
+		})
+
+		params.set('page', page)
+		params.set('limit', state.bookingPagination.limit)
+		return params.toString()
+	}
+
+	const fetchBookings = async (page = 1) => {
+		setLoading('Loading bookings…')
+		try {
+			const query = buildQuery(page)
+			const response = await fetch(`${adminApiBase}/bookings?${query}`, { credentials: 'include' })
+			if (!response.ok) {
+				const status = response.status
+				let message = `Failed to load bookings (${status}).`
+				if (status === 404) message = 'No records available for the selected filters'
+				else if (status === 401 || status === 403) message = 'Session expired or unauthorized'
+				else if (status >= 500) message = 'Unable to fetch bookings at this time'
+
+				state.bookings = []
+				state.bookingPagination = { ...state.bookingPagination, page, total: 0, hasNext: false }
+				tableBody.innerHTML = `<tr><td colspan="9">${message}</td></tr>`
+				updatePagination()
+				return
+			}
+
+			const payload = await response.json()
+			state.bookings = Array.isArray(payload?.data) ? payload.data : []
+			state.bookingPagination = {
+				page: payload?.pagination?.page || page,
+				limit: payload?.pagination?.limit || state.bookingPagination.limit,
+				total: payload?.pagination?.total || state.bookings.length,
+				hasNext: Boolean(payload?.pagination?.hasNext),
+			}
+			renderTable()
+			renderOverview()
+		} catch (error) {
+			console.error('Failed to fetch bookings', error)
+			state.bookings = []
+			state.bookingPagination = { ...state.bookingPagination, page, total: 0, hasNext: false }
+			tableBody.innerHTML = '<tr><td colspan="9">Unable to fetch bookings at this time</td></tr>'
+			updatePagination()
+		}
+	}
+
+	const openBookingDetail = async (ticketId) => {
+		if (!bookingDetailModal || !bookingDetailBody) return
+		bookingDetailBody.innerHTML = '<p>Loading…</p>'
+		bookingDetailModal.showModal()
+		try {
+			const response = await fetch(`${adminApiBase}/bookings/${ticketId}`)
+			if (!response.ok) throw new Error('Unable to load booking details.')
+			const data = await response.json()
+			bookingDetailBody.innerHTML = detailList([
+				['Booking ID', data.ticketId],
+				['Visitor', data.visitorName || '—'],
+				['Mobile', data.visitorMobile || '—'],
+				['Visit Date', data.visitDate || '—'],
+				['Issue Date', data.issueDate ? formatDateTime(data.issueDate) : '—'],
+				['Total Amount', formatINR(data.totalAmount)],
+				['Payment Mode', data.paymentMode || '—'],
+				['Payment Status', data.paymentStatus || '—'],
+				['Entry Status', data.entryStatus || '—'],
+				['Entry Timestamp', data.entryTimestamp ? formatDateTime(data.entryTimestamp) : '—'],
+				['Payment Reference', data.paymentReference || '—'],
+			])
+
+			if (data.qrImage) {
+				const qr = document.createElement('img')
+				qr.src = data.qrImage
+				qr.alt = 'Ticket QR'
+				qr.className = 'qr-preview'
+				bookingDetailBody.appendChild(qr)
+			}
+		} catch (error) {
+			bookingDetailBody.innerHTML = `<p>${error?.message || 'Unable to load booking details.'}</p>`
+		}
+	}
+
+	const requestResend = async (ticketId) => {
+		const confirmed = confirm('Resend ticket communication to the visitor?')
+		if (!confirmed) return
+		try {
+			const response = await fetch(`${adminApiBase}/bookings/${ticketId}/resend`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+			})
+			const payload = await response.json()
+			if (!response.ok) throw new Error(payload?.message || 'Resend failed.')
+			alert(payload?.message || 'Resend queued.')
+		} catch (error) {
+			alert(error?.message || 'Resend failed.')
+		}
+	}
+
+	dateFilter?.addEventListener('change', () => fetchBookings(1))
+	paymentFilter?.addEventListener('change', () => fetchBookings(1))
+	entryFilter?.addEventListener('change', () => fetchBookings(1))
+	searchInput?.addEventListener('input', () => {
+		clearTimeout(searchTimeout)
+		searchTimeout = setTimeout(() => fetchBookings(1), 250)
+	})
+
+	prevBtn?.addEventListener('click', () => fetchBookings(Math.max(1, state.bookingPagination.page - 1)))
+	nextBtn?.addEventListener('click', () => fetchBookings(state.bookingPagination.page + 1))
 
 	tableBody.addEventListener('click', (event) => {
 		const target = event.target
@@ -314,128 +324,152 @@ function setupBookings() {
 		const id = target.dataset.id
 		if (!action || !id) return
 
-		const booking = state.bookings.find((b) => b.id === id)
-		if (!booking) return
-
-		if (action === 'view') {
-			if (!bookingDetailModal || !bookingDetailBody) return
-			bookingDetailBody.innerHTML = detailList([
-				['Booking ID', booking.id],
-				['Visitor', booking.visitorName],
-				['Mobile', booking.mobile],
-				['Visit Date', booking.visitDate],
-				['Ticket Count', booking.ticketCount],
-				['Total Amount', formatINR(booking.totalAmount)],
-				['Payment Status', booking.paymentStatus],
-				['Entry Status', booking.entryStatus],
-				['Manual Entry Reason', booking.manualEntryReason || '—'],
-				['Created At', formatDateTime(booking.createdAt)],
-			])
-			bookingDetailModal.showModal()
-			return
-		}
-
-		if (action === 'cancel') {
-			if (booking.paymentStatus === 'Paid') return
-			const confirmed = confirm('Cancel this booking? Payments already settled cannot be cancelled here.')
-			if (!confirmed) return
-			booking.paymentStatus = 'Cancelled'
-			booking.entryStatus = 'Not Entered'
-			booking.manualEntryReason = null
-			renderTable()
-			renderOverview()
-			return
-		}
-
-		if (action === 'manual-entry') {
-			manualEntryTarget = booking.id
-			manualEntryLabel.textContent = `Booking ${booking.id} - ${booking.visitorName}`
-			manualEntryForm?.reset()
-			manualEntryModal?.showModal()
-		}
+		if (action === 'view') return openBookingDetail(id)
+		if (action === 'resend') return requestResend(id)
 	})
 
-	manualEntryForm?.addEventListener('submit', (event) => {
-		event.preventDefault()
-		if (!manualEntryTarget) return manualEntryModal?.close()
-		const formData = new FormData(manualEntryForm)
-		const reason = formData.get('reason')?.toString().trim()
-		if (!reason) return
-		const booking = state.bookings.find((b) => b.id === manualEntryTarget)
-		if (!booking) return
-		booking.entryStatus = 'Entered (Manual)'
-		booking.manualEntryReason = reason
-		state.scannerLogs.push({ bookingId: booking.id, timestamp: new Date().toISOString(), gate: 'Manual', result: 'Manual Entry Recorded' })
-		manualEntryModal?.close()
-		renderTable()
-		renderOverview()
-		renderScannerLogs()
-	})
-
-	manualEntryModal?.addEventListener('click', (event) => {
-		if (event.target === manualEntryModal) manualEntryModal.close()
-	})
-
-	renderTable()
+	fetchBookings(1)
 }
+
+	// Counter ticket items must NOT be used to infer type/quantity in admin UI.
+	// Ticket Type: show static label 'Counter'
+	// Quantity: show neutral placeholder '—'
 
 function setupCounterTickets() {
 	const dateFilter = document.getElementById('counterDateFilter')
 	const tableBody = document.getElementById('counterTableBody')
 	const dailyTotal = document.getElementById('counterDailyTotal')
 	const exportBtn = document.getElementById('exportCounterBtn')
+	const counterPageLabel = document.getElementById('counterPageLabel')
+	const counterPrevBtn = document.getElementById('counterPrevBtn')
+	const counterNextBtn = document.getElementById('counterNextBtn')
+	const counterContextLabel = document.getElementById('counterContextLabel')
 
 	if (!tableBody) return
 
-	const renderTable = () => {
-		const selectedDate = dateFilter?.value
-		const rows = state.counterTickets.filter((t) => !selectedDate || t.date === selectedDate)
+	const setContext = (text) => {
+		if (counterContextLabel) counterContextLabel.textContent = text
+	}
 
-		if (!rows.length) {
-			tableBody.innerHTML = '<tr><td colspan="7">No counter tickets for the selected date.</td></tr>'
-		} else {
-			tableBody.innerHTML = rows
-				.map(
-					(t) => `
-						<tr>
-							<td>${t.id}</td>
-							<td>${t.date} ${t.time}</td>
-							<td>${t.type}</td>
-							<td>${t.quantity}</td>
-							<td>${formatINR(t.amount)}</td>
-							<td>${t.paymentMode}</td>
-							<td>${t.issuedBy}</td>
-						</tr>
-					`,
-				)
-				.join('')
+	const setEmpty = (message) => {
+		tableBody.innerHTML = `<tr><td colspan="7">${message}</td></tr>`
+		if (dailyTotal) dailyTotal.textContent = state.counterDate ? formatINR(0) : '—'
+		if (exportBtn) exportBtn.disabled = true
+		if (counterPageLabel) counterPageLabel.textContent = 'Page 1 of 1'
+		if (counterPrevBtn) counterPrevBtn.disabled = true
+		if (counterNextBtn) counterNextBtn.disabled = true
+	}
+
+	const updatePagination = () => {
+		const totalPages = Math.max(1, Math.ceil((state.counterPagination.total || 0) / (state.counterPagination.limit || 1)))
+		if (counterPageLabel) counterPageLabel.textContent = `Page ${state.counterPagination.page} of ${totalPages}`
+		if (counterPrevBtn) counterPrevBtn.disabled = state.counterPagination.page <= 1
+		if (counterNextBtn) counterNextBtn.disabled = !state.counterPagination.hasNext
+	}
+
+	const renderTable = () => {
+		if (!state.counterTickets.length) {
+			setEmpty(state.counterDate ? 'No counter tickets for the selected date.' : 'Showing all counter-issued tickets (none returned).')
+			return
 		}
 
-		const total = rows.reduce((sum, t) => sum + Number(t.amount || 0), 0)
-		if (dailyTotal) dailyTotal.textContent = formatINR(total)
+		tableBody.innerHTML = state.counterTickets
+			.map((t) => {
+				const issuedAt = formatDateTime(t.issueDate)
+				const displayType = 'Counter'
+				const displayQuantity = '—'
+				return `
+					<tr>
+						<td>${t.ticketId}</td>
+						<td>${issuedAt}</td>
+						<td>${displayType}</td>
+						<td>${displayQuantity}</td>
+						<td>${formatINR(t.totalAmount)}</td>
+						<td>${t.paymentMode || '—'}</td>
+						<td>${t.issuedBy || '—'}</td>
+					</tr>
+				`
+			})
+			.join('')
+
+		const total = state.counterTickets.reduce((sum, t) => sum + Number(t.totalAmount || 0), 0)
+		if (dailyTotal) dailyTotal.textContent = state.counterDate ? formatINR(total) : '—'
+		if (exportBtn) exportBtn.disabled = state.counterTickets.length === 0
+		updatePagination()
+	}
+
+	const fetchCounterTickets = async (date, page = 1) => {
+		setEmpty('Loading counter tickets…')
+		try {
+			const params = new URLSearchParams()
+			if (date) params.set('date', date)
+			const response = await fetch(`${backendOrigin}/api/counter/history?${params.toString()}`)
+			if (!response.ok) {
+				state.counterTickets = []
+				state.counterPagination = { page: 1, limit: state.counterPagination.limit, total: 0, hasNext: false }
+				setEmpty('Unable to load counter tickets')
+				return
+			}
+			const payload = await response.json()
+			state.counterDate = date || ''
+			state.counterTickets = Array.isArray(payload?.tickets) ? payload.tickets : []
+			const totalRecords = Number(payload?.pagination?.total || state.counterTickets.length || 0)
+			const limit = Number(payload?.pagination?.limit || state.counterPagination.limit || 100)
+			const hasNext = Boolean(payload?.pagination?.hasNext)
+			state.counterPagination = { page, limit, total: totalRecords, hasNext }
+			setContext(state.counterDate ? `Showing counter tickets for ${state.counterDate}` : 'Showing all counter-issued tickets')
+			renderTable()
+		} catch (error) {
+			console.error('Failed to fetch counter tickets', error)
+			state.counterTickets = []
+			state.counterPagination = { page: 1, limit: state.counterPagination.limit, total: 0, hasNext: false }
+			setEmpty('Unable to load counter tickets')
+		}
 	}
 
 	const exportCsv = () => {
-		const selectedDate = dateFilter?.value
-		const rows = state.counterTickets.filter((t) => !selectedDate || t.date === selectedDate)
-		if (!rows.length) return alert('No rows to export for the selected date.')
-		const header = ['Counter Ticket ID', 'Date', 'Time', 'Ticket Type', 'Quantity', 'Amount', 'Payment Mode', 'Issued By']
+		if (!state.counterTickets.length) return
+		const header = ['Counter Ticket ID', 'Issue Date & Time', 'Ticket Type', 'Quantity', 'Amount', 'Payment Mode', 'Issued By']
 		const csvRows = [header.join(',')]
-		rows.forEach((t) => {
-			csvRows.push([t.id, t.date, t.time, t.type, t.quantity, t.amount, t.paymentMode, t.issuedBy].join(','))
+		state.counterTickets.forEach((t) => {
+			const displayType = 'Counter'
+			const displayQuantity = '—'
+			csvRows.push([
+				t.ticketId,
+				formatDateTime(t.issueDate),
+				displayType,
+				displayQuantity,
+				t.totalAmount,
+				t.paymentMode,
+				t.issuedBy || '',
+			].join(','))
 		})
 		const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
 		const url = URL.createObjectURL(blob)
 		const link = document.createElement('a')
 		link.href = url
-		link.download = `counter-tickets-${selectedDate || 'all'}.csv`
+		link.download = `counter-tickets-${state.counterDate || 'selected'}.csv`
 		link.click()
 		URL.revokeObjectURL(url)
 	}
 
-	dateFilter?.addEventListener('change', renderTable)
+	dateFilter?.addEventListener('change', (event) => {
+		const value = event.target?.value
+		fetchCounterTickets(value, 1)
+	})
+
+	counterPrevBtn?.addEventListener('click', () => {
+		const prevPage = Math.max(1, state.counterPagination.page - 1)
+		fetchCounterTickets(state.counterDate, prevPage)
+	})
+
+	counterNextBtn?.addEventListener('click', () => {
+		const nextPage = state.counterPagination.page + 1
+		fetchCounterTickets(state.counterDate, nextPage)
+	})
+
 	exportBtn?.addEventListener('click', exportCsv)
-	renderTable()
+	fetchCounterTickets('', 1)
 }
 
 function setupScannerLogs() {
@@ -444,26 +478,25 @@ function setupScannerLogs() {
 	const tableBody = document.getElementById('logTableBody')
 	if (!tableBody) return
 
+	let searchTimeout
+
+	const setMessage = (message) => {
+		tableBody.innerHTML = `<tr><td colspan="4">${message}</td></tr>`
+	}
+
 	const renderTable = () => {
-		const selectedDate = dateFilter?.value
-		const search = searchInput?.value?.trim().toLowerCase() ?? ''
-
-		const rows = state.scannerLogs
-			.filter((log) => !selectedDate || log.timestamp.startsWith(selectedDate))
-			.filter((log) => !search || log.bookingId.toLowerCase().includes(search))
-
-		if (!rows.length) {
-			tableBody.innerHTML = '<tr><td colspan="4">No scan logs for the selected filters.</td></tr>'
+		if (!state.scannerLogs.length) {
+			setMessage('No scan logs for the selected filters.')
 			return
 		}
 
-		tableBody.innerHTML = rows
+		tableBody.innerHTML = state.scannerLogs
 			.map(
 				(log) => `
 					<tr>
-						<td>${log.bookingId}</td>
-						<td>${formatDateTime(log.timestamp)}</td>
-						<td>${log.gate}</td>
+						<td>${log.bookingId || '—'}</td>
+						<td>${formatDateTime(log.scannedAt || log.timestamp)}</td>
+						<td>${log.gateId || log.gate || '—'}</td>
 						<td><span class="status-pill ${pillClass(log.result)}">${log.result}</span></td>
 					</tr>
 				`,
@@ -471,11 +504,38 @@ function setupScannerLogs() {
 			.join('')
 	}
 
-	dateFilter?.addEventListener('change', renderTable)
-	searchInput?.addEventListener('input', renderTable)
+	const fetchScannerLogs = async () => {
+		setMessage('Loading scan logs…')
+		try {
+			const params = new URLSearchParams()
+			const date = dateFilter?.value?.trim()
+			const bookingId = searchInput?.value?.trim()
+			if (date) params.set('date', date)
+			if (bookingId) params.set('bookingId', bookingId)
+			const response = await fetch(`${adminApiBase}/scanner-logs?${params.toString()}`, { credentials: 'include' })
+			if (!response.ok) {
+				state.scannerLogs = []
+				setMessage('Unable to load scan logs.')
+				return
+			}
+			const payload = await response.json()
+			state.scannerLogs = Array.isArray(payload?.data) ? payload.data : []
+			renderTable()
+		} catch (error) {
+			console.error('Failed to fetch scan logs', error)
+			state.scannerLogs = []
+			setMessage('Unable to load scan logs.')
+		}
+	}
 
-	renderTable()
-	setupScannerLogs.render = renderTable
+	dateFilter?.addEventListener('change', fetchScannerLogs)
+	searchInput?.addEventListener('input', () => {
+		clearTimeout(searchTimeout)
+		searchTimeout = setTimeout(fetchScannerLogs, 250)
+	})
+
+	fetchScannerLogs()
+	setupScannerLogs.render = fetchScannerLogs
 }
 
 function renderScannerLogs() {
@@ -486,8 +546,23 @@ function setupTariffs() {
 	const form = document.getElementById('tariffForm')
 	const tableBody = document.getElementById('tariffTableBody')
 	const message = document.getElementById('tariffMessage')
+	const helper = document.getElementById('tariffHelper')
 
 	if (!form || !tableBody) return
+
+	const setMessage = (text, tone = 'info') => {
+		if (!message) return
+		message.textContent = text
+		message.className = `form-feedback ${tone}`
+		setTimeout(() => {
+			message.textContent = ''
+			message.className = 'form-feedback'
+		}, 3000)
+	}
+
+	if (helper) {
+		helper.textContent = 'Tariffs apply to online bookings only. Price changes take effect for future online purchases and do not alter past bookings or counter tickets.'
+	}
 
 	const renderTable = () => {
 		if (!state.tariffs.length) {
@@ -496,13 +571,15 @@ function setupTariffs() {
 		}
 
 		tableBody.innerHTML = state.tariffs
+			.slice()
+			.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))
 			.map(
 				(t) => `
 					<tr>
 						<td>${t.category}</td>
 						<td>${formatINR(t.price)}</td>
 						<td><span class="status-pill ${pillClass(t.status)}">${t.status}</span></td>
-						<td>${t.updatedAt}</td>
+						<td>${t.updatedAt ? formatDateTime(t.updatedAt) : '—'}</td>
 						<td class="actions">
 							<button class="link" data-action="edit" data-id="${t.id}">Edit</button>
 							<button class="link" data-action="toggle" data-id="${t.id}">${t.status === 'Active' ? 'Disable' : 'Enable'}</button>
@@ -516,23 +593,30 @@ function setupTariffs() {
 	form.addEventListener('submit', (event) => {
 		event.preventDefault()
 		const data = Object.fromEntries(new FormData(form))
+		const category = data.category?.toString().trim()
+		const priceValue = Number(data.price)
+		if (!category) {
+			setMessage('Provide an online booking ticket category.', 'warning')
+			return
+		}
+		if (!Number.isFinite(priceValue) || priceValue < 0) {
+			setMessage('Enter a valid price (0 or above).', 'warning')
+			return
+		}
 		const id = data.id || `TR-${Date.now()}`
 		const existing = state.tariffs.find((t) => t.id === id)
 		const now = new Date().toISOString().slice(0, 10)
 		if (existing) {
-			existing.category = data.category
-			existing.price = Number(data.price)
+			existing.category = category
+			existing.price = priceValue
 			existing.status = data.status
 			existing.updatedAt = now
 		} else {
-			state.tariffs.push({ id, category: data.category, price: Number(data.price), status: data.status, updatedAt: now })
+			state.tariffs.push({ id, category, price: priceValue, status: data.status, updatedAt: now })
 		}
 		form.reset()
 		form.elements.namedItem('id').value = ''
-		if (message) {
-			message.textContent = 'Saved. Applies to future bookings only.'
-			setTimeout(() => (message.textContent = ''), 2500)
-		}
+		setMessage('Saved. Applies to future online bookings only; counter tickets and past bookings stay unchanged.', 'success')
 		renderTable()
 	})
 
@@ -738,6 +822,29 @@ function detailList(pairs) {
 				.join('')}
 		</dl>
 	`
+}
+
+function formatDateTime(value) {
+	if (!value) return '—'
+	const date = new Date(value)
+	if (Number.isNaN(date.getTime())) return value
+	return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+}
+
+function formatCount(value) {
+	if (Array.isArray(value)) {
+		const total = value.reduce((sum, item) => sum + Number(item?.quantity || 0), 0)
+		return total || '—'
+	}
+	const numeric = Number(value)
+	if (Number.isFinite(numeric) && numeric > 0) return numeric
+	return '—'
+}
+
+function summarizeItems(items) {
+	if (!Array.isArray(items) || !items.length) return '—'
+	if (items.length === 1) return items[0]?.itemLabel || items[0]?.category || '—'
+	return `${items.length} items`
 }
 
 function formatINR(value) {

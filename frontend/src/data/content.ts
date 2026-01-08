@@ -574,6 +574,14 @@ export interface TariffItem {
 export const tariffItems: TariffItem[] = [
   { id: 'zoo_adult', price: 50, label: { en: 'Entry - Adult', ta: 'நுழைவு - பெரியவர்' } },
   { id: 'zoo_child', price: 10, label: { en: 'Entry - Child (5-12 yrs)', ta: 'நுழைவு - குழந்தை (5-12)' } },
+  {
+    id: 'zoo_kid_zone',
+    price: 20,
+    label: {
+      en: 'Kid Zone (Below 6 Years)',
+      ta: 'குழந்தைகள் விளையாட்டு பகுதி (6 வயதிற்குக் கீழ்)',
+    },
+  },
   { id: 'camera_video', price: 150, label: { en: 'Video Camera (Does not include videography for commercial programs, short movies, etc.)', ta: 'வீடியோ கேமரா (வணிக நிகழ்ச்சிகள், குறும்படங்கள் போன்றவற்றுக்கான வீடியோ பதிவை உள்ளடக்காது)' } },
   { id: 'parking_4w_lmv', price: 50, label: { en: 'Parking - 4 Wheeler (LMV)', ta: 'நிறுத்தம் - 4 சக்கர (LMV)' } },
   { id: 'parking_4w_hmv', price: 100, label: { en: 'Parking - 4 Wheeler (HMV)', ta: 'நிறுத்தம் - 4 சக்கர (HMV)' } },
@@ -592,16 +600,17 @@ export interface FeeTableRow {
 export const feeStructure: FeeTableRow[] = [
   { id: 'zoo_adult', serial: 1, description: tariffItems[0].label, fee: 50 },
   { id: 'zoo_child', serial: 2, description: tariffItems[1].label, fee: 10 },
+  { id: 'zoo_kid_zone', serial: 3, description: tariffItems[2].label, fee: 20 },
 
-  { id: 'zoo_differently_abled', serial: 3, description: { en: 'Differently Abled', ta: 'விதிவிலக்கானவர்கள்' }, fee: 0 },
-  { id: 'zoo_child_free', serial: 4, description: { en: 'Children (below 5)', ta: '5-க்கு கீழ் குழந்தைகள்' }, fee: 0 },
+  { id: 'zoo_differently_abled', serial: 4, description: { en: 'Differently Abled', ta: 'விதிவிலக்கானவர்கள்' }, fee: 0 },
+  { id: 'zoo_child_free', serial: 5, description: { en: 'Children (below 5)', ta: '5-க்கு கீழ் குழந்தைகள்' }, fee: 0 },
 
-  { id: 'camera_video', serial: 5, description: tariffItems[2].label, fee: 150 },
-  { id: 'parking_4w_lmv', serial: 6, description: tariffItems[3].label, fee: 50 },
-  { id: 'parking_4w_hmv', serial: 7, description: tariffItems[4].label, fee: 100 },
-  { id: 'parking_2w_3w', serial: 8, description: tariffItems[5].label, fee: 20 },
-  { id: 'battery_vehicle_adult', serial: 9, description: tariffItems[6].label, fee: 50 },
-  { id: 'battery_vehicle_child', serial: 10, description: tariffItems[7].label, fee: 30 },
+  { id: 'camera_video', serial: 6, description: tariffItems[3].label, fee: 150 },
+  { id: 'parking_4w_lmv', serial: 7, description: tariffItems[4].label, fee: 50 },
+  { id: 'parking_4w_hmv', serial: 8, description: tariffItems[5].label, fee: 100 },
+  { id: 'parking_2w_3w', serial: 9, description: tariffItems[6].label, fee: 20 },
+  { id: 'battery_vehicle_adult', serial: 10, description: tariffItems[7].label, fee: 50 },
+  { id: 'battery_vehicle_child', serial: 11, description: tariffItems[8].label, fee: 30 },
 ]
 
 export const visitorInfo = {

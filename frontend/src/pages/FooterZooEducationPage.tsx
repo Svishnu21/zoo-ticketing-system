@@ -21,9 +21,9 @@ export function FooterZooEducationPage() {
         <div className="relative z-10">
           <div className="container py-16">
             <div className="mx-auto max-w-3xl space-y-4 text-center">
-              <span className="inline-flex items-center justify-center rounded-[26px] bg-[#8B5E3C] px-6 py-3 text-lg font-black uppercase tracking-[0.28em] text-[#FCE7C8] shadow-[0_16px_32px_rgba(77,52,28,0.35)]">
+              <h1 className="inline-flex items-center justify-center rounded-[26px] bg-[#8B5E3C] px-6 py-3 text-lg font-black uppercase tracking-[0.28em] text-[#FCE7C8] shadow-[0_16px_32px_rgba(77,52,28,0.35)]">
                 Zoo Education
-              </span>
+              </h1>
               <p className="text-base font-medium text-white/85 md:text-lg">
                 Inspiring curious minds through every visit.
               </p>

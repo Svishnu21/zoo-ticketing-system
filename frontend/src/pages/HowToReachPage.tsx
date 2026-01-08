@@ -5,9 +5,9 @@ export function HowToReachPage() {
         <div className="relative z-10">
           <div className="container py-16">
             <div className="mx-auto max-w-3xl space-y-4 text-center">
-              <span className="text-lg font-black uppercase tracking-[0.28em] text-[#FACC15]">
+              <h1 className="text-lg font-black uppercase tracking-[0.28em] text-[#FACC15]">
                 How To Reach Us
-              </span>
+              </h1>
               <p className="text-base font-medium text-forest-green/90 md:text-lg">
                 Plan your journey with ease and arrive ready for a day amidst Salem's serene wilderness.
               </p>
@@ -18,7 +18,7 @@ export function HowToReachPage() {
 
       <section className="pb-20">
         <div className="container">
-          <div className="mx-auto max-w-4xl space-y-10 rounded-3xl border border-forest-green/15 bg-white/95 p-10 shadow-xl backdrop-blur" style={{ fontFamily: "'Open Sans', Poppins, sans-serif" }}>
+          <article className="mx-auto max-w-4xl space-y-10 rounded-3xl border border-forest-green/15 bg-white/95 p-10 shadow-xl backdrop-blur" style={{ fontFamily: "'Open Sans', Poppins, sans-serif" }}>
 
             {/* Section 1: Connectivity & Distances */}
             <div className="space-y-6">
@@ -134,7 +134,7 @@ export function HowToReachPage() {
               <div className="overflow-hidden rounded-3xl border border-forest-green/10 shadow-2xl">
                 <iframe
                   title="Kurumbapatti Zoological Park Location"
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3898.694421199198!2d78.158907375823!3d11.610284091752744!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3babfde9a9b73525%3A0x64a176b49076ec0c!2sKurumbapatti%20Zoological%20Park!5e0!3m2!1sen!2sin!4v1730894256000!5m2!1sen!2sin"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3713.0055266035456!2d78.16758937482015!3d11.744942488468933!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3babf6c57f2ecabb%3A0x974814abf4e4f02e!2sKurumbapatty%20Zoological%20Park!5e1!3m2!1sen!2sin!4v1767024712201!5m2!1sen!2sin"
                   width="100%"
                   height="420"
                   style={{ border: 0 }}
@@ -144,7 +144,7 @@ export function HowToReachPage() {
                 />
               </div>
             </div>
-          </div>
+          </article>
         </div>
       </section>
     </div>

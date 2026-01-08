@@ -38,8 +38,9 @@ const bookingSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
-bookingSchema.index({ qrTokenHash: 1 }, { unique: true })
-bookingSchema.index({ bookingCode: 1 }, { unique: true })
+// `qrTokenHash` and `bookingCode` declare `unique: true` on their
+// schema paths above, which creates the corresponding indexes. Remove
+// duplicate explicit index declarations to avoid Mongoose warnings.
 bookingSchema.index({ visitDate: 1, qrStatus: 1 })
 
 export const Booking = mongoose.model('Booking', bookingSchema)

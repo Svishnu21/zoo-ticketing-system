@@ -105,4 +105,13 @@ npm run preview
 - Run `node scripts/seed-ticket-pricing.mjs` (requires MONGODB_URI in `.env`).
 - Booking calls always reload pricing from the database—no code defaults are used at runtime.
 
+## Admin → Online Bookings (Phase-1 constraints)
+
+- **Resend action**: Calls `/admin/bookings/:ticketId/resend`, which returns an acknowledgment only. No SMS/WhatsApp/email delivery is wired in Phase-1. UI shows a neutral confirmation and makes no delivery promises or retries.
+- **Dashboard metrics guard**: Booking/entry metrics show live counts only when the Visit Date filter is set to today. This avoids misleading aggregates for other dates; global totals are intentionally not shown.
+- **Internal notes/flags**: Not persisted because no sanctioned audit-safe field exists. The admin UI does not expose note inputs and must not imply saved annotations until a formal storage mechanism is approved.
+- **Safety locks**: Admin actions are non-mutative for payment status, entry status, and booking identity. Assistance actions (view, resend) are idempotent and rely on backend validation/logging where present.
+
+These boundaries are deliberate to ship a production-safe, auditable Phase-1 without schema changes or risky admin controls. Do not add TODOs or placeholder delivery code that imply unfinished critical features.
+
 Enjoy building with the Kurumbapatti Zoological Park experience! If you need additional integrations or API wiring, feel free to extend the components above.

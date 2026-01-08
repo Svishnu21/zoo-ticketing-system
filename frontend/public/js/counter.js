@@ -27,7 +27,7 @@ const PRICING_API = '/api/counter/pricing'
 const CATEGORY_ORDER = [
   {
     title: 'ENTRY TICKETS',
-    keys: ['adultEntry', 'childEntry', 'childBelow5', 'differentlyAbled'],
+    keys: ['adultEntry', 'childEntry', 'kidZoneEntry', 'childBelow5', 'differentlyAbled'],
   },
   {
     title: 'PARKING',
@@ -46,6 +46,7 @@ const CATEGORY_ORDER = [
 const ALL_TICKETS = [
   { code: 'zoo_adult', label: 'Entry - Adult', price: 50, category: 'ENTRY' },
   { code: 'zoo_child', label: 'Entry - Child (5-12 yrs)', price: 10, category: 'ENTRY' },
+  { code: 'zoo_kid_zone', label: 'Kid Zone (Below 6 Years)', price: 20, category: 'ENTRY' },
   { code: 'zoo_child_free', label: 'Children Below 5', price: 0, category: 'ENTRY' },
   { code: 'zoo_differently_abled', label: 'Differently Abled', price: 0, category: 'ENTRY' },
   { code: 'parking_4w_lmv', label: 'Parking - 4 Wheeler (LMV)', price: 50, category: 'PARKING' },

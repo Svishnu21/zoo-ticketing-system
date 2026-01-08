@@ -98,7 +98,7 @@ export const getRecentCounterTickets = async () => {
     ticketSource: 'COUNTER',
     issueDate: { $gte: startOfToday },
   })
-    .select('ticketId visitDate issueDate totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt')
+    .select('ticketId visitDate issueDate totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt items')
     .sort({ issueDate: -1 })
     .limit(50)
     .lean()
@@ -123,7 +123,7 @@ export const getCounterHistory = async ({ date, paymentMode } = {}) => {
   }
 
   return Ticket.find(match)
-    .select('ticketId visitDate issueDate totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt')
+    .select('ticketId visitDate issueDate totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt items')
     .sort({ issueDate: -1 })
     .limit(200)
     .lean()

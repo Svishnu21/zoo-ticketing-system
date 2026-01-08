@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url'
 import bookingRoutes from './routes/bookingRoutes.js'
 import scannerRoutes from './routes/scannerRoutes.js'
 import counterRoutes from './routes/counterRoutes.js'
+import adminRoutes from '../admin/admin.routes.js'
 import { ApiError, errorHandler } from './utils/errors.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -76,6 +77,7 @@ export const createApp = () => {
   app.use('/api/bookings', bookingRoutes)
   app.use('/api/counter', counterRoutes)
   app.use('/api/scanner', scannerRoutes)
+  app.use('/admin', adminRoutes)
 
   // Avoid using wildcard tokens in route strings (some path-to-regexp versions
   // treat `*` as a malformed parameter). Instead, handle unmatched `/api/`

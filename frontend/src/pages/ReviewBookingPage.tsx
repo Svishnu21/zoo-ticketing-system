@@ -595,63 +595,60 @@ export function ReviewBookingPage() {
                   {language === 'en' ? (
                     <>
                       <section className="space-y-2">
-                        <h3 className="text-base font-semibold text-forest-green">Terms &amp; Conditions</h3>
+                        <h3 className="text-base font-semibold text-forest-green">Terms, Conditions &amp; Refund Policy</h3>
                         <p>
-                          Welcome to the Kurumbapatti Zoological Park ticket booking portal. By using this website, you agree to
-                          comply with and be bound by the following terms and conditions.
+                          Welcome to the Kurumbapatti Zoological Park Online Ticket Booking System. By using this site and
+                          proceeding with a booking, you accept these terms and the refund policy below.
                         </p>
                         <p>
-                          <strong>Ticket Booking:</strong> All tickets are booked for a specific date and time slot. Tickets are
-                          valid only for the date and time specified.
+                          <strong>1. Ticket Booking &amp; Validity:</strong> Tickets are issued only after successful payment, valid
+                          for the selected visit date, non-transferable, non-resalable, and admit a single entry only.
                         </p>
                         <p>
-                          <strong>Visitor Conduct:</strong> All visitors must follow the park rules displayed at the entrance and on
-                          the Park Rules page. Management may refuse entry or remove anyone who does not comply.
+                          <strong>2. QR Code Entry &amp; Validation:</strong> Each ticket has a unique QR code scanned at entry. Once
+                          scanned the ticket is marked used and cannot be reused. Altered or duplicated QR codes will be rejected
+                          and may lead to denial of entry without refund.
                         </p>
                         <p>
-                          <strong>Accuracy of Information:</strong> Provide accurate name, mobile number, and email so your ticket and
-                          updates reach you without delay.
+                          <strong>3. Visitor Responsibility:</strong> Provide accurate name, mobile number and email. The website is not
+                          responsible for issues caused by incorrect details. Follow all park rules and staff instructions.
                         </p>
                         <p>
-                          <strong>Use of Website:</strong> Content on this site is for personal use only. Do not copy or distribute it
-                          without written consent.
-                        </p>
-                      </section>
-                      <section className="space-y-2">
-                        <h3 className="text-base font-semibold text-forest-green">Privacy Policy</h3>
-                        <p>
-                          Your privacy is important to us. We collect only the information required to complete your booking—name,
-                          email address, and mobile number.
+                          <strong>4. Payments:</strong> Payments are processed by secure third‑party gateways; we do not store card
+                          or bank details. Transaction status is determined by the payment provider.
                         </p>
                         <p>
-                          <strong>How We Use It:</strong> Details are used exclusively to process your booking and send confirmation
-                          updates.
+                          <strong>5. Refunds:</strong> Refunds are issued only when: payment was deducted but ticket not generated,
+                          duplicate payments occurred, or the payment gateway confirms a failed transaction. Refunds do not apply
+                          to successfully generated or used tickets, no‑shows, late arrival, or user errors (wrong date/selection).
+                          Approved refunds are returned to the original payment method within 5–7 working days.
                         </p>
                         <p>
-                          <strong>Data Protection:</strong> Security measures are in place to safeguard your data. We never sell or trade
-                          your personal information.
+                          <strong>6. Security &amp; Fraud Prevention:</strong> Entry status, QR scans and technical logs may be
+                          recorded. Attempts to misuse the system may lead to ticket cancellation, blocking, or legal action.
                         </p>
                         <p>
-                          <strong>Consent:</strong> Completing a booking implies your consent to this privacy policy.
-                        </p>
-                      </section>
-                      <section className="space-y-2">
-                        <h3 className="text-base font-semibold text-forest-green">Cancellation &amp; Refund Policy</h3>
-                        <p>
-                          To manage capacity effectively, all bookings are final.
+                          <strong>7. Website Availability:</strong> The site is provided "as is"; temporary unavailability for
+                          maintenance or technical issues may occur. We are not liable for delays due to user devices or
+                          connectivity.
                         </p>
                         <p>
-                          <strong>No Cancellations:</strong> Tickets cannot be cancelled once confirmed.
+                          <strong>8. Limitation of Liability:</strong> Management is not liable for indirect or consequential losses.
+                          Where liability is found, it is limited to the ticket amount paid.
                         </p>
                         <p>
-                          <strong>No Refunds:</strong> Tickets are non-refundable and non-transferable, even for no-shows.
+                          <strong>9. Policy Updates:</strong> These terms and policies may be updated at any time. Continued use
+                          implies acceptance of changes.
                         </p>
                         <p>
-                          <strong>Non-Transferable:</strong> Each ticket is linked to the visitor details entered during booking.
+                          <strong>10. Governing Law:</strong> These terms are governed by the laws of India; disputes fall under the
+                          courts of Tamil Nadu.
                         </p>
                         <p>
-                          Review your booking carefully before payment to ensure the date, time, and quantities are correct.
+                          By proceeding with payment you confirm you have read, understood and agreed to these Terms,
+                          Conditions &amp; Refund Policy.
                         </p>
+                        <p className="text-xs text-forest-green/70">© 2026 Kurumbapatti Zoological Park — Powered by Pargavan Cyyber Solutions</p>
                       </section>
                     </>
                   ) : (
