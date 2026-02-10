@@ -2,6 +2,7 @@ import { TicketPricing } from '../models/TicketPricing.js'
 import { ApiError } from '../utils/errors.js'
 import { coerceQuantity, validateQuantity } from '../utils/pricing.js'
 import { ensureDefaultTicketPricing } from './pricingSeedService.js'
+import { resequenceTariffs } from '../utils/tariffOrder.js'
 
 const PRICING_MISSING_MESSAGE = 'Ticket pricing not configured'
 
@@ -48,16 +49,92 @@ export const ITEM_CODE_TO_CATEGORY_CODE = {
   camera_video: 'videoCamera',
 }
 
+const normalizeCode = (value) => (typeof value === 'string' ? value.trim() : '')
+
+const buildCategoryLookup = (pricingMap = {}) => {
+  const lookup = new Map()
+  const pricingValues = typeof pricingMap.values === 'function' ? Array.from(pricingMap.values()) : Object.values(pricingMap)
+
+  pricingValues.forEach((entry) => {
+    const categoryCode = normalizeCode(entry?.categoryCode)
+    if (!categoryCode) return
+
+    const candidates = [entry?.itemCode, entry?.code, entry?.categoryCode]
+      .map((key) => normalizeCode(key).toLowerCase())
+      .filter(Boolean)
+
+    candidates.forEach((key) => {
+      if (!lookup.has(key)) lookup.set(key, categoryCode)
+    })
+  })
+
+  return lookup
+}
+
+export const resolveCategoryCodeForItem = (itemCode, pricingMap = {}) => {
+  const normalizedItemCode = normalizeCode(itemCode)
+
+  if (!normalizedItemCode) {
+    throw ApiError.badRequest('Each item must include an itemCode.')
+  }
+
+  const lower = normalizedItemCode.toLowerCase()
+
+  const legacyMapping = ITEM_CODE_TO_CATEGORY_CODE[lower]
+  if (legacyMapping) return legacyMapping
+
+  // If the provided itemCode is already a canonical category key (e.g. 'parkingLMV'),
+  // accept it directly (case-insensitive) and return the canonical-cased value.
+  const canonicalValues = Object.values(ITEM_CODE_TO_CATEGORY_CODE || {})
+  const canonicalMap = canonicalValues.reduce((acc, v) => {
+    if (v) acc[v.toString().toLowerCase()] = v
+    return acc
+  }, {})
+  if (canonicalMap[lower]) return canonicalMap[lower]
+
+  const lookup = buildCategoryLookup(pricingMap)
+  const resolved = lookup.get(normalizedItemCode.toLowerCase())
+
+  if (!resolved) {
+    console.error('[pricing] No mapping for itemCode -> categoryCode', normalizedItemCode)
+    throw ApiError.internal(`No pricing mapping for itemCode: ${normalizedItemCode}`)
+  }
+
+  return resolved
+}
+
 export const loadActivePricingMap = async () => {
   await ensureDefaultTicketPricing()
+  const normalized = await resequenceTariffs(TicketPricing)
 
-  const pricings = await TicketPricing.find({ isActive: true }).lean()
+  const now = new Date()
+  const pricings = normalized.filter((entry) => {
+    if (!entry?.isActive) return false
+    const withinFrom = !entry.validFrom || entry.validFrom <= now
+    const withinTo = !entry.validTo || entry.validTo >= now
+    return withinFrom && withinTo
+  })
 
-  const pricingMap = {}
+  const pricingMap = new Map()
   if (Array.isArray(pricings)) {
     for (const p of pricings) {
-      if (!p?.categoryCode) continue
-      pricingMap[p.categoryCode] = p
+      if (!p) continue
+      const keys = []
+      if (p.categoryCode) keys.push(p.categoryCode)
+      if (p.itemCode) keys.push(p.itemCode)
+      if (p.itemCode) {
+        const alt = ITEM_CODE_TO_CATEGORY_CODE[p.itemCode]
+        if (alt) keys.push(alt)
+      }
+      // also include lowercase variants for forgiving lookup
+      for (const k of [...keys]) {
+        if (typeof k === 'string' && k.trim()) keys.push(k.toLowerCase())
+      }
+
+      for (const k of keys) {
+        if (!k) continue
+        if (!pricingMap.has(k)) pricingMap.set(k, p)
+      }
     }
   }
 
@@ -66,7 +143,14 @@ export const loadActivePricingMap = async () => {
 
 const resolvePricingForCategory = (categoryCode, pricingMap, itemCode) => {
   const isFreeCategory = categoryCode === 'differentlyAbled' || categoryCode === 'childBelow5'
-  const pricingEntry = typeof pricingMap.get === 'function' ? pricingMap.get(categoryCode) : pricingMap[categoryCode]
+
+  const tryGet = (key) => {
+    if (!key) return undefined
+    if (typeof pricingMap.get === 'function') return pricingMap.get(key)
+    return pricingMap[key]
+  }
+
+  let pricingEntry = tryGet(categoryCode) || tryGet(String(categoryCode).toLowerCase())
 
   if (!pricingEntry && !isFreeCategory) {
     throw ApiError.badRequest(`Ticket pricing not configured for ${categoryCode}`)
@@ -98,7 +182,8 @@ export const buildPricedItems = (items = [], pricingMap = new Map()) => {
     throw ApiError.badRequest('Items must be provided as an array.')
   }
 
-  if (!pricingMap || (pricingMap.size === 0 && Object.keys(pricingMap).length === 0)) {
+  const hasEntries = pricingMap && ((typeof pricingMap.size === 'number' && pricingMap.size > 0) || Object.keys(pricingMap || {}).length > 0)
+  if (!hasEntries) {
     throw ApiError.internal(`${PRICING_MISSING_MESSAGE}: no active pricing records loaded`)
   }
 
@@ -108,15 +193,7 @@ export const buildPricedItems = (items = [], pricingMap = new Map()) => {
     const rawCode = item?.itemCode ?? item?.code ?? item?.categoryCode ?? item?.id
     const itemCode = typeof rawCode === 'string' ? rawCode.trim() : ''
 
-    if (!itemCode) {
-      throw ApiError.badRequest('Each item must include an itemCode.')
-    }
-
-    const categoryCode = ITEM_CODE_TO_CATEGORY_CODE[itemCode]
-    if (!categoryCode) {
-      console.error('[pricing] No mapping for itemCode -> categoryCode', itemCode)
-      throw ApiError.internal(`No pricing mapping for itemCode: ${itemCode}`)
-    }
+    const categoryCode = resolveCategoryCodeForItem(itemCode, pricingMap)
 
     const resolvedPricing = resolvePricingForCategory(categoryCode, pricingMap, itemCode)
 

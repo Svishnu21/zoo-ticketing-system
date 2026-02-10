@@ -3,24 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin Panel | Kurumbapatti Zoological Park</title>
+    <title>Admin Dashboard</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body class="admin">
     <div class="layout">
       <aside class="sidebar">
         <div class="brand">
-          <h1>Kurumbapatti Zoo</h1>
-          <p>Admin Console</p>
+          <h1>Admin Dashboard</h1>
+          <p>Read-only oversight</p>
         </div>
         <nav class="nav">
-          <button class="nav-link active" data-target="overview">Admin Dashboard</button>
-          <button class="nav-link" data-target="bookings">Online Bookings</button>
-          <button class="nav-link" data-target="counter">Counter Tickets</button>
-          <button class="nav-link" data-target="qrlogs">QR Scanner Logs</button>
-          <button class="nav-link" data-target="tariffs">Tariff Management</button>
-          <button class="nav-link" data-target="adoptions">Animal Adoption</button>
-          <button class="nav-link" data-target="reports">Admin Reports</button>
+          <button class="nav-link active" data-target="overview">Overview</button>
+          <button class="nav-link" data-target="bookings">Bookings</button>
+          <button class="nav-link" data-target="counter">Counter</button>
+          <button class="nav-link" data-target="qrlogs">QR Logs</button>
+          <button class="nav-link" data-target="adoptions">Adoptions</button>
+          <button class="nav-link" id="navUserMgmt" onclick="window.location.href='/admin/users.html'" data-requires-role="ADMIN">User Management</button>
+          <button class="nav-link" data-target="reports">Reports</button>
         </nav>
         <div class="sidebar-footer">
           <button id="logoutBtn" class="btn ghost">Logout</button>
@@ -28,43 +28,151 @@
       </aside>
 
       <main class="content">
-        <header class="topbar">
+        <div class="topbar">
           <div>
-            <h2 id="sectionTitle">Admin Dashboard</h2>
+            <h2 id="sectionTitle">Overview</h2>
             <p id="sectionSubtitle">Read-only oversight of bookings, tickets, and compliance.</p>
           </div>
-        </header>
+          <div class="topbar-actions">
+            <label class="date-filter">
+              <span>Visit Date</span>
+              <input type="date" id="globalDateFilter" />
+            </label>
+          </div>
+        </div>
 
         <section id="overview" class="panel active">
-          <div class="cards-grid">
+          <div class="panel-header">
+            <div>
+              <h3>Today at a glance</h3>
+              <p>Live metrics from online and counter sources.</p>
+            </div>
+          </div>
+
+          <div class="cards-grid summary-grid">
             <article class="stat-card">
-              <p>Today’s Online Bookings</p>
+              <p>Online Tickets</p>
               <h3 id="metricOnlineToday">--</h3>
-              <span id="metricOnlineTrend" class="stat-sub"></span>
+              <span class="stat-sub">Issued today</span>
             </article>
             <article class="stat-card">
-              <p>Today’s Counter Tickets</p>
+              <p>Counter Tickets</p>
               <h3 id="metricCounterToday">--</h3>
-              <span class="stat-sub">Issued by counters</span>
+              <span class="stat-sub">Issued today</span>
             </article>
             <article class="stat-card">
-              <p>Total Revenue Today</p>
+              <p>Online Revenue</p>
+              <h3 id="metricOnlineRevenue">₹ --</h3>
+              <span class="stat-sub">Gross</span>
+            </article>
+            <article class="stat-card">
+              <p>Counter Revenue</p>
+              <h3 id="metricCounterRevenue">₹ --</h3>
+              <span class="stat-sub">Gross</span>
+            </article>
+            <article class="stat-card">
+              <p>Total Revenue</p>
               <h3 id="metricRevenueToday">₹ --</h3>
               <span class="stat-sub">Online + Counter</span>
             </article>
-            <article class="stat-card">
-              <p>Visitors Entered Today</p>
-              <h3 id="metricEntered">--</h3>
-              <span class="stat-sub">Entry status recorded</span>
-            </article>
             <article class="stat-card warning">
-              <p>Pending Entries</p>
+              <p>Pending Entry</p>
               <h3 id="metricPending">--</h3>
-              <span class="stat-sub">To be verified at gate</span>
+              <span class="stat-sub">Not yet scanned</span>
+            </article>
+            <article class="stat-card">
+              <p>Entered</p>
+              <h3 id="metricEntered">--</h3>
+              <span class="stat-sub">Total scans</span>
             </article>
           </div>
-          <div class="panel-note">
-            Read-only overview. Numbers refresh when the page loads. No payment handling or ticket issuance is provided here.
+
+          <div class="panel-header section-heading">
+            <div>
+              <h3>Ticket Distribution</h3>
+              <p>Counts by category</p>
+            </div>
+            <span id="analyticsStatus" class="stat-sub"></span>
+          </div>
+
+          <div class="distribution-section">
+            <div class="category-block">
+              <div class="category-title">Entry</div>
+              <div class="distribution-grid five">
+                <div class="distribution-card category-entry" data-ticket="zoo_adult">
+                  <div class="card-count" id="dist-zoo_adult">--</div>
+                  <div class="card-label">Entry - Adult</div>
+                </div>
+                <div class="distribution-card category-entry" data-ticket="zoo_child">
+                  <div class="card-count" id="dist-zoo_child">--</div>
+                  <div class="card-label">Child (12 years and above)</div>
+                </div>
+                <div class="distribution-card category-entry" data-ticket="zoo_kid_zone">
+                  <div class="card-count" id="dist-zoo_kid_zone">--</div>
+                  <div class="card-label">Kid Zone (Below 6 Years)</div>
+                </div>
+                <div class="distribution-card category-entry" data-ticket="zoo_child_free">
+                  <div class="card-count" id="dist-zoo_child_free">--</div>
+                  <div class="card-label">Children (below 5)</div>
+                </div>
+                <div class="distribution-card category-entry" data-ticket="zoo_differently_abled">
+                  <div class="card-count" id="dist-zoo_differently_abled">--</div>
+                  <div class="card-label">Differently Abled</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="category-block">
+              <div class="category-title">Parking</div>
+              <div class="distribution-grid three">
+                <div class="distribution-card category-parking" data-ticket="parking_4w_lmv">
+                  <div class="card-count" id="dist-parking_4w_lmv">--</div>
+                  <div class="card-label">Parking - 4 Wheeler (LMV)</div>
+                </div>
+                <div class="distribution-card category-parking" data-ticket="parking_4w_hmv">
+                  <div class="card-count" id="dist-parking_4w_hmv">--</div>
+                  <div class="card-label">Parking - 4 Wheeler (HMV)</div>
+                </div>
+                <div class="distribution-card category-parking" data-ticket="parking_2w_3w">
+                  <div class="card-count" id="dist-parking_2w_3w">--</div>
+                  <div class="card-label">Parking - 2 &amp; 3 Wheeler</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="category-block">
+              <div class="category-title">Transport</div>
+              <div class="distribution-grid two">
+                <div class="distribution-card category-transport" data-ticket="battery_vehicle_adult">
+                  <div class="card-count" id="dist-battery_vehicle_adult">--</div>
+                  <div class="card-label">Battery Vehicle - Adult</div>
+                </div>
+                <div class="distribution-card category-transport" data-ticket="battery_vehicle_child">
+                  <div class="card-count" id="dist-battery_vehicle_child">--</div>
+                  <div class="card-label">Battery Vehicle - Child (5-12 yrs)</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="category-block">
+              <div class="category-title">Camera</div>
+              <div class="distribution-grid one">
+                <div class="distribution-card category-camera" data-ticket="camera_video">
+                  <div class="card-count" id="dist-camera_video">--</div>
+                  <div class="card-label">Video Camera</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-header section-heading" style="margin-top: 12px">
+            <div>
+              <h3>Category Summary</h3>
+              <p>Quantity by category</p>
+            </div>
+          </div>
+          <div class="category-chart" id="categoryChart">
+            <div class="chart-placeholder">Loading categories...</div>
           </div>
         </section>
 
@@ -159,7 +267,7 @@
             </div>
           </div>
 
-          <p id="counterContextLabel" class="panel-note">Showing all counter-issued tickets. Counter tickets are summary transactions — itemized ticket type and quantity are not stored and will not be displayed or inferred here. Amount and payment mode are the authoritative financial values.</p>
+          <p id="counterContextLabel" class="panel-note">Showing all counter-issued tickets. Select a date to view totals; legacy tickets without breakdown will display with placeholders.</p>
 
           <div class="table-wrapper">
             <table>
@@ -172,10 +280,11 @@
                   <th>Amount</th>
                   <th>Payment Mode</th>
                   <th>Issued By</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="counterTableBody">
-                <tr><td colspan="7">Loading counter tickets...</td></tr>
+                <tr><td colspan="8">Loading counter tickets...</td></tr>
               </tbody>
             </table>
           </div>
@@ -211,63 +320,14 @@
               <thead>
                 <tr>
                   <th>Booking ID</th>
+                  <th>Source</th>
                   <th>Scan Date &amp; Time</th>
                   <th>Gate / Scanner ID</th>
                   <th>Scan Result</th>
                 </tr>
               </thead>
               <tbody id="logTableBody">
-                <tr><td colspan="4">Loading scan logs...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section id="tariffs" class="panel">
-          <div class="panel-header">
-            <div>
-              <h3>Tariff Management</h3>
-              <p>Online bookings only. Price updates apply to future purchases; past bookings and counter tickets stay unchanged.</p>
-            </div>
-          </div>
-
-          <form id="tariffForm" class="tariff-grid">
-            <input type="hidden" name="id" />
-            <label>
-              <span>Ticket Category</span>
-              <input type="text" name="category" placeholder="Adult / Child / Parking" required />
-            </label>
-            <label>
-              <span>Price</span>
-              <input type="number" name="price" min="0" step="1" required />
-            </label>
-            <label>
-              <span>Status</span>
-              <select name="status">
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </label>
-            <div class="tariff-actions">
-              <button type="submit" class="btn primary">Save Tariff</button>
-              <p id="tariffHelper" class="muted small"></p>
-              <p id="tariffMessage" class="form-feedback" aria-live="polite"></p>
-            </div>
-          </form>
-
-          <div class="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Ticket Category</th>
-                  <th>Price</th>
-                  <th>Status</th>
-                  <th>Last Updated</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="tariffTableBody">
-                <tr><td colspan="5">Loading tariffs...</td></tr>
+                <tr><td colspan="5">Loading scan logs...</td></tr>
               </tbody>
             </table>
           </div>
@@ -306,47 +366,116 @@
         <section id="reports" class="panel">
           <div class="panel-header">
             <div>
-              <h3>Admin Reports</h3>
-              <p>Simple reporting for operational oversight.</p>
+              <h3>Reports</h3>
+              <p>Operational &amp; financial summaries</p>
+            </div>
+            <div class="panel-actions">
+              <label class="compact">
+                <span>From</span>
+                <input type="date" id="reportFrom" />
+              </label>
+              <label class="compact">
+                <span>To</span>
+                <input type="date" id="reportTo" />
+              </label>
+              <label class="compact">
+                <span>Report</span>
+                <select id="reportType">
+                  <option value="daily-summary">Daily Summary</option>
+                  <option value="ticket-wise">Ticket Type Breakdown</option>
+                  <option value="category-wise">Category Summary</option>
+                  <option value="revenue-summary">Revenue Summary</option>
+                  <option value="entry-status">Entry Status Report</option>
+                </select>
+              </label>
             </div>
           </div>
 
-          <div class="reports-grid">
-            <form id="dailyReportForm" class="report-card">
-              <h4>Daily Summary</h4>
-              <label>
-                <span>Date</span>
-                <input type="date" name="date" required />
-              </label>
-              <button class="btn primary" type="submit">Generate</button>
-              <div id="dailyReportResult" class="report-result"></div>
-            </form>
-
-            <form id="rangeReportForm" class="report-card">
-              <h4>Date Range Report</h4>
-              <label>
-                <span>From</span>
-                <input type="date" name="from" required />
-              </label>
-              <label>
-                <span>To</span>
-                <input type="date" name="to" required />
-              </label>
-              <button class="btn primary" type="submit">Generate</button>
-              <div id="rangeReportResult" class="report-result"></div>
-            </form>
-
-            <form id="adoptionReportForm" class="report-card">
-              <h4>Adoption Revenue</h4>
-              <label>
-                <span>Date Range</span>
-                <input type="date" name="from" required />
-                <input type="date" name="to" required />
-              </label>
-              <button class="btn primary" type="submit">Generate</button>
-              <div id="adoptionReportResult" class="report-result"></div>
-            </form>
+          <div class="filters sticky-filters reports-filters">
+            <label>
+              <span>Source</span>
+              <select id="reportSourceFilter">
+                <option value="">All</option>
+                <option value="ONLINE">Online</option>
+                <option value="COUNTER">Counter</option>
+              </select>
+            </label>
+            <label>
+              <span>Category</span>
+              <select id="reportCategoryFilter">
+                <option value="">All</option>
+                <option value="entry">Entry</option>
+                <option value="parking">Parking</option>
+                <option value="transport">Transport</option>
+                <option value="camera">Camera</option>
+              </select>
+            </label>
+            <label class="search-field">
+              <span>Ticket Type</span>
+              <input type="search" id="reportTicketFilter" placeholder="Contains..." />
+            </label>
+            <div class="filters-actions">
+              <button class="btn primary" id="runReportBtn" type="button">Run Report</button>
+              <div class="export-actions">
+                <button class="btn ghost" id="exportCsvBtn" type="button" disabled>CSV</button>
+                <button class="btn ghost" id="exportExcelBtn" type="button" disabled>Excel</button>
+                <button class="btn ghost" id="exportPdfBtn" type="button" disabled>PDF</button>
+              </div>
+            </div>
           </div>
+
+          <div class="cards-grid summary-grid reports-summary">
+            <article class="stat-card">
+              <p>Total Tickets</p>
+              <h3 id="reportTotalTickets">--</h3>
+              <span class="stat-sub">All sources</span>
+            </article>
+            <article class="stat-card">
+              <p>Online Tickets</p>
+              <h3 id="reportOnlineTickets">--</h3>
+              <span class="stat-sub">Filtered range</span>
+            </article>
+            <article class="stat-card">
+              <p>Counter Tickets</p>
+              <h3 id="reportCounterTickets">--</h3>
+              <span class="stat-sub">Filtered range</span>
+            </article>
+            <article class="stat-card">
+              <p>Total Revenue</p>
+              <h3 id="reportTotalRevenue">₹ --</h3>
+              <span class="stat-sub">Online + Counter</span>
+            </article>
+            <article class="stat-card warning">
+              <p>Pending Entry</p>
+              <h3 id="reportPending">--</h3>
+              <span class="stat-sub">Filtered range</span>
+            </article>
+          </div>
+
+          <div class="reports-visuals">
+            <div class="chart-card">
+              <div class="chart-header">Category Quantities</div>
+              <div id="reportCategoryChart" class="mini-chart"><span class="muted">Run a report to load data.</span></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header">Revenue by Category</div>
+              <div id="reportRevenueChart" class="mini-chart"><span class="muted">Run a report to load data.</span></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header">Date Trend</div>
+              <div id="reportTrendChart" class="mini-chart"><span class="muted">Run a report to load data.</span></div>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead id="reportTableHead"></thead>
+              <tbody id="reportTableBody">
+                <tr><td>Choose a range and run a report.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="report-meta" id="reportMeta"></div>
         </section>
       </main>
     </div>
@@ -368,6 +497,28 @@
           <button type="submit" aria-label="Close">×</button>
         </header>
         <div class="modal-body" id="adoptionDetailBody"></div>
+      </form>
+    </dialog>
+
+    <dialog id="counterBreakdownModal">
+      <form method="dialog" class="modal">
+        <header>
+          <h3>Counter Ticket Breakdown</h3>
+          <button type="submit" aria-label="Close">×</button>
+        </header>
+        <div class="modal-body" id="counterBreakdownBody"></div>
+      </form>
+    </dialog>
+
+    <dialog id="ticketPreviewModal">
+      <form method="dialog" class="modal ticket-preview">
+        <header>
+          <h3>Ticket Preview</h3>
+          <button type="submit" aria-label="Close">×</button>
+        </header>
+        <div class="modal-body" id="ticketPreviewBody">
+          <!-- Populated by admin-script.js: exact issued ticket layout (read-only) -->
+        </div>
       </form>
     </dialog>
 

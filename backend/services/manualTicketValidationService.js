@@ -74,7 +74,16 @@ export const validateTicketIdFallback = async ({ ticketId, gateId, reason }) => 
 
   const ticket = await Ticket.findOneAndUpdate(
     { ticketId: normalizedTicketId, paymentStatus: 'PAID', visitDate: todayDateOnly, qrUsed: false },
-    { $set: { qrUsed: true, qrUsedAt: now, usedVia: 'MANUAL_TICKET_ID', usedAt: now } },
+    {
+      $set: {
+        qrUsed: true,
+        qrUsedAt: now,
+        usedVia: 'MANUAL_TICKET_ID',
+        usedAt: now,
+        entryStatus: 'ENTERED',
+        scannedAt: now,
+      },
+    },
     { new: true, projection: { ticketId: 1, visitDate: 1, qrUsedAt: 1, usedAt: 1, _id: 0 } },
   ).lean()
 

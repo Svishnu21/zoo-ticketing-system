@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Management</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body class="admin">
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>Admin Dashboard</h1>
+          <p>Read-only oversight</p>
+        </div>
+        <nav class="nav">
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html'">Overview</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#bookings'">Bookings</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#counter'">Counter</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#qrlogs'">QR Logs</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#adoptions'">Adoptions</button>
+          <button class="nav-link active" id="navUserMgmt" data-requires-role="ADMIN" onclick="window.location.href='/admin/users.html'">User Management</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#reports'">Reports</button>
+        </nav>
+        <div class="sidebar-footer">
+          <button id="logoutBtn" class="btn ghost">Logout</button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <div class="topbar">
+          <div>
+            <h2>User Management</h2>
+            <p>Manage Admin, Counter, and Scanner users</p>
+          </div>
+        </div>
+
+        <section class="panel active">
+          <div class="panel-header">
+            <div>
+              <h3>Users</h3>
+              <p>Create, edit, and control access for staff accounts.</p>
+            </div>
+            <div class="panel-actions">
+              <button id="addUserBtn" class="btn">Add User</button>
+            </div>
+          </div>
+
+          <div class="filters sticky-filters">
+            <label class="search-field">
+              <span>Search</span>
+              <input type="search" id="userSearchInput" placeholder="Search name or email" />
+            </label>
+            <label>
+              <span>Role</span>
+              <select id="userRoleFilter">
+                <option value="">All</option>
+                <option value="ADMIN">Admin</option>
+                <option value="COUNTER">Counter</option>
+                <option value="SCANNER">Scanner</option>
+              </select>
+            </label>
+            <label>
+              <span>Status</span>
+              <select id="userStatusFilter">
+                <option value="">All</option>
+                <option value="ACTIVE">Active</option>
+                <option value="DISABLED">Disabled</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Last Login</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="userTableBody">
+                <tr><td colspan="6">Loading users...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="panel-note">
+            <p>Only Admins can access this section. Actions are audited via backend APIs.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="userModal" class="modal">
+      <form method="dialog" id="userForm" class="modal-body">
+        <button type="button" id="userModalClose" class="modal-close" aria-label="Close">×</button>
+        <div class="modal-header">
+          <div>
+            <h3 id="userModalTitle">Add User</h3>
+            <p id="userFormSuccess" class="success-text"></p>
+            <p id="userFormError" class="error-text"></p>
+          </div>
+        </div>
+        <div class="modal-grid two-col">
+          <div class="col">
+            <label>
+              <span>Full Name</span>
+              <input type="text" id="fullName" name="fullName" required />
+              <div id="fullNameError" class="helper-text"></div>
+            </label>
+            <label>
+              <span>Email</span>
+              <input type="email" id="email" name="email" required />
+              <div id="emailError" class="helper-text"></div>
+            </label>
+          </div>
+          <div class="col">
+            <label>
+              <span>Role</span>
+              <select id="role" name="role" required>
+                <option value="ADMIN">Admin</option>
+                <option value="COUNTER">Counter</option>
+                <option value="SCANNER">Scanner</option>
+              </select>
+              <div id="roleError" class="helper-text"></div>
+            </label>
+            <label>
+              <span>Status</span>
+              <select id="status" name="status" required>
+                <option value="ACTIVE">Active</option>
+                <option value="DISABLED">Disabled</option>
+              </select>
+              <div id="statusError" class="helper-text"></div>
+            </label>
+          </div>
+        </div>
+        <div class="modal-grid one-col">
+          <label>
+            <span>Password (required for new users)</span>
+            <input type="password" id="password" name="password" minlength="8" />
+            <div id="passwordError" class="helper-text"></div>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="userCancelBtn" class="btn ghost" data-label="Cancel">Cancel</button>
+          <button type="submit" id="userSaveBtn" data-label="Save User" class="btn primary">Save User</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="confirmModal" class="modal">
+      <div class="modal-body">
+        <h3>Confirm action</h3>
+        <p id="confirmMessage">Are you sure?</p>
+        <p id="confirmError" class="muted"></p>
+        <div class="modal-actions">
+          <button id="confirmSubmit" data-label="Confirm" class="btn">Confirm</button>
+          <button class="btn ghost" onclick="document.getElementById('confirmModal').close()">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="resetModal" class="modal">
+      <div class="modal-body">
+        <h3>Reset Password</h3>
+        <p class="muted">Set a new password for this user. Minimum 8 characters.</p>
+        <label>
+          <span>New Password</span>
+          <input type="password" id="resetPasswordInput" minlength="8" required />
+          <div id="resetPasswordError" class="helper-text"></div>
+        </label>
+        <p id="resetMessage" class="success-text"></p>
+        <div class="modal-actions">
+          <button id="resetSubmit" data-label="Reset Password" class="btn">Reset Password</button>
+          <button class="btn ghost" onclick="document.getElementById('resetModal').close()">Close</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="./admin-script.js"></script>
+  </body>
+</html>

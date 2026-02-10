@@ -12,10 +12,18 @@ const __dirname = path.dirname(__filename)
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') })
 
 const PORT = Number(process.env.PORT) || 5000
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/kurumbapatti-zoo'
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/kzpsalem'
 
 if (!process.env.MONGODB_URI) {
-  console.warn('⚠️ MONGODB_URI not set in .env — falling back to mongodb://localhost:27017/kurumbapatti-zoo')
+  console.warn('⚠️ MONGODB_URI not set in .env — falling back to mongodb://localhost:27017/kzpsalem')
+}
+
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️ JWT_SECRET not set — authentication endpoints will fail until it is configured.')
+}
+
+if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD_HASH) {
+  console.warn('⚠️ ADMIN_USERNAME/ADMIN_PASSWORD_HASH not set — env-based admin login will be unavailable.')
 }
 
 const startServer = async () => {

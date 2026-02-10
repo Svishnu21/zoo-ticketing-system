@@ -8,26 +8,12 @@ import { BookingBottomBar } from '@/components/booking/BookingBottomBar'
 import { CheckoutConfirmationModal } from '@/components/booking/CheckoutConfirmationModal'
 import { ClearCartDialog } from '@/components/booking/ClearCartDialog'
 import { ClosedDateModal } from '@/components/booking/ClosedDateModal'
-import { tariffItems, type LocalizedText } from '@/data/content'
+import type { LocalizedText } from '@/data/content'
+import { useTariffPricing } from '@/hooks/useTariffPricing'
 import { useLanguage } from '@/providers/LanguageProvider'
 
-interface ZooTicketOption {
-  id: string
-  label: LocalizedText
-  description: LocalizedText
-  price: number
-}
 
-type AddOnCategory = 'parking' | 'transport' | 'camera'
-
-interface AddOnOption {
-  id: string
-  label: LocalizedText
-  price: number
-  category: AddOnCategory
-}
-
-const addOnCategoryLabels: Record<AddOnCategory, LocalizedText> = {
+const addOnCategoryLabels: Record<string, LocalizedText> = {
   parking: {
     en: 'Parking',
     ta: 'நிறுத்துமிடம்',
@@ -42,135 +28,81 @@ const addOnCategoryLabels: Record<AddOnCategory, LocalizedText> = {
   },
 }
 
-const addOnCategoryOrder: AddOnCategory[] = ['parking', 'transport', 'camera']
+const addOnCategoryOrder: string[] = ['parking', 'transport', 'camera']
 
 const formatCurrency = (value: number) =>
   `₹ ${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
 
-const getTariffPrice = (id: string): number => {
-  const match = tariffItems.find((item) => item.id === id)
-  return match?.price ?? 0
-}
-
-const zooTicketOptions: ZooTicketOption[] = [
+const labelFallbacks: Record<
+  string,
   {
-    id: 'zoo_adult',
-    label: {
-      en: 'Adult',
-      ta: 'பெரியவர்',
-    },
-    description: {
-      en: 'Adult (12 years and above)',
-      ta: 'பெரியவர் (12 வயது மற்றும் அதற்கு மேல்)',
-    },
-    price: getTariffPrice('zoo_adult'),
+    label: LocalizedText
+    description?: LocalizedText
+    category?: string
+    order?: number
+  }
+> = {
+  zoo_adult: {
+    label: { en: 'Adult', ta: 'பெரியவர்' },
+    description: { en: 'Adult (12 years and above)', ta: 'பெரியவர் (12 வயது மற்றும் அதற்கு மேல்)' },
+    category: 'zoo',
+    order: 1,
   },
-  {
-    id: 'zoo_child',
-    label: {
-      en: 'Child',
-      ta: 'குழந்தை',
-    },
-    description: {
-      en: 'Child (5 – 12 years)',
-      ta: 'குழந்தை (5 – 12 வயது)',
-    },
-    price: getTariffPrice('zoo_child'),
+  zoo_child: {
+    label: { en: 'Child (12 years and above)', ta: 'குழந்தை (12 வயது மற்றும் மேல்)' },
+    description: { en: 'Child (12 years and above)', ta: 'குழந்தை (12 வயது மற்றும் மேல்)' },
+    category: 'zoo',
+    order: 2,
   },
-  {
-    id: 'zoo_kid_zone',
-    label: {
-      en: 'Kid Zone (Below 6 Years)',
-      ta: 'குழந்தைகள் விளையாட்டு பகுதி (6 வயதிற்குக் கீழ்)',
-    },
-    description: {
-      en: 'Kids play & activity zone',
-      ta: 'குழந்தைகளுக்கான விளையாட்டு மற்றும் செயல்பாட்டு பகுதி',
-    },
-    price: getTariffPrice('zoo_kid_zone'),
+  zoo_kid_zone: {
+    label: { en: 'Kid Zone (Below 6 Years)', ta: 'குழந்தைகள் விளையாட்டு பகுதி (6 வயதிற்குக் கீழ்)' },
+    description: { en: 'Kids play & activity zone', ta: 'குழந்தைகளுக்கான விளையாட்டு மற்றும் செயல்பாட்டு பகுதி' },
+    category: 'zoo',
+    order: 3,
   },
-  {
-    id: 'zoo_differently_abled',
-    label: {
-      en: 'Differently Abled',
-      ta: 'விதிவிலக்கானவர்கள்',
-    },
-    description: {
-      en: 'Differently Abled (accessible entry)',
-      ta: 'விதிவிலக்கானவர்கள் (அணுகக்கூடிய நுழைவு)',
-    },
-    price: 0,
+  zoo_differently_abled: {
+    label: { en: 'Differently Abled', ta: 'விதிவிலக்கானவர்கள்' },
+    description: { en: 'Differently Abled (accessible entry)', ta: 'விதிவிலக்கானவர்கள் (அணுகக்கூடிய நுழைவு)' },
+    category: 'zoo',
+    order: 4,
   },
-  {
-    id: 'zoo_child_free',
-    label: {
-      en: 'Children (below 5)',
-      ta: '5-க்கு கீழ் குழந்தைகள்',
-    },
-    description: {
-      en: 'Children below 5 years',
-      ta: '5 வயதிற்கு தாழ்ந்த குழந்தைகள்',
-    },
-    price: 0,
+  zoo_child_free: {
+    label: { en: 'Children (below 5)', ta: '5-க்கு கீழ் குழந்தைகள்' },
+    description: { en: 'Children below 5 years', ta: '5 வயதிற்கு தாழ்ந்த குழந்தைகள்' },
+    category: 'zoo',
+    order: 5,
   },
-]
-
-const addOnOptions: AddOnOption[] = [
-  {
-    id: 'parking_4w_lmv',
-    label: {
-      en: 'Parking - 4 Wheeler (LMV)',
-      ta: 'நிறுத்தம் - 4 சக்கர (LMV)',
-    },
-    price: getTariffPrice('parking_4w_lmv'),
+  parking_4w_lmv: {
+    label: { en: 'Parking - 4 Wheeler (LMV)', ta: 'நிறுத்தம் - 4 சக்கர (LMV)' },
     category: 'parking',
+    order: 7,
   },
-  {
-    id: 'parking_4w_hmv',
-    label: {
-      en: 'Parking - 4 Wheeler (HMV)',
-      ta: 'நிறுத்தம் - 4 சக்கர (HMV)',
-    },
-    price: getTariffPrice('parking_4w_hmv'),
+  parking_4w_hmv: {
+    label: { en: 'Parking - 4 Wheeler (HMV)', ta: 'நிறுத்தம் - 4 சக்கர (HMV)' },
     category: 'parking',
+    order: 8,
   },
-  {
-    id: 'parking_2w_3w',
-    label: {
-      en: 'Parking - 2 & 3 Wheeler',
-      ta: 'நிறுத்தம் - 2 & 3 சக்கர',
-    },
-    price: getTariffPrice('parking_2w_3w'),
+  parking_2w_3w: {
+    label: { en: 'Parking - 2 & 3 Wheeler', ta: 'நிறுத்தம் - 2 & 3 சக்கர' },
     category: 'parking',
+    order: 9,
   },
-  {
-    id: 'battery_vehicle_adult',
-    label: {
-      en: 'Battery Vehicle - Adult',
-      ta: 'மின்வாகனம் - பெரியவர்',
-    },
-    price: getTariffPrice('battery_vehicle_adult'),
+  battery_vehicle_adult: {
+    label: { en: 'Battery Vehicle - Adult', ta: 'மின்வாகனம் - பெரியவர்' },
     category: 'transport',
+    order: 10,
   },
-  {
-    id: 'battery_vehicle_child',
-    label: {
-      en: 'Battery Vehicle - Child (5-12 yrs)',
-      ta: 'மின்வாகனம் - குழந்தை (5-12)',
-    },
-    price: getTariffPrice('battery_vehicle_child'),
+  battery_vehicle_child: {
+    label: { en: 'Battery Vehicle - Child (5-12 yrs)', ta: 'மின்வாகனம் - குழந்தை (5-12)' },
     category: 'transport',
+    order: 11,
   },
-  {
-    id: 'camera_video',
-    label: {
-      en: 'Video Camera',
-      ta: 'வீடியோ கேமரா',
-    },
-    price: getTariffPrice('camera_video'),
+  camera_video: {
+    label: { en: 'Video Camera', ta: 'வீடியோ கேமரா' },
     category: 'camera',
+    order: 6,
   },
-]
+}
 
 const TOTAL_DAYS = 14
 
@@ -185,6 +117,52 @@ export function ZooTicketSelectionPage() {
   const [isCheckoutConfirmOpen, setIsCheckoutConfirmOpen] = useState(false)
   const [isClosedModalOpen, setIsClosedModalOpen] = useState(false)
   const [closedDayLabel, setClosedDayLabel] = useState('Tuesdays')
+  const { getPrice, tariffs } = useTariffPricing()
+
+  const tariffOrder = useCallback(
+    (entry: { itemCode?: string; displayOrder?: number }) => {
+      if (Number.isFinite(entry.displayOrder) && (entry.displayOrder as number) > 0) return entry.displayOrder as number
+      const fallback = labelFallbacks[entry.itemCode || '']?.order
+      return Number.isFinite(fallback) ? (fallback as number) : 999
+    },
+    [],
+  )
+
+  const resolvedTariffs = useMemo(() => {
+    const list = tariffs && tariffs.length ? tariffs : []
+    return [...list].sort((a, b) => tariffOrder(a) - tariffOrder(b))
+  }, [tariffs, tariffOrder])
+
+  const zooTicketOptions = useMemo(() => {
+    const list = resolvedTariffs.filter((t) => (t.category || 'zoo').toLowerCase() === 'zoo')
+    const ordered = [...list].sort((a, b) => tariffOrder(a) - tariffOrder(b))
+    return ordered.map((t) => {
+      const meta = labelFallbacks[t.itemCode || '']
+      return {
+        id: t.itemCode || 'unknown',
+        label: meta?.label ?? { en: t.label || t.itemCode || 'Ticket', ta: t.label || t.itemCode || 'Ticket' },
+        description:
+          meta?.description ??
+          ({ en: t.label || t.itemCode || 'Ticket', ta: t.label || t.itemCode || 'Ticket' } as LocalizedText),
+        price: getPrice(t.itemCode || ''),
+      }
+    })
+  }, [getPrice, resolvedTariffs])
+
+  const addOnOptions = useMemo(() => {
+    const list = resolvedTariffs.filter((t) => (t.category || '').toLowerCase() !== 'zoo')
+    const ordered = [...list].sort((a, b) => tariffOrder(a) - tariffOrder(b))
+    return ordered.map((t) => {
+      const meta = labelFallbacks[t.itemCode || '']
+      const category = (t.category || meta?.category || 'other').toLowerCase()
+      return {
+        id: t.itemCode || 'unknown',
+        label: meta?.label ?? { en: t.label || t.itemCode || 'Add-on', ta: t.label || t.itemCode || 'Add-on' },
+        price: getPrice(t.itemCode || ''),
+        category,
+      }
+    })
+  }, [getPrice, resolvedTariffs, tariffOrder])
   const schoolNotice =
     language === 'en'
       ? 'School group tickets have to be booked at the ticket counter on the day of the visit.'
@@ -199,7 +177,7 @@ export function ZooTicketSelectionPage() {
       0,
     )
     return ticketTotal + addOnTotal
-  }, [selectedTickets, addOnQuantities])
+  }, [addOnOptions, addOnQuantities, selectedTickets, zooTicketOptions])
   const formattedTotal = useMemo(
     () => totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
     [totalAmount],
@@ -358,7 +336,7 @@ export function ZooTicketSelectionPage() {
 
     const addOnEntries: CartOverlayItem[] = addOnOptions.map((addOn) => {
       const quantity = addOnQuantities[addOn.id] ?? 0
-      const categoryLabel = addOnCategoryLabels[addOn.category][language]
+      const categoryLabel = addOnCategoryLabels[addOn.category]?.[language] ?? addOn.category
       return {
         id: addOn.id,
         label: `${categoryLabel} - ${addOn.label[language]}`,
@@ -370,7 +348,7 @@ export function ZooTicketSelectionPage() {
     })
 
     return [...ticketEntries, ...addOnEntries]
-  }, [language, selectedTickets, addOnQuantities, incrementTicket, decrementTicket, incrementAddOn, decrementAddOn])
+  }, [addOnOptions, addOnQuantities, decrementAddOn, decrementTicket, incrementAddOn, incrementTicket, language, selectedTickets, zooTicketOptions])
 
   const cartSummaryItems = useMemo(
     () =>
@@ -416,15 +394,26 @@ export function ZooTicketSelectionPage() {
     })
   }, [cartSummaryItems, dateOptions, formattedTotal, navigate, selectedDateIndex, selectedDateLabel, totalAmount])
 
+  const addOnCategories = useMemo(() => {
+    const codes = Array.from(new Set(addOnOptions.map((o) => o.category)))
+    const ordered = [...addOnCategoryOrder.filter((c) => codes.includes(c)), ...codes.filter((c) => !addOnCategoryOrder.includes(c))]
+    return ordered
+  }, [addOnOptions])
+
+  const categoryLabelFor = useCallback(
+    (cat: string) => addOnCategoryLabels[cat]?.[language] ?? cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+    [language],
+  )
+
   const ticketGroups = [
     {
       id: 'entry',
       label: language === 'en' ? 'Entry Tickets' : 'நுழைவு டிக்கெட்டுகள்',
       items: zooTicketOptions,
     },
-    ...addOnCategoryOrder.map((cat) => ({
+    ...addOnCategories.map((cat) => ({
       id: cat,
-      label: addOnCategoryLabels[cat][language],
+      label: categoryLabelFor(cat),
       items: addOnOptions.filter((o) => o.category === cat),
     })),
   ]

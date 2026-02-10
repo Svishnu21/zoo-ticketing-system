@@ -43,8 +43,8 @@ export function AnnualReportsPage() {
             <div className="space-y-4">
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-forest-green/70">Download Reports</p>
               <Button asChild variant="sunshine" size="sm" className="w-full sm:w-auto">
-                <a href="/AR_kurumbattizoo_1819.pdf" download>
-                  Download: Annual Report 2018-19
+                <a href="/AR_kurumbattizoo_2425.pdf" download>
+                  Download: Annual Report 2024-25
                 </a>
               </Button>
             </div>

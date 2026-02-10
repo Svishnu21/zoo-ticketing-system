@@ -22,7 +22,7 @@ const otherLinks = [
       en: 'Download brochures, reports, and educational handouts.',
       ta: 'விளம்பரக் குறிப்புகள், அறிக்கைகள், கல்வி குறிப்புகளைப் பதிவிறக்குங்கள்.',
     },
-    to: '/about/publications',
+    to: '/support/publication',
   },
   {
     id: 'tenders',

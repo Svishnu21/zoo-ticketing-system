@@ -67,7 +67,7 @@ export function TermsPage() {
 
             <section className="space-y-3">
               <h2 className="text-lg font-semibold text-forest-green">6. Intellectual Property Rights</h2>
-              <p>All content on this website, including text, images, logos, code, ticket formats, and QR systems, are the exclusive property of Kurumbapatti Zoological Park / SRR Software. You are granted a limited, non-commercial license to view website content. Reproduction, redistribution, or commercial use is strictly prohibited.</p>
+              <p>All content on this website, including text, images, logos, code, ticket formats, and QR systems, are the exclusive property of Kurumbapatti Zoological Park. You are granted a limited, non-commercial license to view website content. Reproduction, redistribution, or commercial use is strictly prohibited.</p>
             </section>
 
             <section className="space-y-3">

@@ -1,9 +1,11 @@
+﻿import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Trees } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/Button'
-import { feeStructure, tariffItems, type LocalizedText } from '@/data/content'
+import type { LocalizedText } from '@/data/content'
+import { useTariffPricing } from '@/hooks/useTariffPricing'
 import { useLanguage } from '@/providers/LanguageProvider'
 
 type TariffCard = {
@@ -22,7 +24,9 @@ type TariffCard = {
   }
 }
 
-const priceById = Object.fromEntries(tariffItems.map((item) => [item.id, item.price])) as Record<string, number>
+type FeeRow =
+  | { type: 'section'; title: LocalizedText }
+  | { type: 'item'; id: string; label: string; fee: number; serial: number }
 
 const zooTicketCard: TariffCard = {
   id: 'zoo',
@@ -36,7 +40,7 @@ const zooTicketCard: TariffCard = {
   },
   href: '/tickets/zoo',
   icon: Trees,
-  startingPrice: priceById.zoo_adult,
+  startingPrice: undefined,
   theme: {
     background: 'bg-[#E8F5E9]',
     border: 'border-[#A8D5B6]',
@@ -84,7 +88,49 @@ const bookingSteps = [
 
 export function TariffPage() {
   const { language } = useLanguage()
-  const card = zooTicketCard
+  const { getPrice, tariffs } = useTariffPricing()
+  const card = { ...zooTicketCard, startingPrice: getPrice('zoo_adult') }
+
+  const orderedTariffs = useMemo(
+    () =>
+      [...(tariffs || [])]
+        .map((t) => ({
+          ...t,
+          displayOrder: Number.isFinite(t.displayOrder) && (t.displayOrder as number) > 0 ? (t.displayOrder as number) : 9999,
+        }))
+        .sort((a, b) => (a.displayOrder ?? 9999) - (b.displayOrder ?? 9999)),
+    [tariffs],
+  )
+
+  const feeRows: FeeRow[] = useMemo(() => {
+    const sections = [
+      { key: 'zoo', title: { en: 'Entry', ta: 'நுழைவு' } },
+      { key: 'parking', title: { en: 'Parking', ta: 'நிறுத்துமிடம்' } },
+      { key: 'transport', title: { en: 'Transport', ta: 'போக்குவரத்து' } },
+      { key: 'camera', title: { en: 'Camera', ta: 'கேமரா' } },
+    ]
+
+    let serial = 1
+    const rows: FeeRow[] = []
+
+    sections.forEach((section) => {
+      const items = orderedTariffs.filter((t) => (t.category || '').toLowerCase() === section.key)
+      if (!items.length) return
+      rows.push({ type: 'section', title: section.title })
+      items.forEach((item) => {
+        rows.push({
+          type: 'item',
+          id: item.itemCode || item.code || `tariff-${serial}`,
+          label: item.label || item.itemCode || 'Tariff',
+          fee: Number(item.price ?? getPrice(item.itemCode || '')),
+          serial: serial++,
+        })
+      })
+    })
+
+    return rows
+  }, [getPrice, orderedTariffs])
+
   const Icon = card.icon
 
   return (
@@ -113,7 +159,7 @@ export function TariffPage() {
               </p>
 
               <div className="mt-auto flex w-full flex-col items-center gap-3 pt-4 sm:items-start">
-                {typeof card.startingPrice === 'number' && !Number.isNaN(card.startingPrice) && (
+                {typeof card.startingPrice === 'number' && card.startingPrice > 0 && (
                   <span className="text-sm font-semibold text-forest-green/80">
                     {language === 'en' ? 'From' : 'தொடக்கம்'} ₹ {card.startingPrice}
                   </span>
@@ -200,16 +246,25 @@ export function TariffPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {feeStructure.map((row, index) => (
-                      <tr
-                        key={row.id}
-                        className={index % 2 === 0 ? 'bg-white' : 'bg-[#F5FBF7]'}
-                      >
-                        <td className="px-6 py-4 text-sm font-semibold text-forest-green">{row.serial}</td>
-                        <td className="px-6 py-4 text-sm text-muted-foreground">{row.description[language]}</td>
-                        <td className="px-6 py-4 text-right text-sm font-semibold text-foreground">₹ {row.fee}</td>
-                      </tr>
-                    ))}
+                    {feeRows.map((row) => {
+                      if (row.type === 'section') {
+                        return (
+                          <tr key={row.title.en} className="bg-[#f0f7f2]">
+                            <td colSpan={3} className="px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-forest-green/80">
+                              {language === 'en' ? row.title.en : row.title.ta}
+                            </td>
+                          </tr>
+                        )
+                      }
+
+                      return (
+                        <tr key={row.id} className={row.serial % 2 === 0 ? 'bg-[#F5FBF7]' : 'bg-white'}>
+                          <td className="px-6 py-4 text-sm font-semibold text-forest-green">{row.serial}</td>
+                          <td className="px-6 py-4 text-sm text-muted-foreground">{row.label}</td>
+                          <td className="px-6 py-4 text-right text-sm font-semibold text-foreground">₹ {row.fee}</td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

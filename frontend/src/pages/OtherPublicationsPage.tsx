@@ -43,7 +43,7 @@ export function OtherPublicationsPage() {
             <div className="space-y-4">
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-forest-green/70">Park Biodiversity</p>
               <Button asChild variant="sunshine" size="sm" className="w-full sm:w-auto">
-                <a href="/FloraFauna_Kurumbapatti.pdf" download>
+                <a href="/AR_kurumbattizoo_2425.pdf" download>
                   View: Flora &amp; Fauna List of Kurumbapatti
                 </a>
               </Button>

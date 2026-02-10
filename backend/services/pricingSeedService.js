@@ -1,8 +1,9 @@
 import { TicketPricing } from '../models/TicketPricing.js'
+import { getDisplayOrder, upsertProtectedTariffs } from '../utils/tariffOrder.js'
 
 const DEFAULT_TICKET_PRICING = [
   { code: 'zoo_adult', categoryCode: 'adultEntry', label: 'Entry - Adult', category: 'zoo', price: 50, isActive: true },
-  { code: 'zoo_child', categoryCode: 'childEntry', label: 'Entry - Child (5-12 yrs)', category: 'zoo', price: 10, isActive: true },
+  { code: 'zoo_child', categoryCode: 'childEntry', label: 'Child (12 years and above)', category: 'zoo', price: 10, isActive: true },
   {
     code: 'zoo_kid_zone',
     categoryCode: 'kidZoneEntry',
@@ -23,6 +24,8 @@ const DEFAULT_TICKET_PRICING = [
 ]
 
 export const seedTicketPricingIfEmpty = async () => {
+  await upsertProtectedTariffs(TicketPricing)
+
   const existingCount = await TicketPricing.estimatedDocumentCount()
   if (existingCount > 0) {
     return { seeded: false, existingCount }
@@ -33,6 +36,7 @@ export const seedTicketPricingIfEmpty = async () => {
     code: entry.code.trim().toLowerCase(),
     categoryCode: entry.categoryCode.trim(),
     itemCode: entry.code.trim(),
+    displayOrder: getDisplayOrder(entry.code),
   }))
 
   await TicketPricing.insertMany(normalizedPayload)
@@ -43,6 +47,8 @@ export const seedTicketPricingIfEmpty = async () => {
 
 // Idempotent upsert to guarantee baseline pricing exists without overwriting operator changes.
 export const ensureDefaultTicketPricing = async () => {
+  await upsertProtectedTariffs(TicketPricing)
+
   // Normalize entries to match how documents are seeded elsewhere,
   // preventing accidental duplicates caused by casing/whitespace.
   const normalized = DEFAULT_TICKET_PRICING.map((entry) => ({
@@ -50,6 +56,7 @@ export const ensureDefaultTicketPricing = async () => {
     code: entry.code.trim().toLowerCase(),
     categoryCode: entry.categoryCode.trim(),
     itemCode: entry.code.trim(),
+    displayOrder: getDisplayOrder(entry.code),
   }))
 
   const operations = normalized.map((entry) => ({
@@ -63,9 +70,10 @@ export const ensureDefaultTicketPricing = async () => {
           label: entry.label,
           category: entry.category,
           price: entry.price,
+          displayOrder: entry.displayOrder,
         },
         // Only adjust non-unique operational fields on existing docs.
-        $set: { isActive: true },
+        $set: { isActive: true, displayOrder: entry.displayOrder },
       },
       upsert: true,
     },

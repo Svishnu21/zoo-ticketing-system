@@ -1,12 +1,38 @@
 const page = window.location.pathname.split('/').pop() || 'login.html'
 
-const credentials = {
-  username: 'scanner',
-  password: 'scanner@123',
-}
-
 const sessionKey = 'scannerAuth'
 const logKey = 'scannerLogs'
+const SCANNER_LOGIN_PATH = './login.html'
+
+const getScannerSession = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem(sessionKey) || '{}')
+  } catch (_err) {
+    return {}
+  }
+}
+
+const clearScannerSession = () => {
+  sessionStorage.removeItem(sessionKey)
+  sessionStorage.removeItem(logKey)
+}
+
+const withScannerAuthHeaders = (base = {}) => {
+  const headers = { ...base }
+  const token = getScannerSession().token
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
+}
+
+async function scannerFetch(url, options = {}) {
+  const response = await fetch(url, { ...options, headers: withScannerAuthHeaders(options.headers || {}) })
+  if (response.status === 401 || response.status === 403) {
+    clearScannerSession()
+    window.location.href = SCANNER_LOGIN_PATH
+    throw new Error('Scanner session expired.')
+  }
+  return response
+}
 
 if (page === 'login.html') {
   initLogin()
@@ -20,24 +46,37 @@ function initLogin() {
   const errorBox = document.getElementById('loginError')
   if (!form) return
 
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault()
     const data = new FormData(form)
-    const username = data.get('username')?.toString().trim()
+    const email = data.get('username')?.toString().trim()
     const password = data.get('password')?.toString().trim()
 
-    if (username === credentials.username && password === credentials.password) {
-      const token = {
-        token: 'demo-scanner-jwt',
-        role: 'SCANNER',
-        gateId: 'Gate-1',
-        user: username,
+    if (!email || !password) {
+      errorBox.textContent = 'Enter username and password'
+      return
+    }
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(payload?.message || 'Login failed')
+      if (payload.role !== 'SCANNER') throw new Error('Role not permitted for scanner console')
+
+      sessionStorage.setItem(sessionKey, JSON.stringify({
+        token: payload.token,
+        role: payload.role,
+        gateId: payload.user?.counterId || 'Gate',
+        user: payload.user?.fullName || email,
         issuedAt: Date.now(),
-      }
-      sessionStorage.setItem(sessionKey, JSON.stringify(token))
+      }))
       window.location.href = './validate.html'
-    } else {
-      errorBox.textContent = 'Invalid credentials'
+    } catch (err) {
+      errorBox.textContent = err?.message || 'Invalid credentials'
       form.classList.add('shake')
       setTimeout(() => form.classList.remove('shake'), 400)
     }
@@ -45,25 +84,15 @@ function initLogin() {
 }
 
 function guardScanner() {
-  const raw = sessionStorage.getItem(sessionKey)
-  if (!raw) {
-    window.location.href = './login.html'
-    return
-  }
-  try {
-    const parsed = JSON.parse(raw)
-    if (parsed.role !== 'SCANNER') {
-      sessionStorage.removeItem(sessionKey)
-      window.location.href = './login.html'
-    }
-  } catch (e) {
-    sessionStorage.removeItem(sessionKey)
-    window.location.href = './login.html'
+  const session = getScannerSession()
+  if (session.role !== 'SCANNER' || !session.token) {
+    clearScannerSession()
+    window.location.href = SCANNER_LOGIN_PATH
   }
 }
 
 function initValidate() {
-  const auth = JSON.parse(sessionStorage.getItem(sessionKey) || '{}')
+  const auth = getScannerSession()
   const gateEl = document.getElementById('scannerGate')
   const userEl = document.getElementById('scannerUser')
   const logoutBtn = document.getElementById('logoutBtn')
@@ -89,9 +118,8 @@ function initValidate() {
   if (userEl) userEl.textContent = `Scanner: ${auth.user || 'Unknown'}`
 
   logoutBtn?.addEventListener('click', () => {
-    sessionStorage.removeItem(sessionKey)
-    sessionStorage.removeItem(logKey)
-    window.location.href = './login.html'
+    clearScannerSession()
+    window.location.href = SCANNER_LOGIN_PATH
   })
 
   const setStatus = (status, title, message) => {
@@ -299,7 +327,7 @@ function initValidate() {
 
 async function validateWithBackend(token, gateId) {
   const API_BASE = window.__API_BASE_URL || ''
-  const response = await fetch(`${API_BASE}/api/scanner/validate`, {
+  const response = await scannerFetch(`${API_BASE}/api/scanner/validate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, gateId }),
@@ -334,7 +362,7 @@ async function validateWithBackend(token, gateId) {
 
 async function validateTicketIdWithBackend(ticketId, reason, gateId) {
   const API_BASE = window.__API_BASE_URL || ''
-  const response = await fetch(`${API_BASE}/api/scanner/validate-ticket-id`, {
+  const response = await scannerFetch(`${API_BASE}/api/scanner/validate-ticket-id`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ticketId, gateId, reason }),

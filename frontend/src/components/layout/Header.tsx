@@ -34,6 +34,7 @@ export function Header() {
   const location = useLocation()
   const activePath = location.pathname
   const headerRef = useRef<HTMLElement | null>(null)
+  const mobileNavRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setMobileOpen(false)
@@ -67,6 +68,7 @@ export function Header() {
     if (mobileOpen) {
       document.body.style.overflowY = 'hidden'
       document.body.style.touchAction = 'none'
+      mobileNavRef.current?.focus()
     } else {
       document.body.style.overflowY = 'auto'
       document.body.style.touchAction = 'auto'
@@ -140,7 +142,7 @@ export function Header() {
 
           <button
             type="button"
-            className="ml-auto inline-flex items-center justify-center rounded-full border border-forest-green/20 p-2 text-forest-green transition-colors duration-200 ease-smooth hover:bg-forest-green/10 lg:hidden"
+            className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-full border border-forest-green/20 text-forest-green transition-colors duration-200 ease-smooth hover:bg-forest-green/10 touch-manipulation lg:hidden"
             onClick={() => setMobileOpen((prev) => !prev)}
             aria-label={mobileOpen ? 'Close Menu' : 'Open Menu'}
             aria-expanded={mobileOpen}
@@ -242,19 +244,24 @@ export function Header() {
       {mobileOpen && (
         <div className="fixed inset-0 z-[60] lg:hidden">
           <div
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/35"
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
           <aside
             id="mobile-nav"
-            className="ml-auto flex h-full w-[85%] max-w-xs flex-col gap-6 overflow-y-auto border-l border-forest-green/10 bg-white p-6 shadow-forest-lg"
+            ref={mobileNavRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            className="ml-auto flex h-full w-[85%] max-w-xs flex-col gap-6 overflow-y-auto overscroll-contain border-l border-forest-green/10 bg-white p-6 shadow-forest-lg focus:outline-none"
+            style={{ WebkitOverflowScrolling: 'touch', willChange: 'transform' }}
           >
             <div className="flex items-center justify-between">
               <p className="text-base font-semibold text-forest-green">Menu</p>
               <button
                 type="button"
-                className="rounded-full border border-forest-green/20 p-1 text-forest-green"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-forest-green/20 text-forest-green hover:bg-forest-green/10 touch-manipulation"
                 onClick={() => setMobileOpen(false)}
                 aria-label="Close Menu"
               >
@@ -262,7 +269,7 @@ export function Header() {
               </button>
             </div>
             <LanguageToggle />
-            <nav className="space-y-4">
+            <nav className="space-y-3">
               {navItems.map((item) => {
                 const hasChildren = Boolean(item.children?.length)
                 const isChildActive = hasChildren && item.children
@@ -271,8 +278,8 @@ export function Header() {
                 const isExpanded = Boolean(expandedMobile[item.path])
 
                 return (
-                  <div key={item.path} className="rounded-2xl border border-forest-green/10">
-                    <div className="flex items-center justify-between rounded-2xl px-4 py-3">
+                  <div key={item.path} className="rounded-2xl border border-forest-green/10 bg-white/80">
+                    <div className="flex items-center justify-between rounded-2xl px-4 py-3.5 min-h-[52px] gap-3">
                       <NavLink
                         to={item.path}
                         className={({ isActive }) =>
@@ -300,7 +307,7 @@ export function Header() {
                         <button
                           type="button"
                           className={cn(
-                            'relative z-50 ml-2 text-xs font-semibold uppercase tracking-[0.3em] text-forest-green transition-transform',
+                            'relative z-50 ml-2 inline-flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold uppercase tracking-[0.3em] text-forest-green transition-transform hover:bg-forest-green/10 touch-manipulation',
                             isExpanded && 'rotate-180',
                           )}
                           onClick={(event) => {
@@ -328,7 +335,7 @@ export function Header() {
                             to={child.path}
                             className={({ isActive }) =>
                               cn(
-                                'relative z-50 flex flex-col rounded-2xl px-3 py-2 text-sm font-semibold text-forest-green transition-colors duration-150',
+                                'relative z-50 flex flex-col rounded-2xl px-3 py-3 text-sm font-semibold text-forest-green transition-colors duration-150 min-h-[48px]',
                                 isActive && 'bg-forest-green/10'
                               )
                             }

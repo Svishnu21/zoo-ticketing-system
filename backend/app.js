@@ -2,12 +2,18 @@ import express from 'express'
 import cors from 'cors'
 import fs from 'fs'
 import path from 'path'
+import React from 'react'
+import { Document, Page, Text, View, pdf } from '@react-pdf/renderer'
 import { fileURLToPath } from 'url'
 
 import bookingRoutes from './routes/bookingRoutes.js'
 import scannerRoutes from './routes/scannerRoutes.js'
 import counterRoutes from './routes/counterRoutes.js'
+import authRoutes from './routes/authRoutes.js'
+import userRoutes from './routes/userRoutes.js'
+import assignmentRoutes from './routes/assignmentRoutes.js'
 import adminRoutes from '../admin/admin.routes.js'
+import { requireAuth, requireRole } from './middleware/authMiddleware.js'
 import { ApiError, errorHandler } from './utils/errors.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -73,11 +79,67 @@ export const createApp = () => {
 
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
 
+  app.use('/api/auth', authRoutes)
+  app.use('/api', assignmentRoutes)
+  app.use('/api/users', userRoutes)
+
   app.use('/api/tickets', bookingRoutes)
   app.use('/api/bookings', bookingRoutes)
-  app.use('/api/counter', counterRoutes)
-  app.use('/api/scanner', scannerRoutes)
-  app.use('/admin', adminRoutes)
+  app.use('/api/counter', requireAuth, requireRole('ADMIN', 'COUNTER'), counterRoutes)
+  app.use('/api/scanner', requireAuth, requireRole('ADMIN', 'SCANNER'), scannerRoutes)
+  app.use('/admin', requireAuth, requireRole('ADMIN'), adminRoutes)
+
+  // --- PDF ISOLATION TEST (no shared logic, no DB) ---
+  app.get('/__pdf_isolation_test__', async (_req, res, next) => {
+    try {
+      const doc = React.createElement(
+        Document,
+        null,
+        React.createElement(
+          Page,
+          { size: 'A4' },
+          React.createElement(Text, null, 'PDF ISOLATION TEST - OK'),
+        ),
+      )
+
+      const buffer = await pdf(doc).toBuffer()
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', 'inline; filename="pdf-isolation-test.pdf"')
+      res.setHeader('Content-Length', buffer.length)
+      return res.end(buffer)
+    } catch (error) {
+      return next(error)
+    }
+  })
+
+  // --- Daily Summary PDF (binary-only, no redirects, placeholder data) ---
+  app.get('/api/reports/daily-summary/pdf', async (_req, res, next) => {
+    try {
+      const doc = React.createElement(
+        Document,
+        null,
+        React.createElement(
+          Page,
+          { size: 'A4' },
+          React.createElement(
+            View,
+            null,
+            React.createElement(Text, null, 'Daily Collection Summary'),
+            React.createElement(Text, null, 'Binary stream check'),
+            React.createElement(Text, null, 'This endpoint returns only PDF bytes.'),
+          ),
+        ),
+      )
+
+      const buffer = await pdf(doc).toBuffer()
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', 'inline; filename="daily-summary.pdf"')
+      res.setHeader('Content-Length', buffer.length)
+      return res.end(buffer)
+    } catch (error) {
+      return next(error)
+    }
+  })
 
   // Avoid using wildcard tokens in route strings (some path-to-regexp versions
   // treat `*` as a malformed parameter). Instead, handle unmatched `/api/`

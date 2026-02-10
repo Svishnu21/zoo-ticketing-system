@@ -1,5 +1,6 @@
 import express from 'express'
 import { ScanLog } from '../backend/models/ScanLog.js'
+import { Ticket } from '../backend/models/Ticket.js'
 import { asyncHandler } from '../backend/utils/errors.js'
 
 const router = express.Router()
@@ -39,12 +40,22 @@ router.get(
 
     const [logs, total] = await Promise.all([query.lean(), ScanLog.countDocuments(match)])
 
+    const ticketIds = logs.map((log) => log.ticketId).filter(Boolean)
+    const sourceMap = {}
+    if (ticketIds.length) {
+      const tickets = await Ticket.find({ ticketId: { $in: ticketIds } }).select('ticketId ticketSource').lean()
+      tickets.forEach((t) => {
+        sourceMap[t.ticketId] = t.ticketSource || 'UNKNOWN'
+      })
+    }
+
     res.json({
       data: logs.map((log) => ({
         bookingId: log.ticketId,
         scannedAt: log.scannedAt,
         gateId: log.gateId,
         result: log.result,
+        ticketSource: sourceMap[log.ticketId] || 'UNKNOWN',
         method: log.method,
       })),
       pagination: {

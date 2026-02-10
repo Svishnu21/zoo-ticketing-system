@@ -5,10 +5,11 @@ import {
   getCounterHistory,
   getCounterPricing,
 } from '../services/counterBookingService.js'
+import { findCounterTicketsMissingItems } from '../services/counterBookingService.js'
 import { asyncHandler } from '../utils/errors.js'
 
 export const postCounterBooking = asyncHandler(async (req, res) => {
-  const { ticket, qrImage, totalAmount, visitDateIso, pricedItems, paymentBreakup } = await createCounterBooking(req.body)
+  const { ticket, qrImage, totalAmount, visitDateIso, pricedItems, paymentBreakup, issuedBy } = await createCounterBooking(req.body)
 
   const responseObject = {
     success: true,
@@ -21,6 +22,7 @@ export const postCounterBooking = asyncHandler(async (req, res) => {
     paymentMode: ticket.paymentMode,
     paymentStatus: ticket.paymentStatus,
     ticketSource: ticket.ticketSource,
+    issuedBy,
     paymentBreakup,
     qrImage,
   }
@@ -34,9 +36,9 @@ export const getCounterRecent = asyncHandler(async (_req, res) => {
 })
 
 export const getCounterHistoryController = asyncHandler(async (req, res) => {
-  const { date, paymentMode } = req.query
-  const tickets = await getCounterHistory({ date, paymentMode })
-  res.json({ success: true, tickets })
+  const { date, paymentMode, page, limit } = req.query
+  const result = await getCounterHistory({ date, paymentMode, page, limit })
+  res.json({ success: true, ...result })
 })
 
 export const getCounterTicketController = asyncHandler(async (req, res) => {
@@ -47,4 +49,10 @@ export const getCounterTicketController = asyncHandler(async (req, res) => {
 export const getCounterPricingController = asyncHandler(async (_req, res) => {
   const pricing = await getCounterPricing()
   res.json({ success: true, pricing })
+})
+
+export const getCounterMissingItemsController = asyncHandler(async (req, res) => {
+  const limit = req.query.limit ? Number(req.query.limit) : 200
+  const tickets = await findCounterTicketsMissingItems({ limit })
+  res.json({ success: true, count: tickets.length, tickets })
 })

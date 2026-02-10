@@ -58,6 +58,45 @@ const ALL_TICKETS = [
 ]
 
 const RECENT_TICKETS_API = '/api/counter/tickets'
+const COUNTER_LOGIN_PATH = '/counter/login.html'
+
+const clearCounterSession = () => {
+  sessionStorage.removeItem('counterToken')
+  sessionStorage.removeItem('counterRole')
+}
+
+const redirectToCounterLogin = () => {
+  clearCounterSession()
+  window.location.href = COUNTER_LOGIN_PATH
+}
+
+const withCounterAuthHeaders = (base = {}) => {
+  const headers = { ...base }
+  const token = sessionStorage.getItem('counterToken')
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
+}
+
+async function counterFetch(path, options = {}) {
+  const response = await fetch(path, { ...options, headers: withCounterAuthHeaders(options.headers || {}) })
+  if (response.status === 401 || response.status === 403) {
+    redirectToCounterLogin()
+    throw new Error('Counter session expired.')
+  }
+  return response
+}
+
+async function counterFetchJson(path, options = {}) {
+  const response = await counterFetch(path, options)
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const error = new Error(data?.message || 'Request failed.')
+    error.status = response.status
+    error.payload = data
+    throw error
+  }
+  return data
+}
 
 const fmt = (val = 0) => `Rs ${Number(val || 0).toFixed(2)}`
 const qsa = (sel) => Array.from(document.querySelectorAll(sel))
@@ -76,12 +115,14 @@ document.addEventListener('DOMContentLoaded', () => {
   attachLogoutHandler()
   const page = document.body?.dataset?.page || ''
   if (page === 'issue') {
+    guardCounter()
     console.log('✅ Counter issue page ready')
     loadTickets()
     return
   }
 
   if (page === 'history') {
+    guardCounter()
     console.log('✅ Counter history page ready')
     loadRecentTickets()
     loadHistoryTable()
@@ -109,37 +150,43 @@ function attachLoginHandler() {
     e.preventDefault()
     if (errEl) errEl.textContent = ''
     const formData = new FormData(form)
-    const username = (formData.get('username') || '').toString().trim()
+    const email = (formData.get('username') || '').toString().trim()
     const password = (formData.get('password') || '').toString().trim()
-    if (!username || !password) {
+    if (!email || !password) {
       if (errEl) errEl.textContent = 'Enter username and password.'
       return
     }
 
-    // Try backend authentication first
     try {
-      const resp = await fetch('/api/counter/login', {
+      const resp = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       })
 
-      if (resp.ok) {
-        // assume authenticated — redirect to issue page
-        window.location.href = '/counter/issue.html'
-        return
-      }
+      const data = await resp.json().catch(() => ({}))
+      if (!resp.ok) throw new Error(data?.message || 'Login failed')
+      if (data.role !== 'COUNTER') throw new Error('Role not permitted for counter console')
 
-      // if backend responded but with error, show message
-      const body = await resp.text()
-      if (errEl) errEl.textContent = body || 'Login failed'
-      return
-    } catch (err) {
-      // network or endpoint missing — fallback: allow any non-empty credentials
-      console.warn('Login endpoint unavailable, falling back to client redirect', err)
+      sessionStorage.setItem('counterToken', data.token)
+      sessionStorage.setItem('counterRole', data.role)
       window.location.href = '/counter/issue.html'
+    } catch (err) {
+      if (errEl) errEl.textContent = err?.message || 'Login failed'
     }
   })
+}
+
+function guardCounter() {
+  const role = sessionStorage.getItem('counterRole')
+  const token = sessionStorage.getItem('counterToken')
+  if (!role || !token) {
+    redirectToCounterLogin()
+    return
+  }
+  if (role !== 'COUNTER') {
+    redirectToCounterLogin()
+  }
 }
 
 async function loadTickets() {
@@ -183,9 +230,7 @@ async function loadRecentTickets() {
   const list = document.getElementById('recent-list')
   if (!list) return
   try {
-    const resp = await fetch('/api/counter/recent')
-    if (!resp.ok) return
-    const data = await resp.json()
+    const data = await counterFetchJson('/api/counter/recent')
     const tickets = Array.isArray(data) ? data : Array.isArray(data?.tickets) ? data.tickets : []
     list.innerHTML = tickets.slice(0, 5).map(ticket => {
       const entered = Boolean(ticket.qrUsed)
@@ -213,9 +258,7 @@ async function loadHistoryTable() {
   const tbody = document.getElementById('history-rows')
   if (!tbody) return
   try {
-    const resp = await fetch('/api/counter/recent')
-    if (!resp.ok) return
-    const data = await resp.json()
+    const data = await counterFetchJson('/api/counter/recent')
     const tickets = Array.isArray(data) ? data : Array.isArray(data?.tickets) ? data.tickets : []
 
     const selectedMode = (document.getElementById('history-payment')?.value || 'ALL').toUpperCase()
@@ -286,8 +329,12 @@ function wirePaymentUI() {
   const splitContainer = document.querySelector('.split-inputs')
   const form = document.getElementById('pay-form')
   const submitBtn = document.getElementById('submit-btn')
+  const payError = document.getElementById('pay-error')
 
   if (!modeContainer || !form || !submitBtn) return
+
+  // UPI field is always auto-calculated in split mode
+  if (upiInput) upiInput.readOnly = true
 
   // ensure PAID button exists (single instance)
   if (!document.getElementById('paid-btn')) {
@@ -307,22 +354,95 @@ function wirePaymentUI() {
     paidBtn.addEventListener('click', onPaidClickPublic)
   }
 
+  const setSplitVisibility = (mode) => {
+    if (!splitContainer || !cashInput || !upiInput) return
+    const showSplit = mode === 'SPLIT'
+    splitContainer.style.display = showSplit ? 'flex' : 'none'
+    cashInput.style.display = showSplit ? 'inline-block' : 'none'
+    upiInput.style.display = showSplit ? 'inline-block' : 'none'
+    if (showSplit) {
+      cashInput.value = ''
+      upiInput.value = ''
+    }
+  }
+
+  const recomputeSplit = () => {
+    const mode = document.querySelector('input[name="paymentMode"]:checked')?.value || ''
+    if (mode !== 'SPLIT') {
+      clearPayErrorPublic()
+      if (paidConfirmedPublic && payError && payError.textContent) resetPaidState(true)
+      return { valid: true }
+    }
+
+    const total = parseTotalAmount()
+    const rawCash = cashInput?.value ?? ''
+    if (!cashInput) return { valid: false }
+
+    if (rawCash === '') {
+      upiInput.value = ''
+      showPayErrorPublic('Enter cash amount to auto-calc UPI')
+      paidConfirmedPublic = false
+      disableGeneratePublic()
+      if (paidBtn) paidBtn.disabled = true
+      return { valid: false }
+    }
+
+    const cash = Math.max(0, Number(rawCash) || 0)
+    const clampedCash = Math.min(cash, total)
+    if (Number.isNaN(cash)) {
+      showPayErrorPublic('Enter a valid cash amount')
+      paidConfirmedPublic = false
+      disableGeneratePublic()
+      if (paidBtn) paidBtn.disabled = true
+      return { valid: false }
+    }
+
+    const remaining = Math.max(0, total - clampedCash)
+    cashInput.value = clampedCash.toString()
+    upiInput.value = remaining.toString()
+
+    if (clampedCash > total) {
+      showPayErrorPublic('Cash cannot exceed total amount')
+      paidConfirmedPublic = false
+      disableGeneratePublic()
+      if (paidBtn) paidBtn.disabled = true
+      return { valid: false }
+    }
+
+    const sumOk = Math.abs(clampedCash + remaining - total) < 0.009
+    if (!sumOk) {
+      showPayErrorPublic('Cash + UPI must equal total')
+      paidConfirmedPublic = false
+      disableGeneratePublic()
+      if (paidBtn) paidBtn.disabled = true
+      return { valid: false }
+    }
+
+    clearPayErrorPublic()
+    if (paidBtn) paidBtn.disabled = false
+    return { valid: true, cash: clampedCash, upi: remaining, total }
+  }
+
   // radios for payment mode
   const radios = Array.from(modeContainer.querySelectorAll('input[name="paymentMode"]'))
+  const paidBtn = document.getElementById('paid-btn')
+  setSplitVisibility(document.querySelector('input[name="paymentMode"]:checked')?.value)
   radios.forEach((r) => {
     r.addEventListener('change', () => {
       const mode = document.querySelector('input[name="paymentMode"]:checked')?.value
-      if (mode === 'SPLIT') {
-        if (splitContainer) splitContainer.style.display = 'flex'
-        if (cashInput) cashInput.style.display = 'inline-block'
-        if (upiInput) upiInput.style.display = 'inline-block'
+      setSplitVisibility(mode)
+      if (mode === 'CASH') {
+        if (cashInput) cashInput.value = parseTotalAmount().toString()
+        if (upiInput) upiInput.value = '0'
+      } else if (mode === 'UPI') {
+        if (cashInput) cashInput.value = '0'
+        if (upiInput) upiInput.value = parseTotalAmount().toString()
       } else {
-        if (splitContainer) splitContainer.style.display = 'none'
-        if (cashInput) cashInput.style.display = 'none'
-        if (upiInput) upiInput.style.display = 'none'
+        if (cashInput) cashInput.value = ''
+        if (upiInput) upiInput.value = ''
       }
       resetPaidState()
-      validateSplitAmounts()
+      recomputeSplit()
     })
   })
 
@@ -338,16 +458,16 @@ function wirePaymentUI() {
     if (upiInput) upiInput.style.display = 'none'
   }
 
-  if (cashInput) cashInput.addEventListener('input', () => { resetPaidState(); validateSplitAmounts() })
-  if (upiInput) upiInput.addEventListener('input', () => { resetPaidState(); validateSplitAmounts() })
+  if (cashInput) cashInput.addEventListener('input', () => { resetPaidState(); recomputeSplit() })
+  // UPI is read-only; no listener needed
 
-  validateSplitAmounts()
+  recomputeSplit()
 
   // reset generate button until PAID
   disableGeneratePublic()
 
   // single submit handler enforcing PAID
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault()
     if (!paidConfirmedPublic) {
       showPayErrorPublic('Click PAID before generating ticket')
@@ -356,7 +476,7 @@ function wirePaymentUI() {
     const total = parseTotalAmount()
     const paymentMode = document.querySelector('input[name="paymentMode"]:checked')?.value || null
     const visitDate = document.getElementById('visit-date-input')?.value || null
-    const splitValidation = paymentMode === 'SPLIT' ? validateSplitAmounts() : { valid: true }
+    const splitValidation = paymentMode === 'SPLIT' ? recomputeSplit() : { valid: true }
     if (paymentMode === 'SPLIT' && !splitValidation.valid) return
     let cash = 0, upi = 0
     if (paymentMode === 'CASH') cash = total
@@ -373,34 +493,32 @@ function wirePaymentUI() {
       totalAmount: total,
       ...(visitDate ? { visitDate } : {}),
     }
-    fetch('/api/counter/bookings', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
-    })
-      .then(async (r) => {
-        const body = await r.json().catch(() => ({}))
-        if (!r.ok) throw body
-        return body
+    try {
+      const response = await counterFetch('/api/counter/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       })
-      .then((d) => {
-        const ticketId = d?.ticketId || d?.bookingId || d?.ticket?.ticketId
-        if (!ticketId) {
-          showPayErrorPublic('Ticket generated but ticketId missing')
-          return
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw body
+      const ticketId = body?.ticketId || body?.bookingId || body?.ticket?.ticketId
+      if (!ticketId) {
+        showPayErrorPublic('Ticket generated but ticketId missing')
+        return
+      }
+      if (typeof loadRecentTickets === 'function') {
+        try {
+          loadRecentTickets()
+        } catch (err) {
+          console.warn('Failed to refresh recent tickets', err)
         }
-        if (typeof loadRecentTickets === 'function') {
-          try {
-            loadRecentTickets()
-          } catch (err) {
-            console.warn('Failed to refresh recent tickets', err)
-          }
-        }
-        window.location.href = `/counter/success.html?ticketId=${encodeURIComponent(ticketId)}`
-      })
-      .catch((err) => {
-        console.error(err)
-        const message = err?.message || err?.error || 'Failed to generate ticket'
-        showPayErrorPublic(message)
-      })
+      }
+      window.location.href = `/counter/success.html?ticketId=${encodeURIComponent(ticketId)}`
+    } catch (err) {
+      console.error(err)
+      const message = err?.message || err?.error || 'Failed to generate ticket'
+      showPayErrorPublic(message)
+    }
   })
 }
 
@@ -439,29 +557,54 @@ function resetPaidState(preserve = false) { paidConfirmedPublic = false; const p
 function enableGeneratePublic() { const b = document.getElementById('submit-btn'); if (b) b.disabled = false }
 function disableGeneratePublic() { const b = document.getElementById('submit-btn'); if (b) b.disabled = true }
 function validateSplitAmounts() {
-  const paidBtn = document.getElementById('paid-btn')
   const paymentMode = document.querySelector('input[name="paymentMode"]:checked')?.value || null
+  const cashInput = document.getElementById('cash-amount')
+  const upiInput = document.getElementById('upi-amount')
+  const paidBtn = document.getElementById('paid-btn')
+
   if (!paidBtn) return { valid: false }
+
   if (paymentMode !== 'SPLIT') {
     paidBtn.disabled = false
     clearPayErrorPublic()
     return { valid: true }
   }
 
-  const cash = Number(document.getElementById('cash-amount')?.value) || 0
-  const upi = Number(document.getElementById('upi-amount')?.value) || 0
   const total = parseTotalAmount()
+  const rawCash = cashInput?.value ?? ''
 
-  if (Math.abs(cash + upi - total) > 0.009) {
+  if (rawCash === '') {
+    if (upiInput) upiInput.value = ''
+    showPayErrorPublic('Enter cash amount to auto-calc UPI')
     paidBtn.disabled = true
-    showPayErrorPublic('Cash + UPI must equal total')
     paidConfirmedPublic = false
-    return { valid: false, cash, upi, total }
+    return { valid: false }
   }
 
-  paidBtn.disabled = false
+  const cash = Math.max(0, Number(rawCash) || 0)
+  const clampedCash = Math.min(cash, total)
+  const upi = Math.max(0, total - clampedCash)
+  if (cashInput) cashInput.value = clampedCash.toString()
+  if (upiInput) upiInput.value = upi.toString()
+
+  if (clampedCash > total) {
+    showPayErrorPublic('Cash cannot exceed total amount')
+    paidBtn.disabled = true
+    paidConfirmedPublic = false
+    return { valid: false, cash: clampedCash, upi, total }
+  }
+
+  const sumOk = Math.abs(clampedCash + upi - total) < 0.009
+  if (!sumOk) {
+    showPayErrorPublic('Cash + UPI must equal total')
+    paidBtn.disabled = true
+    paidConfirmedPublic = false
+    return { valid: false, cash: clampedCash, upi, total }
+  }
+
   clearPayErrorPublic()
-  return { valid: true, cash, upi, total }
+  paidBtn.disabled = false
+  return { valid: true, cash: clampedCash, upi, total }
 }
 function showPayErrorPublic(msg) { const el = document.getElementById('pay-error'); if (el) { el.textContent = msg; el.style.display = 'block' } }
 function clearPayErrorPublic() { const el = document.getElementById('pay-error'); if (el) { el.textContent = ''; el.style.display = 'none' } }
@@ -505,13 +648,9 @@ function initCounterSuccessPage() {
 
 async function fetchTicket(ticketId, errorContainer) {
   try {
-    const response = await fetch(`/api/counter/tickets/${encodeURIComponent(ticketId)}`)
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}))
-      throw new Error(payload.message || 'Unable to load ticket.')
-    }
-
-    const data = await response.json()
+    const response = await counterFetch(`/api/counter/tickets/${encodeURIComponent(ticketId)}`)
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(data?.message || 'Unable to load ticket.')
     const ticket = data?.ticket || data
     renderTicket(ticket)
   } catch (error) {
@@ -597,7 +736,7 @@ function attachLogoutHandler() {
   if (btn._logoutBound) return
   btn.addEventListener('click', (e) => {
     e.preventDefault()
-    window.location.href = '/counter/login.html'
+    redirectToCounterLogin()
   })
   btn._logoutBound = true
 }

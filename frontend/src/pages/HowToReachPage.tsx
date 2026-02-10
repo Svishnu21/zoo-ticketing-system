@@ -10,6 +10,10 @@ export function HowToReachPage() {
               </h1>
               <p className="text-base font-medium text-forest-green/90 md:text-lg">
                 Plan your journey with ease and arrive ready for a day amidst Salem's serene wilderness.
+                <br />
+                Check bus and mini-bus schedules in advance and allow extra travel time during peak hours.
+                <br />
+                Park facilities and seasonal timings may vary — please confirm details before your visit.
               </p>
             </div>
           </div>
@@ -28,7 +32,7 @@ export function HowToReachPage() {
                 </span>
               </div>
 
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="rounded-2xl border border-forest-green/10 bg-soft-bg/60 p-6 shadow-sm">
                   <div className="text-sm font-semibold uppercase tracking-[0.18em] text-forest-green/70">Distance from Salem Airport</div>
                   <div className="mt-2 text-lg font-semibold text-forest-green">25 km via NH 44</div>
@@ -37,11 +41,6 @@ export function HowToReachPage() {
                 <div className="rounded-2xl border border-forest-green/10 bg-soft-bg/60 p-6 shadow-sm">
                   <div className="text-sm font-semibold uppercase tracking-[0.18em] text-forest-green/70">Distance from Railway Junction</div>
                   <div className="mt-2 text-lg font-semibold text-forest-green">13.7 km via Yercaud Main Rd</div>
-                </div>
-
-                <div className="rounded-2xl border border-forest-green/10 bg-soft-bg/60 p-6 shadow-sm">
-                  <div className="text-sm font-semibold uppercase tracking-[0.18em] text-forest-green/70">Distance from Salem Bus Station</div>
-                  <div className="mt-2 text-lg font-semibold text-forest-green">11.8 km</div>
                 </div>
               </div>
             </div>
@@ -81,46 +80,147 @@ export function HowToReachPage() {
               </ul>
             </div>
 
-            {/* Section 3: Special Bus Services (Timings) */}
-            <div className="space-y-4">
+            {/* Section 3: Public Transport Timings */}
+            <div className="space-y-6">
               <div className="text-center">
                 <span className="inline-flex items-center justify-center rounded-full bg-[#FACC15] px-4 py-2 text-sm font-black uppercase tracking-[0.08em] text-forest-green serif-heading">
-                  Bus Timings (Bus No: 2, 3, 3/73)
+                  Public Transport Timings
                 </span>
               </div>
 
-              <div className="mt-4 w-full overflow-x-auto pb-4">
-                <table className="min-w-[520px] table-auto text-forest-green">
-                  <thead>
-                    <tr className="text-sm font-semibold text-forest-green/80">
-                      <th className="p-3 text-left border-b border-forest-green/10">Departure from Old Bus Stand</th>
-                      <th className="p-3 text-left border-b border-forest-green/10">Departure from Zoological Park</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-forest-green/10">
-                    <tr>
-                      <td className="p-3">6:30 AM</td>
-                      <td className="p-3">7:30 AM</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3">7:15 AM</td>
-                      <td className="p-3">8:15 AM</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3">9:05 AM</td>
-                      <td className="p-3">9:40 AM</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3">1:30 PM</td>
-                      <td className="p-3">2:30 PM</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3">4:00 PM</td>
-                      <td className="p-3">5:00 PM</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="rounded-2xl border border-forest-green/12 bg-soft-bg/70 p-5 shadow-sm">
+                  <h3 className="text-lg font-semibold text-forest-green">Mini Bus — New Bus Stand → Zoological Park (KZP)</h3>
+                  <div className="mt-3 w-full overflow-x-auto">
+                    <table className="min-w-[360px] table-auto text-forest-green">
+                      <thead>
+                        <tr className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-green/80">
+                          <th className="p-2 text-left border-b border-forest-green/10">Departure</th>
+                          <th className="p-2 text-left border-b border-forest-green/10">Arrival</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-sm divide-y divide-forest-green/10">
+                        <tr>
+                          <td className="p-2">9:50 AM</td>
+                          <td className="p-2">10:30 AM</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2">12:50 PM</td>
+                          <td className="p-2">1:30 PM</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2">4:00 PM</td>
+                          <td className="p-2">4:30 PM</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-forest-green/12 bg-soft-bg/70 p-5 shadow-sm">
+                  <h3 className="text-lg font-semibold text-forest-green">Mini Bus — Old Bus Stand → Zoological Park (KZP)</h3>
+                  <div className="mt-3 w-full overflow-x-auto">
+                    <table className="min-w-[360px] table-auto text-forest-green">
+                      <thead>
+                        <tr className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-green/80">
+                          <th className="p-2 text-left border-b border-forest-green/10">Departure</th>
+                          <th className="p-2 text-left border-b border-forest-green/10">Arrival</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-sm divide-y divide-forest-green/10">
+                        <tr>
+                          <td className="p-2">8:30 AM</td>
+                          <td className="p-2">9:10 AM</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2">11:25 AM</td>
+                          <td className="p-2">12:00 PM</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2">2:30 PM</td>
+                          <td className="p-2">3:00 PM</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2">5:40 PM</td>
+                          <td className="p-2">6:10 PM</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-forest-green/12 bg-soft-bg/70 p-5 shadow-sm">
+                  <h3 className="text-lg font-semibold text-forest-green">Bus No. 3 — Old Bus Stand → Zoological Park (via intermediate stops)</h3>
+                  <div className="mt-3 w-full overflow-x-auto">
+                    <table className="min-w-[380px] table-auto text-forest-green">
+                      <thead>
+                        <tr className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-green/80">
+                          <th className="p-2 text-left border-b border-forest-green/10">Departure</th>
+                          <th className="p-2 text-left border-b border-forest-green/10">Arrival (Intermediate / KZP)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-sm divide-y divide-forest-green/10">
+                        <tr>
+                          <td className="p-2">6:15 AM</td>
+                          <td className="p-2">7:00 AM / 7:25 AM</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2">1:30 PM</td>
+                          <td className="p-2">2:15 PM / 2:50 PM</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2">4:10 PM</td>
+                          <td className="p-2">4:50 PM / 4:55 PM</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-forest-green/12 bg-soft-bg/70 p-5 shadow-sm">
+                  <h3 className="text-lg font-semibold text-forest-green">Bus No. 3 / 73 — Old Bus Stand → Zoological Park (Direct)</h3>
+                  <div className="mt-3 w-full overflow-x-auto">
+                    <table className="min-w-[380px] table-auto text-forest-green">
+                      <thead>
+                        <tr className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-green/80">
+                          <th className="p-2 text-left border-b border-forest-green/10">Departure</th>
+                          <th className="p-2 text-left border-b border-forest-green/10">Arrival</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-sm divide-y divide-forest-green/10">
+                        <tr>
+                          <td className="p-2">4:55 AM</td>
+                          <td className="p-2">5:40 AM</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2">7:22 AM</td>
+                          <td className="p-2">8:00 AM</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2">9:05 AM</td>
+                          <td className="p-2">9:54 AM</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2">12:40 PM</td>
+                          <td className="p-2">1:20 PM</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2">2:35 PM</td>
+                          <td className="p-2">3:15 PM</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2">6:35 PM</td>
+                          <td className="p-2">7:15 PM</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
+
+              <p className="text-center text-sm text-forest-green/70">
+                Timings are subject to change. Please confirm locally before travel.
+              </p>
             </div>
 
             {/* Section 4: Location Map */}

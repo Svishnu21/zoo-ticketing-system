@@ -30,11 +30,24 @@ export class ApiError extends Error {
   }
 }
 
-export const asyncHandler = (handler) => async (req, res, next) => {
-  try {
-    await handler(req, res, next)
-  } catch (error) {
-    next(error)
+export const asyncHandler = (handler) => {
+  // Fail fast if a function expecting `next` is wrapped — enforce
+  // the rule that final handlers must accept only (req, res).
+  if (typeof handler === 'function' && handler.length >= 3) {
+    throw new Error(
+      'asyncHandler must wrap final handlers that accept (req, res). Use express middleware (req,res,next) directly when you need next().',
+    )
+  }
+
+  return async (req, res, next) => {
+    try {
+      // Final route handlers should only accept (req, res) and must not
+      // call `next()` themselves. Any thrown error is forwarded here.
+      await handler(req, res)
+    } catch (error) {
+      // Forward errors to the express error handler middleware
+      next(error)
+    }
   }
 }
 

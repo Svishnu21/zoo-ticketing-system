@@ -1,10 +1,11 @@
 import crypto from 'crypto'
 import { Ticket } from '../models/Ticket.js'
+import { Booking } from '../models/Booking.js'
 import { ApiError } from '../utils/errors.js'
 import { assertPaymentModeAllowed, coerceQuantity, validateQuantity } from '../utils/pricing.js'
 import { assertVisitDateBounds, normaliseVisitDate } from '../utils/dates.js'
 import { generateQrToken } from '../utils/qr.js'
-import { ITEM_CODE_TO_CATEGORY_CODE, loadActivePricingMap } from './pricingService.js'
+import { loadActivePricingMap, resolveCategoryCodeForItem } from './pricingService.js'
 import { normaliseVisitorDetails } from '../utils/validation.js'
 import { generateQrDataUrl } from '../utils/qrImage.js'
 
@@ -75,46 +76,45 @@ export const createBooking = async (payload = {}) => {
 
   for (const item of requestItems) {
     const itemCode = typeof item?.itemCode === 'string' ? item.itemCode.trim() : ''
-    const categoryCode = ITEM_CODE_TO_CATEGORY_CODE[itemCode]
+    const categoryCode = resolveCategoryCodeForItem(itemCode, pricingMap)
 
     console.log('ITEM CODE:', itemCode)
     console.log('MAPPED CATEGORY:', categoryCode)
-    console.log('AVAILABLE PRICING KEYS:', Object.keys(pricingMap))
+    console.log('AVAILABLE PRICING KEYS:', typeof pricingMap.keys === 'function' ? Array.from(pricingMap.keys()) : Object.keys(pricingMap))
 
-    if (!categoryCode) {
-      throw ApiError.badRequest(`No pricing mapping for itemCode: ${itemCode}`)
+    const isFreeCategory = categoryCode === 'differentlyAbled' || categoryCode === 'childBelow5'
+    const pricing = typeof pricingMap.get === 'function' ? pricingMap.get(categoryCode) : pricingMap[categoryCode]
+
+    if (!pricing && !isFreeCategory) {
+      throw ApiError.badRequest(`Ticket pricing not configured for ${categoryCode}`)
     }
 
-      const isFreeCategory = categoryCode === 'differentlyAbled' || categoryCode === 'childBelow5'
-      const pricing = pricingMap[categoryCode]
+    const unitPrice = isFreeCategory ? 0 : pricing.price
+    if (typeof unitPrice !== 'number') {
+      throw ApiError.internal(`Invalid price value for ${categoryCode}`)
+    }
 
-      if (!pricing && !isFreeCategory) {
-        throw ApiError.badRequest(`Ticket pricing not configured for ${categoryCode}`)
-      }
+    const quantity = coerceQuantity(item?.quantity ?? item?.qty)
+    validateQuantity(quantity, categoryCode)
 
-      const unitPrice = isFreeCategory ? 0 : pricing.price
-      if (typeof unitPrice !== 'number') {
-        throw ApiError.internal(`Invalid price value for ${categoryCode}`)
-      }
+    const lineTotal = unitPrice * quantity
 
-      const quantity = coerceQuantity(item?.quantity ?? item?.qty)
-      validateQuantity(quantity, categoryCode)
-
-      const lineTotal = unitPrice * quantity
-
-      resolvedItems.push({
-        ...item,
-        itemCode,
-        categoryCode,
-        category: pricing?.category ?? 'zoo',
-        itemLabel: pricing?.label ?? item?.itemLabel ?? itemCode,
-        unitPrice,
-        amount: lineTotal,
-        quantity,
-      })
+    resolvedItems.push({
+      ...item,
+      itemCode,
+      categoryCode,
+      category: pricing?.category ?? 'zoo',
+      itemLabel: pricing?.label ?? item?.itemLabel ?? itemCode,
+      unitPrice,
+      amount: lineTotal,
+      quantity,
+    })
 
     totalAmount += lineTotal
   }
+
+  const primaryItem = resolvedItems[0]
+  const quantityTotal = resolvedItems.reduce((sum, current) => sum + Number(current?.quantity || 0), 0)
 
   if (resolvedItems.length === 0) {
     throw ApiError.badRequest('At least one ticket item with quantity greater than zero is required.')
@@ -145,6 +145,10 @@ export const createBooking = async (payload = {}) => {
     ticketSource,
     paymentBreakup,
     items: resolvedItems,
+    ticketCategory: primaryItem?.itemCode || primaryItem?.categoryCode || 'MIXED',
+    quantity: quantityTotal,
+    unitPrice: primaryItem?.unitPrice,
+    lineTotal: totalAmount,
     totalAmount,
     qrToken,
     qrUsed: false,
@@ -154,10 +158,51 @@ export const createBooking = async (payload = {}) => {
     visitorMobile: visitor.visitorMobile,
   })
 
+  // Ensure a parent booking exists for all tickets
+  const bookingId = payload.bookingId || ticketId
+  const bookingType = ticketSource === 'ONLINE' ? 'PREBOOK' : 'WALKIN'
+
+  const bookingDoc = await Booking.create({
+    bookingId,
+    bookingCode: bookingId,
+    ticketSource,
+    bookingType,
+    issuedAt: new Date(),
+    issuedBy: payload.issuedBy,
+    visitDate,
+    totalAmount,
+    paymentStatus,
+    paymentMode,
+    status: 'CONFIRMED',
+    entryStatus: 'NOT_ENTERED',
+    items: resolvedItems.map((item) => ({
+      itemCode: item.itemCode,
+      ticketPricingId: item.ticketPricingId,
+      label: item.itemLabel || item.label,
+      unitPrice: item.unitPrice,
+      quantity: item.quantity,
+      lineTotal: item.amount,
+    })),
+    tickets: [ticket._id],
+    customerName: visitor.visitorName,
+    customerEmail: visitor.visitorEmail,
+    customerPhone: visitor.visitorMobile,
+    visitorName: visitor.visitorName,
+    visitorEmail: visitor.visitorEmail,
+    visitorMobile: visitor.visitorMobile,
+    isActive: true,
+  })
+
+  // Backfill ticket with booking linkage for reporting
+  ticket.bookingRef = bookingDoc._id
+  ticket.bookingId = bookingId
+  await ticket.save()
+
   const qrImage = await generateQrDataUrl(qrToken)
 
   return {
     ticket,
+    booking: bookingDoc,
     qrImage,
     totalAmount,
     visitDateIso,

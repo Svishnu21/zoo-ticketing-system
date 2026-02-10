@@ -69,7 +69,12 @@ router.get(
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20))
     const skip = (page - 1) * limit
 
-    const match = { ticketSource: 'ONLINE' }
+    // Allow filtering by ticket source but default to all sources so counter-issued tickets are included.
+    const match = {}
+    const source = typeof req.query.ticketSource === 'string' ? req.query.ticketSource.toUpperCase() : 'ALL'
+    if (source === 'ONLINE' || source === 'COUNTER') {
+      match.ticketSource = source
+    }
 
     const visitDate = normaliseVisitDate(req.query.visitDate)
     if (visitDate) {
@@ -97,6 +102,19 @@ router.get(
       match.$or = [{ ticketId: regex }, { visitorMobile: regex }]
     }
 
+    // Debug: log the exact admin read query to verify filters and source alignment.
+    console.log('[admin/bookings] query', {
+      match,
+      page,
+      limit,
+      skip,
+      sourceFilter: source,
+      visitDate: req.query.visitDate,
+      paymentStatus: req.query.paymentStatus,
+      entryStatus: req.query.entryStatus,
+      search,
+    })
+
     const query = Ticket.find(match)
       .sort({ issueDate: -1 })
       .skip(skip)
@@ -104,6 +122,20 @@ router.get(
       .select('ticketId visitDate issueDate totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt usedVia usedAt visitorName visitorMobile items')
 
     const [tickets, total] = await Promise.all([query.lean(), Ticket.countDocuments(match)])
+
+    // Debug: surface a few IDs and timestamps to compare with DB inserts.
+    if (tickets.length) {
+      console.log('[admin/bookings] result', {
+        returned: tickets.length,
+        total,
+        firstTicketId: tickets[0]?.ticketId,
+        firstIssueDate: tickets[0]?.issueDate,
+        lastTicketId: tickets[tickets.length - 1]?.ticketId,
+        lastIssueDate: tickets[tickets.length - 1]?.issueDate,
+      })
+    } else {
+      console.log('[admin/bookings] result', { returned: 0, total })
+    }
 
     const paymentMap = {}
     if (tickets.length) {

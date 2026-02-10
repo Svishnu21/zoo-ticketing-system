@@ -56,7 +56,7 @@ export const navItems: NavItem[] = [
     labels: { en: 'Others', ta: 'மற்றவை' },
     children: [
       { path: '/gallery', labels: { en: 'Gallery', ta: 'படத்தொகுப்பு' } },
-      { path: '/about/publications', labels: { en: 'Publications', ta: 'வெளியீடுகள்' } },
+      { path: '/support/publication', labels: { en: 'Publications', ta: 'வெளியீடுகள்' } },
       { path: '/tenders', labels: { en: 'Tenders', ta: 'டெண்டர்கள்' } },
       { path: '/others/zoo-chart', labels: { en: "Zoo's Chart", ta: 'பூங்கா அமைப்பு' } },
     ],
