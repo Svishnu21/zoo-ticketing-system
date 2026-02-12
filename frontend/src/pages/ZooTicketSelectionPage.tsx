@@ -49,8 +49,8 @@ const labelFallbacks: Record<
     order: 1,
   },
   zoo_child: {
-    label: { en: 'Child (12 years and above)', ta: 'குழந்தை (12 வயது மற்றும் மேல்)' },
-    description: { en: 'Child (12 years and above)', ta: 'குழந்தை (12 வயது மற்றும் மேல்)' },
+  label: { en: 'Child (5 to 12 years)', ta: 'குழந்தை (5 முதல் 12 வயது)' },
+  description: { en: 'Child (5 to 12 years)', ta: 'குழந்தை (5 முதல் 12 வயது)' },
     category: 'zoo',
     order: 2,
   },

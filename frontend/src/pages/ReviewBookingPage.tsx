@@ -276,15 +276,20 @@ export function ReviewBookingPage() {
         }
         // Always redirect with the ticketId returned by the backend; clients must never invent or reuse IDs
         const ticketId = data?.ticketId
+        const verificationToken = data?.verificationToken
         if (!ticketId) {
           throw new Error(language === 'en' ? 'Ticket ID missing in response.' : 'பதில்-இல் Ticket ID இல்லை.')
         }
         // Persist the latest ticketId for any legacy flows that may need it (e.g., static payment redirect)
         sessionStorage.setItem('latestTicketId', ticketId)
+        if (verificationToken) {
+          sessionStorage.setItem('latestVerificationToken', verificationToken)
+        }
         setSubmissionStatus('success')
         setSubmissionMessage(language === 'en' ? 'Booking confirmed.' : 'முன்பதிவு உறுதிப்படுத்தப்பட்டது.')
         setIsConfirmationOpen(false)
-        window.location.href = `/success.html?ticketId=${encodeURIComponent(ticketId)}`
+        const tokenQuery = verificationToken ? `&token=${encodeURIComponent(verificationToken)}` : ''
+        window.location.href = `/success.html?ticketId=${encodeURIComponent(ticketId)}${tokenQuery}`
       })
       .catch((error: unknown) => {
         const message = error instanceof Error ? error.message : language === 'en' ? 'Booking failed.' : 'முன்பதிவு தோல்வியடைந்தது.'
@@ -351,17 +356,23 @@ export function ReviewBookingPage() {
                 {language === 'en' ? 'Items' : 'பொருட்கள்'}
               </h2>
               <div className="space-y-2">
-                {summaryItems.map((item) => (
+                {summaryItems.map((item) => {
+                  const displayLabel = item.id === 'zoo_child'
+                    ? (language === 'en' ? 'Child (5 to 12 years)' : 'குழந்தை (5 முதல் 12 வயது)')
+                    : item.label
+
+                  return (
                   <div
                     key={item.id}
                     className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-forest-green/10 bg-forest-green/5 px-4 py-3 text-forest-green"
                   >
-                    <span className="text-sm font-semibold">{item.label}</span>
+                    <span className="text-sm font-semibold">{displayLabel}</span>
                     <span className="text-sm font-medium">
                       × {item.quantity} · ₹ {item.total.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                     </span>
                   </div>
-                ))}
+                )
+                })}
               </div>
             </div>
           )}

@@ -203,7 +203,7 @@ export const createCounterBooking = async (payload = {}) => {
     visitorEmail: payload.visitorEmail || '',
   }
 
-  const { ticket, qrImage, visitDateIso, totalAmount, pricedItems } = await createBooking(bookingPayload)
+  const { ticket, qrImage, visitDateIso, totalAmount, pricedItems, verificationToken } = await createBooking(bookingPayload)
 
   await assertCounterTicketIntegrity({
     ticket,
@@ -257,11 +257,12 @@ export const createCounterBooking = async (payload = {}) => {
     pricedItems,
     paymentBreakup,
     issuedBy: bookingPayload.visitorName,
+    verificationToken,
   }
 }
 
-export const getCounterTicket = async (ticketId) => {
-  const ticket = await getTicketForDisplay(ticketId)
+export const getCounterTicket = async (ticketId, { verificationToken } = {}) => {
+  const ticket = await getTicketForDisplay(ticketId, { verificationToken })
   if (ticket.ticketSource !== 'COUNTER') {
     throw ApiError.notFound('Counter ticket not found.')
   }

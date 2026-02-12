@@ -40,19 +40,12 @@
           <p>Fallback when the scanner cannot read the QR.</p>
         </header>
         <form id="manualForm" class="manual-form">
+          <p id="manualWarning" class="warning-text" aria-live="polite">Manual entry should be used only if QR scan fails.</p>
           <label>
-            <span>Validation Mode</span>
-            <select id="validationMode" name="mode">
-              <option value="qr" selected>QR Token (default)</option>
-              <option value="ticket">Ticket ID (fallback)</option>
-            </select>
+            <span id="manualInputLabel">Ticket ID</span>
+            <input type="text" id="manualInput" name="ticketId" placeholder="Enter Ticket ID (fallback use only)" required />
           </label>
-          <p id="manualWarning" class="warning-text hidden" aria-live="polite">Manual entry should be used only if QR scan fails.</p>
-          <label>
-            <span id="manualInputLabel">QR Token</span>
-            <input type="text" id="manualInput" name="qr" placeholder="Paste or type QR token" required />
-          </label>
-          <label id="manualReasonField" class="hidden">
+          <label id="manualReasonField">
             <span>Reason for manual entry</span>
             <input
               type="text"

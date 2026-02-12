@@ -88,13 +88,14 @@ export function CartOverlay({
             <div className="space-y-3">
               {visibleItems.map((item) => {
                 const lineTotal = item.price * item.quantity
+                const displayLabel = item.id === 'zoo_child' ? 'Child (5 to 12 years)' : item.label
                 return (
                   <article
                     key={item.id}
                     className="flex items-center justify-between rounded-2xl border border-forest-green/15 bg-white px-5 py-4 text-forest-green shadow-sm"
                   >
                     <div>
-                      <h3 className="text-base font-semibold">{item.label}</h3>
+                      <h3 className="text-base font-semibold">{displayLabel}</h3>
                       <p className="text-sm text-forest-green/70">₹ {item.price.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} each</p>
                     </div>
                     <div className="flex items-center gap-4">

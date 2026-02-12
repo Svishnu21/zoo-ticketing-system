@@ -50,6 +50,9 @@ const ticketSchema = new Schema(
     // Secure QR token; stored server-side only
     qrToken: { type: String, required: true, unique: true, select: false },
 
+    // Secure verification token (hashed); stored only as hash for URL-based validation
+    verificationTokenHash: { type: String, required: true, unique: true, select: false },
+
     // Ticket lifecycle state
     status: { type: String, enum: ['ISSUED', 'USED', 'CANCELLED', 'EXPIRED'], default: 'ISSUED', index: true },
 

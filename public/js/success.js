@@ -5,21 +5,26 @@ console.log('success.js loaded')
 document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search)
   const ticketId = params.get('ticketId')
+  const verificationToken = params.get('token') || sessionStorage.getItem('latestVerificationToken')
   const errorMessage = document.getElementById('errorMessage')
 
   console.log('ticketId from URL:', ticketId)
+  console.log('verification token present:', !!verificationToken)
 
   if (!ticketId) {
     showError('Missing ticketId in the URL. Please reopen your ticket link.', errorMessage)
     return
   }
 
-  fetchTicket(ticketId, errorMessage)
+  fetchTicket(ticketId, verificationToken, errorMessage)
 })
 
-async function fetchTicket(ticketId, errorContainer) {
+async function fetchTicket(ticketId, verificationToken, errorContainer) {
   try {
-    const response = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}`)
+    const url = `/api/tickets/${encodeURIComponent(ticketId)}${
+      verificationToken ? `?token=${encodeURIComponent(verificationToken)}` : ''
+    }`
+    const response = await fetch(url)
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}))
       throw new Error(payload.message || 'Unable to load ticket.')

@@ -3,7 +3,7 @@ import { getDisplayOrder, upsertProtectedTariffs } from '../utils/tariffOrder.js
 
 const DEFAULT_TICKET_PRICING = [
   { code: 'zoo_adult', categoryCode: 'adultEntry', label: 'Entry - Adult', category: 'zoo', price: 50, isActive: true },
-  { code: 'zoo_child', categoryCode: 'childEntry', label: 'Child (12 years and above)', category: 'zoo', price: 10, isActive: true },
+  { code: 'zoo_child', categoryCode: 'childEntry', label: 'Child (5 to 12 years)', category: 'zoo', price: 10, isActive: true },
   {
     code: 'zoo_kid_zone',
     categoryCode: 'kidZoneEntry',

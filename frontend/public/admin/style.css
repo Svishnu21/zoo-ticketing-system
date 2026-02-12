@@ -798,10 +798,21 @@ dialog {
 }
 
 .modal {
-  display: flex;
+  /* hide by default; dialogs will be shown via native dialog[open] state */
+  display: none;
   flex-direction: column;
   gap: 1rem;
   padding: 1.25rem 1.4rem;
+  /* enable fade transitions when closing/opening */
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+/* Ensure dialog elements with the open attribute display correctly */
+dialog[open].modal,
+dialog[open] {
+  display: flex;
 }
 
 .modal header {
@@ -857,13 +868,28 @@ dialog {
 
 .modal-close {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 15px;
+  right: 20px;
   border: none;
   background: transparent;
-  font-size: 1.3rem;
+  /* font-size ~21.6px (comfortable visibility) */
+  font-size: 1.35rem;
+  font-weight: 700;
   cursor: pointer;
-  color: var(--muted);
+  color: #dc3545; /* strong red */
+  transition: color 120ms ease, transform 120ms ease;
+  z-index: 2;
+}
+
+.modal-close:hover {
+  color: #a71d2a; /* darker red on hover */
+  transform: scale(1.05);
+}
+
+.modal.is-closing {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.995);
+  pointer-events: none;
 }
 
 .modal-body {

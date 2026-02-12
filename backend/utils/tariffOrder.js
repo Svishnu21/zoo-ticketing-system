@@ -1,6 +1,6 @@
 export const CANONICAL_TARIFF_ORDER = [
   { itemCode: 'zoo_adult', category: 'zoo', label: 'Entry - Adult', displayOrder: 1, price: 50 },
-  { itemCode: 'zoo_child', category: 'zoo', label: 'Child (12 years and above)', displayOrder: 2, price: 10 },
+  { itemCode: 'zoo_child', category: 'zoo', label: 'Child (5 to 12 years)', displayOrder: 2, price: 10 },
   { itemCode: 'zoo_kid_zone', category: 'zoo', label: 'Kid Zone (Below 6 Years)', displayOrder: 3, price: 20 },
   { itemCode: 'zoo_child_free', category: 'zoo', label: 'Children (below 5)', displayOrder: 4, price: 0 },
   { itemCode: 'zoo_differently_abled', category: 'zoo', label: 'Differently Abled', displayOrder: 5, price: 0 },

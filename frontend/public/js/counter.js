@@ -681,9 +681,10 @@ function renderItems(items) {
 
   tbody.innerHTML = items
     .map((item) => {
-      const category = escapeHtml(
-        item.itemLabel || item.label || item.categoryName || item.itemCode || item.categoryCode || 'Category',
-      )
+      // Presentation-only override: display updated child label for zoo_child
+      const rawLabel = item.itemLabel || item.label || item.categoryName || item.itemCode || item.categoryCode || 'Category'
+      const isChildCode = (item.itemCode || item.code || '').toString().toLowerCase() === 'zoo_child'
+      const category = escapeHtml(isChildCode ? 'Child (5 to 12 years)' : rawLabel)
       const qty = Number(item.quantity || 0)
       const price = Number(item.unitPrice ?? item.price ?? 0)
       const amount = Number(item.amount ?? qty * price)

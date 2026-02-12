@@ -38,12 +38,17 @@ export function BookingModal({ open, onOpenChange, items, total }: BookingModalP
 
   const summary = useMemo(
     () =>
-      items.filter((item) => item.quantity > 0).map((item) => ({
-        id: item.id,
-        label: item.label,
-        quantity: item.quantity,
-        amount: item.quantity * item.price,
-      })),
+      items
+        .filter((item) => item.quantity > 0)
+        .map((item) => ({
+          id: item.id,
+          label:
+            item.id === 'zoo_child'
+              ? { en: 'Child (5 to 12 years)', ta: 'குழந்தை (5 முதல் 12 வயது)' }
+              : item.label,
+          quantity: item.quantity,
+          amount: item.quantity * item.price,
+        })),
     [items],
   )
 

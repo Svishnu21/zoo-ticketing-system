@@ -4,7 +4,7 @@ import { Booking } from '../models/Booking.js'
 import { ApiError } from '../utils/errors.js'
 import { assertPaymentModeAllowed, coerceQuantity, validateQuantity } from '../utils/pricing.js'
 import { assertVisitDateBounds, normaliseVisitDate } from '../utils/dates.js'
-import { generateQrToken } from '../utils/qr.js'
+import { generateQrToken, generateVerificationToken, hashVerificationToken } from '../utils/qr.js'
 import { loadActivePricingMap, resolveCategoryCodeForItem } from './pricingService.js'
 import { normaliseVisitorDetails } from '../utils/validation.js'
 import { generateQrDataUrl } from '../utils/qrImage.js'
@@ -129,6 +129,8 @@ export const createBooking = async (payload = {}) => {
 
   // QR token remains opaque to clients; stored server-side and never derived from client input
   const qrToken = generateQrToken()
+  const verificationToken = generateVerificationToken()
+  const verificationTokenHash = hashVerificationToken(verificationToken)
 
   const visitor = normaliseVisitorDetails({
     name: payload.visitorName,
@@ -151,6 +153,7 @@ export const createBooking = async (payload = {}) => {
     lineTotal: totalAmount,
     totalAmount,
     qrToken,
+    verificationTokenHash,
     qrUsed: false,
     qrUsedAt: undefined,
     visitorName: visitor.visitorName,
@@ -204,6 +207,7 @@ export const createBooking = async (payload = {}) => {
     ticket,
     booking: bookingDoc,
     qrImage,
+    verificationToken,
     totalAmount,
     visitDateIso,
     pricedItems: resolvedItems,
@@ -226,13 +230,13 @@ export const getTicketSummary = async (ticketId) => {
 
 const TICKET_ID_PATTERN = /^KZP-[0-9]{6}-[A-Z0-9]{6}$/
 
-export const getTicketForDisplay = async (ticketId) => {
+export const getTicketForDisplay = async (ticketId, { verificationToken } = {}) => {
   if (!ticketId || typeof ticketId !== 'string' || !TICKET_ID_PATTERN.test(ticketId)) {
     throw ApiError.badRequest('Ticket ID is invalid.')
   }
 
   const ticket = await Ticket.findOne({ ticketId })
-    .select('ticketId visitDate issueDate paymentMode paymentStatus ticketSource paymentBreakup items totalAmount qrToken')
+    .select('ticketId visitDate issueDate paymentMode paymentStatus ticketSource paymentBreakup items totalAmount qrToken verificationTokenHash')
     .lean()
 
   if (!ticket) {
@@ -241,6 +245,17 @@ export const getTicketForDisplay = async (ticketId) => {
   // Debug logs for tracing why QR might not render
   console.log('Ticket found in DB for display:', !!ticket)
   console.log('QR token (server-side only):', ticket.qrToken)
+
+  // Enforce verification token if stored
+  if (ticket.verificationTokenHash) {
+    if (!verificationToken) {
+      throw ApiError.unauthorized('Verification token is required for this ticket.')
+    }
+    const incomingHash = hashVerificationToken(verificationToken)
+    if (incomingHash !== ticket.verificationTokenHash) {
+      throw ApiError.unauthorized('Invalid verification token.')
+    }
+  }
 
   let qrImage
   try {

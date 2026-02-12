@@ -62,7 +62,7 @@ const TARIFF_DISPLAY_ORDER = {
 
 const TICKET_BOXES = [
 	{ code: 'zoo_adult', label: 'Entry - Adult', category: 'Entry' },
-	{ code: 'zoo_child', label: 'Child (12 years and above)', category: 'Entry' },
+	{ code: 'zoo_child', label: 'Child (5 to 12 years)', category: 'Entry' },
 	{ code: 'zoo_kid_zone', label: 'Kid Zone (Below 6 Years)', category: 'Entry' },
 	{ code: 'zoo_child_free', label: 'Children (below 5)', category: 'Entry' },
 	{ code: 'zoo_differently_abled', label: 'Differently Abled', category: 'Entry' },
@@ -398,12 +398,36 @@ function setupNavigation() {
 	navLinks.forEach((btn) => {
 		btn.addEventListener('click', () => {
 			const target = btn.dataset.target
+			// update hash so direct links and history work
+			try { window.location.hash = `#${target}` } catch (_e) {}
 			navLinks.forEach((b) => b.classList.toggle('active', b === btn))
 			panels.forEach((panel) => panel.classList.toggle('active', panel.id === target))
 			sectionTitle.textContent = btn.textContent ?? 'Admin Dashboard'
 			sectionSubtitle.textContent = subtitles[target] ?? subtitles.overview
 		})
 	})
+
+	// Activate section based on hash (on load and when hash changes)
+	function handleSectionNavigation() {
+		const hash = (window.location.hash || '#overview').replace(/^#/, '')
+		const targetBtn = Array.from(navLinks).find((b) => String(b.dataset.target) === hash)
+		const targetPanel = document.getElementById(hash)
+		const target = targetBtn ? targetBtn.dataset.target : (targetPanel ? hash : 'overview')
+		// toggle active classes
+		navLinks.forEach((b) => b.classList.toggle('active', b.dataset.target === target))
+		panels.forEach((panel) => panel.classList.toggle('active', panel.id === target))
+		// update titles if available
+		if (sectionTitle) {
+			const activeBtn = Array.from(navLinks).find((b) => b.dataset.target === target)
+			sectionTitle.textContent = activeBtn ? (activeBtn.textContent ?? 'Admin Dashboard') : 'Admin Dashboard'
+		}
+		if (sectionSubtitle) {
+			sectionSubtitle.textContent = subtitles[target] ?? subtitles.overview
+		}
+	}
+
+	window.addEventListener('load', handleSectionNavigation)
+	window.addEventListener('hashchange', handleSectionNavigation)
 
 	logoutBtn?.addEventListener('click', () => {
 		sessionStorage.removeItem('isLoggedIn')
@@ -458,28 +482,8 @@ function initUserManagement() {
 
 	// Small on-screen toast for quick visual debug during runtime tests
 	function showModalDebugToast(message, timeout = 3000) {
-		try {
-			const id = `modal-debug-${Date.now()}`
-			const el = document.createElement('div')
-			el.id = id
-			el.textContent = message
-			el.style.position = 'fixed'
-			el.style.right = '16px'
-			el.style.bottom = '16px'
-			el.style.padding = '8px 12px'
-			el.style.background = 'rgba(0,0,0,0.75)'
-			el.style.color = '#fff'
-			el.style.borderRadius = '6px'
-			el.style.zIndex = '999999'
-			el.style.fontSize = '12px'
-			el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)'
-			document.body.appendChild(el)
-			setTimeout(() => {
-				try { document.body.removeChild(el) } catch (_e) {}
-			}, timeout)
-		} catch (_e) {
-			// ignore
-		}
+		// Debug UI disabled: no-op to avoid injecting DOM elements during normal use.
+		return
 	}
 	// Attach generic close handlers for a dialog element: backdrop click, close buttons, and cleanup on close.
 	function attachModalCleanup(modal) {
@@ -725,6 +729,31 @@ function initUserManagement() {
 			}
 		})
 
+		// Reset password submit handler
+		resetSubmit?.addEventListener('click', async (event) => {
+			event.preventDefault()
+			if (!stateUsers.selectedId || !resetModal) return
+			setBtnLoading('resetSubmit', true)
+			try {
+				const pwd = (resetPasswordInput && resetPasswordInput.value) ? resetPasswordInput.value.trim() : ''
+				if (!pwd || pwd.length < 8) {
+					if (resetPasswordError) resetPasswordError.textContent = 'Password must be at least 8 characters.'
+					setBtnLoading('resetSubmit', false)
+					return
+				}
+				await handleResetPassword(stateUsers.selectedId, pwd)
+				if (resetMessage) resetMessage.textContent = 'Password updated.'
+				// close modal after successful reset
+				try { resetModal.close() } catch (_e) { console.warn('[resetModal] close() threw', _e) }
+				// refresh list to show any audit/updated timestamps
+				try { await loadUsers() } catch (_e) { /* ignore refresh errors */ }
+			} catch (err) {
+				if (resetPasswordError) resetPasswordError.textContent = err?.message || 'Unable to reset password.'
+			} finally {
+				setBtnLoading('resetSubmit', false)
+			}
+		})
+
 	function setBtnLoading(id, isLoading) {
 		const btn = document.getElementById(id)
 		if (!btn) return
@@ -853,8 +882,8 @@ function initUserManagement() {
 			// focus first input for keyboard users
 			if (fullNameInput && typeof fullNameInput.focus === 'function') fullNameInput.focus()
 		} catch (e) {
-			// fallback for browsers without dialog support
-			if (userModal) userModal.setAttribute('open', '')
+			// showModal() failed — prefer native dialog behavior only; log and abort fallback
+			console.warn('[userModal] showModal() threw, not falling back to setAttribute("open") to avoid duplicate rendering.', e)
 		}
 	}
 
@@ -868,17 +897,39 @@ function initUserManagement() {
 			resetUserModalState()
 			return
 		}
-		const wasOpen = userModal.open
+		// Prefer a smooth fade-out when closing via UI actions (× button / Cancel)
 		try {
-			userModal.close()
-		} catch (_e) {
-			userModal.removeAttribute('open')
-		}
-		// If the dialog was not actually open, its close event will not fire; clean up immediately.
-		if (!wasOpen) {
-			unlockBodyForModal()
-			restoreLastFocus()
-			resetUserModalState()
+			const isOpen = Boolean(userModal.open || userModal.hasAttribute && userModal.hasAttribute('open'))
+			if (isOpen && userModal.classList) {
+				// trigger CSS fade-out
+				userModal.classList.remove('is-closing')
+				// Allow a tiny delay to ensure class removal settled (defensive)
+				requestAnimationFrame(() => {
+					userModal.classList.add('is-closing')
+				})
+
+				const finishClose = () => {
+					try { userModal.close() } catch (_e) { console.warn('[userModal] close() threw during fade-out', _e) }
+					// ensure class removed after close
+					try { userModal.classList.remove('is-closing') } catch (_e) {}
+				}
+
+				const onTransition = (ev) => {
+					if (ev.target !== userModal) return
+					finishClose()
+				}
+				userModal.addEventListener('transitionend', onTransition, { once: true })
+				// fallback in case transitionend doesn't fire
+				setTimeout(() => {
+					if (userModal && (userModal.open || userModal.hasAttribute('open'))) finishClose()
+				}, 300)
+			} else {
+				// if not open or no classList support, close immediately
+				try { userModal.close() } catch (_e) { console.warn('[userModal] close() threw (immediate close)', _e) }
+			}
+		} catch (err) {
+			// best-effort fallback
+			try { userModal.close() } catch (_e) { console.warn('[userModal] close() threw in error path', _e) }
 		}
 	}
 
@@ -887,8 +938,7 @@ function initUserManagement() {
 		showModalDebugToast('userModal: teardown start')
 		try {
 			if (userModal) {
-				try { userModal.close() } catch (e) { userModal.removeAttribute('open') }
-				try { userModal.removeAttribute('open') } catch (_e) {}
+				try { userModal.close() } catch (e) { console.warn('[userModal] close() threw in teardown', e) }
 				// blur any focused element inside modal
 				try { const active = document.activeElement; if (userModal.contains(active) && typeof active.blur === 'function') active.blur() } catch (_e) {}
 			}

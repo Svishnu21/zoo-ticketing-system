@@ -257,10 +257,17 @@ export function TariffPage() {
                         )
                       }
 
+                      const labelText =
+                        row.id === 'zoo_child'
+                          ? language === 'en'
+                            ? 'Child (5 to 12 years)'
+                            : 'குழந்தை (5 முதல் 12 வயது)'
+                          : row.label
+
                       return (
                         <tr key={row.id} className={row.serial % 2 === 0 ? 'bg-[#F5FBF7]' : 'bg-white'}>
                           <td className="px-6 py-4 text-sm font-semibold text-forest-green">{row.serial}</td>
-                          <td className="px-6 py-4 text-sm text-muted-foreground">{row.label}</td>
+                          <td className="px-6 py-4 text-sm text-muted-foreground">{labelText}</td>
                           <td className="px-6 py-4 text-right text-sm font-semibold text-foreground">₹ {row.fee}</td>
                         </tr>
                       )

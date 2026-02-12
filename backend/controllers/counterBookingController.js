@@ -9,12 +9,13 @@ import { findCounterTicketsMissingItems } from '../services/counterBookingServic
 import { asyncHandler } from '../utils/errors.js'
 
 export const postCounterBooking = asyncHandler(async (req, res) => {
-  const { ticket, qrImage, totalAmount, visitDateIso, pricedItems, paymentBreakup, issuedBy } = await createCounterBooking(req.body)
+  const { ticket, qrImage, totalAmount, visitDateIso, pricedItems, paymentBreakup, issuedBy, verificationToken } = await createCounterBooking(req.body)
 
   const responseObject = {
     success: true,
     ticketId: ticket.ticketId,
     bookingId: ticket.ticketId, // alias for frontend compatibility
+    verificationToken,
     visitDate: visitDateIso,
     issueDate: ticket.issueDate instanceof Date ? ticket.issueDate.toISOString() : ticket.issueDate,
     totalAmount,
@@ -42,7 +43,7 @@ export const getCounterHistoryController = asyncHandler(async (req, res) => {
 })
 
 export const getCounterTicketController = asyncHandler(async (req, res) => {
-  const ticket = await getCounterTicket(req.params.id)
+  const ticket = await getCounterTicket(req.params.id, { verificationToken: req.query.token })
   res.json({ success: true, ticket })
 })
 

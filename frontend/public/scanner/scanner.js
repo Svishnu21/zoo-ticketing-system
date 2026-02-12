@@ -98,7 +98,6 @@ function initValidate() {
   const logoutBtn = document.getElementById('logoutBtn')
   const manualForm = document.getElementById('manualForm')
   const manualInput = document.getElementById('manualInput')
-  const modeSelect = document.getElementById('validationMode')
   const manualWarning = document.getElementById('manualWarning')
   const manualInputLabel = document.getElementById('manualInputLabel')
   const manualReasonField = document.getElementById('manualReasonField')
@@ -165,42 +164,31 @@ function initValidate() {
 
   renderLogs(JSON.parse(sessionStorage.getItem(logKey) || '[]'))
 
-  const updateManualModeUI = (mode = modeSelect?.value || 'qr') => {
-    const isTicketMode = mode === 'ticket'
-    if (manualWarning) manualWarning.classList.toggle('hidden', !isTicketMode)
-    if (manualReasonField) manualReasonField.classList.toggle('hidden', !isTicketMode)
-    if (manualInputLabel) manualInputLabel.textContent = isTicketMode ? 'Ticket ID' : 'QR Token'
-    if (manualInput)
-      manualInput.placeholder = isTicketMode ? 'Enter Ticket ID (fallback use only)' : 'Paste or type QR token'
-  }
-
-  updateManualModeUI()
-  modeSelect?.addEventListener('change', (event) => updateManualModeUI(event.target.value))
+  if (manualWarning) manualWarning.classList.remove('hidden')
+  if (manualReasonField) manualReasonField.classList.remove('hidden')
+  if (manualInputLabel) manualInputLabel.textContent = 'Ticket ID'
+  if (manualInput) manualInput.placeholder = 'Enter Ticket ID (fallback use only)'
 
   manualForm?.addEventListener('submit', async (event) => {
     event.preventDefault()
-    const mode = modeSelect?.value || 'qr'
     const tokenOrId = manualInput?.value?.trim()
 
     if (!tokenOrId) {
-      setStatus('warning', 'Input required', 'Provide the QR token or ticket ID.')
+      setStatus('warning', 'Input required', 'Provide the ticket ID to validate.')
       return
     }
 
-    if (mode === 'ticket') {
-      const reason = manualReasonInput?.value?.trim()
-      if (!reason) {
-        setStatus('warning', 'Reason required', 'Manual entry needs a reason to proceed.')
-        manualReasonInput?.focus()
-        return
-      }
-      await handleManualTicket(tokenOrId, reason)
-    } else {
-      await handleQrValidation(tokenOrId)
+    const reason = manualReasonInput?.value?.trim()
+    if (!reason) {
+      setStatus('warning', 'Reason required', 'Manual entry needs a reason to proceed.')
+      manualReasonInput?.focus()
+      return
     }
+    await handleManualTicket(tokenOrId, reason)
 
     manualForm.reset()
-    updateManualModeUI(modeSelect?.value || 'qr')
+    if (manualInputLabel) manualInputLabel.textContent = 'Ticket ID'
+    if (manualInput) manualInput.placeholder = 'Enter Ticket ID (fallback use only)'
     manualInput?.focus()
   })
 

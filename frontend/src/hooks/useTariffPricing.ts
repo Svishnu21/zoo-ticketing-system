@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 // Keep in sync with governed tariff codes.
 const fallbackTariffs = [
   { itemCode: 'zoo_adult', price: 50, category: 'zoo', label: 'Entry - Adult', displayOrder: 1 },
-  { itemCode: 'zoo_child', price: 10, category: 'zoo', label: 'Child (12 years and above)', displayOrder: 2 },
+  { itemCode: 'zoo_child', price: 10, category: 'zoo', label: 'Child (5 to 12 years)', displayOrder: 2 },
   { itemCode: 'zoo_kid_zone', price: 20, category: 'zoo', label: 'Kid Zone (Below 6 Years)', displayOrder: 3 },
   { itemCode: 'zoo_child_free', price: 0, category: 'zoo', label: 'Children (below 5)', displayOrder: 4 },
   { itemCode: 'zoo_differently_abled', price: 0, category: 'zoo', label: 'Differently Abled', displayOrder: 5 },
