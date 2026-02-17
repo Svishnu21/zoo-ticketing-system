@@ -12,10 +12,13 @@ const __dirname = path.dirname(__filename)
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') })
 
 const PORT = Number(process.env.PORT) || 5000
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/kzpsalem'
+const MONGODB_URI =
+  process.env.MONGODB_URI || 'mongodb+srv://svishnubtechit_db_user:<db_password>@cluster0.yxt3f8d.mongodb.net/?appName=Cluster0'
 
 if (!process.env.MONGODB_URI) {
-  console.warn('⚠️ MONGODB_URI not set in .env — falling back to mongodb://localhost:27017/kzpsalem')
+  console.warn(
+    '⚠️ MONGODB_URI not set in .env — falling back to mongodb+srv://svishnubtechit_db_user:<db_password>@cluster0.yxt3f8d.mongodb.net/?appName=Cluster0',
+  )
 }
 
 if (!process.env.JWT_SECRET) {
