@@ -11,8 +11,12 @@ const ticketItemSchema = new Schema(
     itemLabel: { type: String, required: true, trim: true },
     // Product grouping for reporting
     category: { type: String, required: true, enum: ['zoo', 'parking', 'camera', 'transport'] },
-    // Quantity purchased for this line
-    quantity: { type: Number, required: true, min: 1, max: 100 },
+    // Quantity purchased for this line; dynamic upper bound by source
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
     // Unit price at time of sale
     unitPrice: { type: Number, required: true, min: 0 },
     // Snapshot of line total (unitPrice * quantity)
@@ -22,6 +26,23 @@ const ticketItemSchema = new Schema(
   },
   { _id: false },
 )
+
+// Override any legacy max validators so counter-issued tickets are unlimited while
+// online bookings still enforce their previous ceiling.
+const quantityPath = ticketItemSchema.path('quantity')
+if (quantityPath) {
+  quantityPath.validators = (quantityPath.validators || []).filter((v) => v.type !== 'max')
+  quantityPath.validate({
+    validator(value) {
+      const ownerDoc = typeof this?.ownerDocument === 'function' ? this.ownerDocument() : undefined
+      const parentDoc = typeof this?.parent === 'function' ? this.parent() : undefined
+      const source = ownerDoc?.ticketSource || ownerDoc?.source || parentDoc?.ticketSource || parentDoc?.source
+      if (source === 'COUNTER') return Number.isInteger(value) && value >= 1
+      return Number.isInteger(value) && value >= 1 && value <= 100
+    },
+    message: 'Quantity exceeds the allowed limit for this ticket source.',
+  })
+}
 
 const ticketSchema = new Schema(
   {
@@ -150,5 +171,10 @@ ticketSchema.index({ visitDate: 1, status: 1 })
 ticketSchema.index({ counterId: 1, status: 1 })
 ticketSchema.index({ ticketPricingId: 1, visitDate: 1 })
 ticketSchema.index({ ticketSource: 1, visitDate: 1 })
+// Compound indexes for history / reporting queries
+ticketSchema.index({ ticketSource: 1, issueDate: -1 })
+ticketSchema.index({ ticketSource: 1, paymentMode: 1, issueDate: -1 })
+ticketSchema.index({ issueDate: -1, createdAt: -1 })
+ticketSchema.index({ visitDate: -1, paymentMode: 1 })
 
 export const Ticket = mongoose.model('Ticket', ticketSchema)

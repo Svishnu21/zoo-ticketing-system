@@ -12,14 +12,10 @@ const __dirname = path.dirname(__filename)
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') })
 
 const PORT = Number(process.env.PORT) || 5000
-const MONGODB_URI =
-  process.env.MONGODB_URI || 'mongodb+srv://svishnubtechit_db_user:<db_password>@cluster0.yxt3f8d.mongodb.net/?appName=Cluster0'
 
-if (!process.env.MONGODB_URI) {
-  console.warn(
-    '⚠️ MONGODB_URI not set in .env — falling back to mongodb+srv://svishnubtechit_db_user:<db_password>@cluster0.yxt3f8d.mongodb.net/?appName=Cluster0',
-  )
-}
+// ✅ Local MongoDB connection (VPS internal MongoDB)
+const MONGODB_URI =
+  process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/kzpsalem'
 
 if (!process.env.JWT_SECRET) {
   console.warn('⚠️ JWT_SECRET not set — authentication endpoints will fail until it is configured.')
@@ -34,6 +30,7 @@ const startServer = async () => {
     await mongoose.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
     })
+
     console.log(`✅ Connected to MongoDB at ${MONGODB_URI}`)
 
     try {
@@ -47,7 +44,9 @@ const startServer = async () => {
 
     try {
       const upsertResult = await ensureDefaultTicketPricing()
-      console.log(`🔄 Ensured default pricing: upserted=${upsertResult.upserted} matched=${upsertResult.matched}`)
+      console.log(
+        `🔄 Ensured default pricing: upserted=${upsertResult.upserted} matched=${upsertResult.matched}`
+      )
     } catch (err) {
       console.error('Failed to ensure default pricing (will continue):', err?.message ?? err)
     }

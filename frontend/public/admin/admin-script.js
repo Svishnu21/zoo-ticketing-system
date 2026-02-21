@@ -91,7 +91,7 @@ const state = {
 	counterDate: '',
 	scannerLogs: [],
 	adoptions: [],
-	globalDate: today,
+	globalDate: '',
 	analytics: {
 		summary: null,
 		ticketTypes: [],
@@ -1148,23 +1148,25 @@ function renderOverview() {
 function setupAnalytics() {
 	const dateInput = document.getElementById('globalDateFilter')
 	const statusEl = document.getElementById('analyticsStatus')
-	if (!dateInput) return
 
-	dateInput.value = state.globalDate || today
-	dateInput.addEventListener('change', () => {
-		const reportFrom = document.getElementById('reportFrom')
-		const reportTo = document.getElementById('reportTo')
-		if (reportFrom) reportFrom.value = state.globalDate
-		if (reportTo) reportTo.value = state.globalDate
-		loadAnalytics()
-	})
+	if (dateInput) {
+		dateInput.value = state.globalDate || ''
+		dateInput.addEventListener('change', () => {
+			state.globalDate = (dateInput.value || '').trim()
+			const reportFrom = document.getElementById('reportFrom')
+			const reportTo = document.getElementById('reportTo')
+			if (reportFrom) reportFrom.value = state.globalDate
+			if (reportTo) reportTo.value = state.globalDate
+			loadAnalytics()
+		})
+	}
 
 	if (statusEl) statusEl.textContent = 'Loading analytics...'
 	loadAnalytics()
 }
 
 async function loadAnalytics() {
-	const date = state.globalDate || today
+	const date = state.globalDate || ''
 	const statusEl = document.getElementById('analyticsStatus')
 	const query = date ? `?date=${encodeURIComponent(date)}` : ''
 	const fetchJson = async (path) => {
@@ -1211,7 +1213,7 @@ async function loadAnalytics() {
 		renderOverview()
 		renderTicketDistribution()
 		renderCategoryChart()
-		if (statusEl) statusEl.textContent = `Visit date ${date}`
+		if (statusEl) statusEl.textContent = date ? `Visit date ${date}` : 'All dates'
 	} catch (error) {
 		state.analytics.summary = null
 		state.analytics.ticketTypes = []
@@ -2017,70 +2019,22 @@ function setupReports() {
 				totals.online += Number(row.onlineTickets || 0)
 				totals.counter += Number(row.counterTickets || 0)
 				totals.revenue += Number(row.revenue || 0)
-				totals.pending += Number(row.pending || 0)
 			})
 		}
 		setTextSafe('reportTotalTickets', totals.tickets ? totals.tickets.toLocaleString('en-IN') : '--')
 		setTextSafe('reportOnlineTickets', totals.online ? totals.online.toLocaleString('en-IN') : '--')
 		setTextSafe('reportCounterTickets', totals.counter ? totals.counter.toLocaleString('en-IN') : '--')
 		setTextSafe('reportTotalRevenue', totals.revenue ? formatINR(totals.revenue) : '₹ --')
-		setTextSafe('reportPending', totals.pending ? totals.pending.toLocaleString('en-IN') : '--')
 	}
 
-	const renderCategoryCharts = (rows) => {
-		const categoryChart = document.getElementById('reportCategoryChart')
-		const revenueChart = document.getElementById('reportRevenueChart')
-		if (!categoryChart || !revenueChart) return
-		if (!rows.length) {
-			categoryChart.innerHTML = '<span class="muted">No category data.</span>'
-			revenueChart.innerHTML = '<span class="muted">No revenue data.</span>'
-			return
-		}
+	const renderCategoryCharts = () => {}
 
-		const sorted = [...rows].sort((a, b) => (a._id || '').localeCompare(b._id || ''))
-		const maxQty = Math.max(...sorted.map((r) => Number(r.quantity || 0)), 1)
-		const qtyBars = sorted
-			.map((row) => {
-				const qty = Number(row.quantity || 0)
-				const width = Math.max(6, Math.round((qty / maxQty) * 100))
-				return `<div class="bar-row"><div class="bar-label">${escapeHtml(mapCategory(row._id))}</div><div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div><div class="bar-value">${qty}</div></div>`
-			})
-			.join('')
-
-		const maxRevenue = Math.max(...sorted.map((r) => Number(r.amount || 0)), 1)
-		const revenueBars = sorted
-			.map((row) => {
-				const amt = Number(row.amount || 0)
-				const width = Math.max(6, Math.round((amt / maxRevenue) * 100))
-				return `<div class="bar-row"><div class="bar-label">${escapeHtml(mapCategory(row._id))}</div><div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div><div class="bar-value">${formatINR(amt)}</div></div>`
-			})
-			.join('')
-
-		categoryChart.innerHTML = qtyBars
-		revenueChart.innerHTML = revenueBars
-	}
-
-	const renderTrendChart = (rows) => {
-		const container = document.getElementById('reportTrendChart')
-		if (!container) return
-		if (!rows.length) {
-			container.innerHTML = '<span class="muted">No data.</span>'
-			return
-		}
-		const maxValue = Math.max(...rows.map((r) => Number(r.tickets || r.quantity || 0)), 1)
-		container.innerHTML = rows
-			.map((row) => {
-				const value = Number(row.tickets || row.quantity || 0)
-				const width = Math.max(6, Math.round((value / maxValue) * 100))
-				return `<div class="bar-row"><div class="bar-label">${escapeHtml(row._id || row.date || '')}</div><div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div><div class="bar-value">${value}</div></div>`
-			})
-			.join('')
-	}
+	const renderTrendChart = () => {}
 
 	const renderReportTable = (type, rows) => {
 		let headers = []
 		if (type === 'daily-summary') {
-			headers = ['Date', 'Total Tickets', 'Online Tickets', 'Counter Tickets', 'Revenue (₹)', 'Online Revenue', 'Counter Revenue', 'Entered', 'Pending Entry', 'Manual Overrides']
+			headers = ['Date', 'Total Tickets', 'Online Tickets', 'Counter Tickets', 'Revenue (₹)', 'Online Revenue', 'Counter Revenue']
 			tableHead.innerHTML = `<tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr>`
 			tableBody.innerHTML = rows.length
 				? rows
@@ -2094,13 +2048,10 @@ function setupReports() {
 									<td>${formatINR(row.revenue || 0)}</td>
 									<td>${formatINR(row.onlineRevenue || 0)}</td>
 									<td>${formatINR(row.counterRevenue || 0)}</td>
-									<td>${Number(row.entered || 0)}</td>
-									<td>${Number(row.pending || 0)}</td>
-									<td>${Number(row.manualOverrides || 0)}</td>
 								</tr>`
 						)
 						.join('')
-				: '<tr><td colspan="10">No data for range.</td></tr>'
+				: '<tr><td colspan="7">No data for range.</td></tr>'
 			renderTrendChart(rows)
 		} else if (type === 'ticket-wise') {
 			headers = ['Ticket Type', 'Quantity', 'Amount (₹)']

@@ -58,6 +58,7 @@ const ALL_TICKETS = [
 ]
 
 const RECENT_TICKETS_API = '/api/counter/tickets'
+const COUNTER_TICKET_API = '/api/counter/tickets'
 
 const fmt = (val = 0) => `Rs ${Number(val || 0).toFixed(2)}`
 const qsa = (sel) => Array.from(document.querySelectorAll(sel))
@@ -318,7 +319,7 @@ function initCounterSuccessPage() {
 
 async function fetchTicket(ticketId, errorContainer) {
   try {
-    const response = await fetch(`/api/counter/tickets/${encodeURIComponent(ticketId)}`)
+    const response = await fetch(`${COUNTER_TICKET_API}/${encodeURIComponent(ticketId)}`)
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}))
       throw new Error(payload.message || 'Unable to load ticket.')

@@ -58,12 +58,15 @@ const ALL_TICKETS = [
 ]
 
 const RECENT_TICKETS_API = '/api/counter/tickets'
+const COUNTER_TICKET_API = '/api/counter/tickets'
 const COUNTER_LOGIN_PATH = '/counter/login.html'
 
 const clearCounterSession = () => {
-  sessionStorage.removeItem('counterToken')
-  sessionStorage.removeItem('counterRole')
+  localStorage.removeItem('counterToken')
+  localStorage.removeItem('counterRole')
 }
+
+const getCounterToken = () => localStorage.getItem('counterToken')
 
 const redirectToCounterLogin = () => {
   clearCounterSession()
@@ -72,14 +75,14 @@ const redirectToCounterLogin = () => {
 
 const withCounterAuthHeaders = (base = {}) => {
   const headers = { ...base }
-  const token = sessionStorage.getItem('counterToken')
+  const token = getCounterToken()
   if (token) headers.Authorization = `Bearer ${token}`
   return headers
 }
 
 async function counterFetch(path, options = {}) {
   const response = await fetch(path, { ...options, headers: withCounterAuthHeaders(options.headers || {}) })
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     redirectToCounterLogin()
     throw new Error('Counter session expired.')
   }
@@ -168,8 +171,9 @@ function attachLoginHandler() {
       if (!resp.ok) throw new Error(data?.message || 'Login failed')
       if (data.role !== 'COUNTER') throw new Error('Role not permitted for counter console')
 
-      sessionStorage.setItem('counterToken', data.token)
-      sessionStorage.setItem('counterRole', data.role)
+      // Persist token for counter flows (localStorage only)
+      localStorage.setItem('counterToken', data.token)
+      localStorage.setItem('counterRole', data.role)
       window.location.href = '/counter/issue.html'
     } catch (err) {
       if (errEl) errEl.textContent = err?.message || 'Login failed'
@@ -178,13 +182,8 @@ function attachLoginHandler() {
 }
 
 function guardCounter() {
-  const role = sessionStorage.getItem('counterRole')
-  const token = sessionStorage.getItem('counterToken')
-  if (!role || !token) {
-    redirectToCounterLogin()
-    return
-  }
-  if (role !== 'COUNTER') {
+  const token = getCounterToken()
+  if (!token) {
     redirectToCounterLogin()
   }
 }
@@ -257,27 +256,34 @@ async function loadRecentTickets() {
 async function loadHistoryTable() {
   const tbody = document.getElementById('history-rows')
   if (!tbody) return
+
+  // Show loading state
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.2rem;color:#888;">Loading…</td></tr>'
+
   try {
-    const data = await counterFetchJson('/api/counter/recent')
-    const tickets = Array.isArray(data) ? data : Array.isArray(data?.tickets) ? data.tickets : []
-
+    // Build query params – send date in ISO format (YYYY-MM-DD); omit paymentMode when "ALL"
     const selectedMode = (document.getElementById('history-payment')?.value || 'ALL').toUpperCase()
-    const selectedDate = document.getElementById('history-date')?.value || ''
+    const selectedDate = (document.getElementById('history-date')?.value || '').trim()
 
-    const filtered = tickets.filter((ticket) => {
-      const modeOk = selectedMode === 'ALL' || (ticket.paymentMode || '').toUpperCase() === selectedMode
-      if (!modeOk) return false
-      if (!selectedDate) return true
-      const issueIso = ticket.issueDate ? new Date(ticket.issueDate).toISOString().slice(0, 10) : ''
-      return issueIso === selectedDate
-    })
+    const params = new URLSearchParams()
+    if (selectedDate) params.set('date', selectedDate) // already ISO from <input type="date">
+    if (selectedMode && selectedMode !== 'ALL') params.set('paymentMode', selectedMode)
+    // Request max records per page for full historical view
+    params.set('limit', '200')
 
-    tbody.innerHTML = filtered
-      .map((ticket) => {
-        const entered = Boolean(ticket.qrUsed)
-        const statusText = entered ? 'ENTERED' : 'NOT ENTERED'
-        const statusClass = entered ? 'badge-entered' : 'badge-not-entered'
-        return `
+    const url = `/api/counter/history?${params.toString()}`
+    const data = await counterFetchJson(url)
+    const tickets = Array.isArray(data?.tickets) ? data.tickets : Array.isArray(data) ? data : []
+
+    if (!tickets.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.2rem;color:#888;">No tickets found for the selected filters.</td></tr>'
+    } else {
+      tbody.innerHTML = tickets
+        .map((ticket) => {
+          const entered = Boolean(ticket.qrUsed)
+          const statusText = entered ? 'ENTERED' : 'NOT ENTERED'
+          const statusClass = entered ? 'badge-entered' : 'badge-not-entered'
+          return `
           <tr>
             <td>${ticket.ticketId || ''}</td>
             <td>${fmtDateOnly(ticket.visitDate)}</td>
@@ -287,9 +293,11 @@ async function loadHistoryTable() {
             <td><span class="status-badge ${statusClass}">${statusText}</span></td>
           </tr>
         `
-      })
-      .join('')
+        })
+        .join('')
+    }
 
+    // Bind filter change handlers once
     const dateInput = document.getElementById('history-date')
     const modeInput = document.getElementById('history-payment')
     if (dateInput && !dateInput._historyBound) {
@@ -302,6 +310,8 @@ async function loadHistoryTable() {
     }
   } catch (err) {
     console.warn('Failed to load history tickets', err)
+    const tbody2 = document.getElementById('history-rows')
+    if (tbody2) tbody2.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.2rem;color:#c00;">Failed to load tickets. Please try again.</td></tr>'
   }
 }
 
@@ -634,6 +644,12 @@ function updateTotals() {
 
 // --- Success page (printable ticket) rendering ---
 function initCounterSuccessPage() {
+  const token = getCounterToken()
+  if (!token) {
+    redirectToCounterLogin()
+    return
+  }
+
   const params = new URLSearchParams(window.location.search)
   const ticketId = params.get('ticketId')
   const errorMessage = document.getElementById('errorMessage')
@@ -647,9 +663,34 @@ function initCounterSuccessPage() {
 }
 
 async function fetchTicket(ticketId, errorContainer) {
+  const token = getCounterToken()
+
+  // Token is mandatory for protected counter routes
+  if (!token) {
+    console.warn('Counter success: no counterToken found in storage; redirecting to login')
+    clearCounterSession()
+    redirectToCounterLogin()
+    return
+  }
+
   try {
-    const response = await counterFetch(`/api/counter/tickets/${encodeURIComponent(ticketId)}`)
+    const headers = { Authorization: `Bearer ${token}` }
+    console.log('Counter success: token (masked)', token ? `${token.slice(0, 8)}...` : 'none')
+    console.log('Counter success: sending headers', headers)
+
+    const response = await fetch(`${COUNTER_TICKET_API}/${encodeURIComponent(ticketId)}`, {
+      headers,
+    })
+
+    if (response.status === 401) {
+      clearCounterSession()
+      redirectToCounterLogin()
+      return
+    }
+
     const data = await response.json().catch(() => ({}))
+    console.log('Counter success: response JSON', data)
+
     if (!response.ok) throw new Error(data?.message || 'Unable to load ticket.')
     const ticket = data?.ticket || data
     renderTicket(ticket)

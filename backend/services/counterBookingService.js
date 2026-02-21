@@ -4,7 +4,8 @@ import { ApiError } from '../utils/errors.js'
 import { todayIsoDate } from '../utils/dates.js'
 import { assertPaymentModeAllowed, coerceQuantity } from '../utils/pricing.js'
 import { loadActivePricingMap } from './pricingService.js'
-import { createBooking, getTicketForDisplay } from './bookingService.js'
+import { generateQrDataUrl } from '../utils/qrImage.js'
+import { createBooking } from './bookingService.js'
 
 const isAmountEqual = (a = 0, b = 0, tolerance = 0.01) => Math.abs(Number(a) - Number(b)) <= tolerance
 
@@ -261,12 +262,43 @@ export const createCounterBooking = async (payload = {}) => {
   }
 }
 
-export const getCounterTicket = async (ticketId, { verificationToken } = {}) => {
-  const ticket = await getTicketForDisplay(ticketId, { verificationToken })
+export const getCounterTicket = async (ticketId, _opts = {}) => {
+  if (!ticketId || typeof ticketId !== 'string') {
+    throw ApiError.badRequest('Ticket ID is invalid.')
+  }
+
+  const ticket = await Ticket.findOne({ ticketId })
+    .select('ticketId visitDate issueDate paymentMode paymentStatus ticketSource paymentBreakup items totalAmount qrToken verificationTokenHash')
+    .lean()
+
+  if (!ticket) {
+    throw ApiError.notFound('Ticket not found.')
+  }
+
   if (ticket.ticketSource !== 'COUNTER') {
     throw ApiError.notFound('Counter ticket not found.')
   }
-  return ticket
+
+  let qrImage
+  try {
+    qrImage = await generateQrDataUrl(ticket.qrToken)
+  } catch (error) {
+    console.error('Failed to generate QR image for ticket', { ticketId, reason: error?.message })
+    throw ApiError.internal('Unable to generate QR image for this ticket.')
+  }
+
+  return {
+    ticketId: ticket.ticketId,
+    visitDate: ticket.visitDate instanceof Date ? ticket.visitDate.toISOString().slice(0, 10) : ticket.visitDate,
+    issueDate: ticket.issueDate instanceof Date ? ticket.issueDate.toISOString() : ticket.issueDate,
+    paymentMode: ticket.paymentMode,
+    paymentStatus: ticket.paymentStatus,
+    ticketSource: ticket.ticketSource || 'COUNTER',
+    paymentBreakup: ticket.paymentBreakup,
+    items: ticket.items,
+    totalAmount: ticket.totalAmount,
+    qrImage,
+  }
 }
 
 export const getRecentCounterTickets = async () => {
@@ -282,7 +314,7 @@ export const getRecentCounterTickets = async () => {
     .then((tickets) => tickets.map(presentCounterTicket))
 }
 
-export const getCounterHistory = async ({ date, paymentMode, page = 1, limit = 100 } = {}) => {
+export const getCounterHistory = async ({ date, paymentMode, dateField, page = 1, limit = 100 } = {}) => {
   const match = { ticketSource: 'COUNTER' }
 
   if (typeof paymentMode === 'string' && paymentMode.toUpperCase() !== 'ALL') {
@@ -296,12 +328,14 @@ export const getCounterHistory = async ({ date, paymentMode, page = 1, limit = 1
   if (date) {
     const parsed = new Date(date)
     if (Number.isNaN(parsed.getTime())) {
-      throw ApiError.badRequest('History date is invalid.')
+      throw ApiError.badRequest('History date is invalid. Expected YYYY-MM-DD format.')
     }
     const start = new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()))
     const end = new Date(start)
     end.setUTCDate(end.getUTCDate() + 1)
-    match.issueDate = { $gte: start, $lt: end }
+    // Default to filtering by issueDate; pass dateField=visitDate to filter by visit date instead
+    const filterField = dateField === 'visitDate' ? 'visitDate' : 'issueDate'
+    match[filterField] = { $gte: start, $lt: end }
   }
 
   const query = Ticket.find(match)

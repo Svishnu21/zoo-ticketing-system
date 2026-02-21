@@ -8,8 +8,17 @@ const router = express.Router()
 
 const normaliseVisitDate = (value) => {
   if (!value) return undefined
+  // Accept YYYY-MM-DD; parse as UTC midnight
   const parsed = new Date(`${value}T00:00:00.000Z`)
   return Number.isNaN(parsed.getTime()) ? undefined : parsed
+}
+
+const buildVisitDateRange = (visitDate) => {
+  if (!visitDate) return undefined
+  const start = new Date(Date.UTC(visitDate.getUTCFullYear(), visitDate.getUTCMonth(), visitDate.getUTCDate()))
+  const end = new Date(start)
+  end.setUTCDate(end.getUTCDate() + 1)
+  return { $gte: start, $lt: end }
 }
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -78,7 +87,8 @@ router.get(
 
     const visitDate = normaliseVisitDate(req.query.visitDate)
     if (visitDate) {
-      match.visitDate = visitDate
+      const range = buildVisitDateRange(visitDate)
+      match.visitDate = range
     }
 
     if (typeof req.query.paymentStatus === 'string' && req.query.paymentStatus.toLowerCase() !== 'all') {

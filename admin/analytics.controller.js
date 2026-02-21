@@ -13,34 +13,38 @@ const parseDateOnly = (value) => {
 
 const buildDateMatch = (query) => {
   const { date, from, to } = query
+
+  // Single date (preferred for overview): use full-day UTC range
   if (date) {
     const d = parseDateOnly(date)
     if (!d) throw ApiError.badRequest('Invalid date')
-    const start = new Date(d)
-    const end = new Date(d)
+    const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+    const end = new Date(start)
     end.setUTCDate(end.getUTCDate() + 1)
     return { $gte: start, $lt: end }
   }
+
+  // From/To range (optional advanced filters)
   if (from || to) {
     const fromDate = from ? parseDateOnly(from) : null
     const toDate = to ? parseDateOnly(to) : null
     if (from && !fromDate) throw ApiError.badRequest('Invalid from date')
     if (to && !toDate) throw ApiError.badRequest('Invalid to date')
+
     const start = fromDate || new Date('1970-01-01T00:00:00.000Z')
     const end = toDate ? new Date(toDate.getTime()) : new Date('2999-12-31T00:00:00.000Z')
     end.setUTCDate(end.getUTCDate() + 1)
     return { $gte: start, $lt: end }
   }
-  const today = new Date()
-  today.setUTCHours(0, 0, 0, 0)
-  const end = new Date(today)
-  end.setUTCDate(end.getUTCDate() + 1)
-  return { $gte: today, $lt: end }
+
+  // No date provided: return undefined to indicate lifetime aggregation (no implicit today filter)
+  return undefined
 }
 
-const buildVisitOrIssueMatch = (range) => ({
-	$or: [{ visitDate: range }, { issueDate: range }],
-})
+const buildVisitOrIssueMatch = (range) => {
+	if (!range) return {}
+	return { $or: [{ visitDate: range }, { issueDate: range }] }
+}
 
 const logMatch = (label, match, query) => {
 	console.log(`[admin/analytics] ${label} match`, {
@@ -84,37 +88,39 @@ router.get(
     await logCollectionInfo()
     await logIncrementalCounts('summary', match)
 
-    const pipeline = [
-      { $match: match },
-      {
-        $group: {
-          _id: null,
-          onlineCount: { $sum: { $cond: [{ $eq: ['$ticketSource', 'ONLINE'] }, 1, 0] } },
-          counterCount: { $sum: { $cond: [{ $eq: ['$ticketSource', 'COUNTER'] }, 1, 0] } },
-          onlineRevenue: { $sum: { $cond: [{ $eq: ['$paymentMode', 'ONLINE'] }, '$totalAmount', 0] } },
-          counterRevenue: {
-            $sum: {
-              $cond: [
-                {
-                  $or: [
-                    { $eq: ['$ticketSource', 'COUNTER'] },
-                    { $eq: [{ $ifNull: ['$issuedBy', ''] }, 'COUNTER'] },
-                  ],
-                },
-                '$totalAmount',
-                0,
-              ],
-            },
+    const pipeline = []
+    if (Object.keys(match).length) {
+      pipeline.push({ $match: match })
+    }
+    pipeline.push({
+      $group: {
+        _id: null,
+        onlineCount: { $sum: { $cond: [{ $eq: ['$ticketSource', 'ONLINE'] }, 1, 0] } },
+        counterCount: { $sum: { $cond: [{ $eq: ['$ticketSource', 'COUNTER'] }, 1, 0] } },
+        onlineRevenue: { $sum: { $cond: [{ $eq: ['$paymentMode', 'ONLINE'] }, '$totalAmount', 0] } },
+        counterRevenue: {
+          $sum: {
+            $cond: [
+              {
+                $or: [
+                  { $eq: ['$ticketSource', 'COUNTER'] },
+                  { $eq: [{ $ifNull: ['$issuedBy', ''] }, 'COUNTER'] },
+                ],
+              },
+              '$totalAmount',
+              0,
+            ],
           },
-          totalRevenue: { $sum: '$totalAmount' },
-          entered: { $sum: { $cond: ['$qrUsed', 1, 0] } },
         },
+        totalRevenue: { $sum: '$totalAmount' },
+        entered: { $sum: { $cond: ['$qrUsed', 1, 0] } },
       },
-    ]
+    })
 
     const [doc] = await Ticket.aggregate(pipeline)
 
-    const totalPending = await Ticket.countDocuments({ visitDate: visitRange, qrUsed: false })
+    const pendingFilter = visitRange ? { visitDate: visitRange, qrUsed: false } : { qrUsed: false }
+    const totalPending = await Ticket.countDocuments(pendingFilter)
 
     res.json({
       success: true,
@@ -136,8 +142,9 @@ router.get(
     const match = buildVisitOrIssueMatch(visitRange)
     logMatch('ticket-types', match, req.query)
     await logIncrementalCounts('ticket-types', match)
-    const pipeline = [
-      { $match: match },
+    const pipeline = []
+    if (Object.keys(match).length) pipeline.push({ $match: match })
+    pipeline.push(
       { $unwind: '$items' },
       {
         $group: {
@@ -148,7 +155,7 @@ router.get(
         },
       },
       { $sort: { amount: -1, quantity: -1, _id: 1 } },
-    ]
+    )
     const rows = await Ticket.aggregate(pipeline)
     res.json({ success: true, rows })
   }),
@@ -161,8 +168,9 @@ router.get(
     const match = buildVisitOrIssueMatch(visitRange)
     logMatch('categories', match, req.query)
     await logIncrementalCounts('categories', match)
-    const pipeline = [
-      { $match: match },
+    const pipeline = []
+    if (Object.keys(match).length) pipeline.push({ $match: match })
+    pipeline.push(
       { $unwind: '$items' },
       {
         $group: {
@@ -172,7 +180,7 @@ router.get(
         },
       },
       { $sort: { amount: -1, quantity: -1, _id: 1 } },
-    ]
+    )
     const rows = await Ticket.aggregate(pipeline)
     res.json({ success: true, rows })
   }),
@@ -185,24 +193,25 @@ router.get(
     const match = buildVisitOrIssueMatch(visitRange)
     logMatch('source-split', match, req.query)
     await logIncrementalCounts('source-split', match)
-    const pipeline = [
-      { $match: match },
-      {
-        $project: {
-          ticketSource: 1,
-          totalAmount: '$totalAmount',
-          itemQuantity: { $sum: '$items.quantity' },
-        },
-      },
-      {
-        $group: {
-          _id: '$ticketSource',
-          quantity: { $sum: '$itemQuantity' },
-          tickets: { $sum: 1 },
-          amount: { $sum: '$totalAmount' },
-        },
-      },
-    ]
+        const pipeline = []
+        if (Object.keys(match).length) pipeline.push({ $match: match })
+        pipeline.push(
+          {
+            $project: {
+              ticketSource: 1,
+              totalAmount: '$totalAmount',
+              itemQuantity: { $sum: '$items.quantity' },
+            },
+          },
+          {
+            $group: {
+              _id: '$ticketSource',
+              quantity: { $sum: '$itemQuantity' },
+              tickets: { $sum: 1 },
+              amount: { $sum: '$totalAmount' },
+            },
+          },
+        )
     const rows = await Ticket.aggregate(pipeline)
     res.json({ success: true, rows })
   }),
@@ -263,7 +272,7 @@ router.get(
   '/analytics/scanlogs',
   asyncHandler(async (req, res) => {
     const visitRange = buildDateMatch(req.query)
-    const match = { scannedAt: visitRange }
+    const match = visitRange ? { scannedAt: visitRange } : {}
     logMatch('scanlogs', match, req.query)
     const total = await ScanLog.countDocuments(match)
     const invalid = await ScanLog.countDocuments({ ...match, result: { $ne: 'success' } })
