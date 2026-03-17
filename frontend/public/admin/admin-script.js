@@ -10,6 +10,7 @@ function adminAuthHeaders() {
 
 async function adminFetch(url, options = {}) {
 	const opts = {
+		credentials: 'include',
 		...options,
 		headers: {
 			...adminAuthHeaders(),
@@ -18,6 +19,11 @@ async function adminFetch(url, options = {}) {
 	}
 
 	const res = await fetch(url, opts)
+
+	if (res.status === 401 || res.status === 403) {
+		await logoutAdmin({ redirect: true })
+		throw new Error('Admin session is not valid. Please sign in again.')
+	}
 
 	if (!res.ok) {
 		let message = 'Request failed'
@@ -45,6 +51,32 @@ const backendOrigin = window.location.origin.startsWith('http://localhost:5173')
 const adminApiBase = `${backendOrigin}/admin`
 const userApiBase = `${backendOrigin}/api/users`
 const today = new Date().toISOString().slice(0, 10)
+
+function clearLocalAdminSession() {
+	sessionStorage.removeItem('token')
+	sessionStorage.removeItem('role')
+	sessionStorage.removeItem('isLoggedIn')
+	sessionStorage.removeItem('user')
+	localStorage.removeItem('token')
+	localStorage.removeItem('role')
+}
+
+async function logoutAdmin({ redirect = false } = {}) {
+	clearLocalAdminSession()
+
+	try {
+		await fetch(`${backendOrigin}/api/auth/logout`, {
+			method: 'POST',
+			credentials: 'include',
+		})
+	} catch (_err) {
+		// Ignore logout network failures and still clear client state.
+	}
+
+	if (redirect) {
+		window.location.href = '/admin/login'
+	}
+}
 
 const TARIFF_DISPLAY_ORDER = {
 	zoo_adult: 1,
@@ -84,14 +116,14 @@ const CATEGORY_ORDER = {
 
 const state = {
 	bookings: [],
-	bookingPagination: { page: 1, limit: 20, total: 0, hasNext: false },
-	bookingFilters: { date: '', payment: 'all', entry: 'all', search: '' },
+	bookingPagination: { page: 1, limit: 15, total: 0, hasNext: false },
+	bookingFilters: { date: '', entry: 'all', search: '' },
 	counterTickets: [],
-	counterPagination: { page: 1, limit: 100, total: 0, hasNext: false },
+	counterPagination: { page: 1, limit: 15, total: 0, hasNext: false },
 	counterDate: '',
 	scannerLogs: [],
 	adoptions: [],
-	globalDate: '',
+	analyticsFilter: { range: 'today', from: today, to: today },
 	analytics: {
 		summary: null,
 		ticketTypes: [],
@@ -101,6 +133,8 @@ const state = {
 		scanlogs: null,
 	},
 }
+
+let analyticsSetupDone = false
 
 // Lightweight dashboard initializer to kick analytics and overview without blocking other panels.
 function setupDashboard() {
@@ -155,7 +189,7 @@ async function openTicketPreview(ticketId, options = {}) {
 					<div class="meta">
 						<div><strong>Booking ID:</strong> ${escapeHtml(data.ticketId || '—')}</div>
 						<div><strong>Visit Date:</strong> ${escapeHtml(data.visitDate || '—')}</div>
-						<div><strong>Issue Date:</strong> ${data.issueDate ? formatDateTime(data.issueDate) : '—'}</div>
+						<div><strong>Booked At:</strong> ${data.bookedAt ? formatDateTime(data.bookedAt) : (data.issueDate ? formatDateTime(data.issueDate) : '—')}</div>
 						<div><strong>Source:</strong> ${options.source === 'counter' || (data.issuedBy) ? 'Counter' : 'Online'}</div>
 						<div><strong>Issued By:</strong> ${escapeHtml(data.issuedBy || (options.source === 'counter' ? 'Counter' : 'System'))}</div>
 					</div>
@@ -168,6 +202,7 @@ async function openTicketPreview(ticketId, options = {}) {
 						<tbody id="ticketPreviewItems"></tbody>
 					</table>
 					<div class="ticket-summary">
+						<div><strong>Ticket Count:</strong> ${formatCount(data.ticketCount ?? data.items)}</div>
 						<div><strong>Payment Mode:</strong> ${escapeHtml(data.paymentMode || '—')}</div>
 						<div><strong>Payment Status:</strong> ${escapeHtml(data.paymentStatus || '—')}</div>
 						<div><strong>Total Amount:</strong> ${formatINR(data.totalAmount)}</div>
@@ -228,14 +263,27 @@ let __adminInitRan = false
 
 const page = (() => {
 	const pathname = window.location.pathname || ''
+	const normalizedPath = pathname.toLowerCase()
+	if (/\/admin\/counter\/[^/]+\/print\/?$/.test(normalizedPath)) return 'counter-print'
+	if (normalizedPath.includes('/admin/booking/')) return 'booking-detail'
+	if (/\/admin\/counter\/[^/]+\/?$/.test(normalizedPath)) return 'counter-detail'
 	const last = pathname.split('/').filter(Boolean).pop() || ''
 	const cleaned = last.split('?')[0].split('#')[0].toLowerCase()
 	if (!cleaned || cleaned === 'admin' || cleaned === 'index' || cleaned === 'index.html') return 'login'
 	if (cleaned === 'dashboard' || cleaned === 'dashboard.html') return 'dashboard'
 	if (cleaned === 'users' || cleaned === 'users.html') return 'users'
+	if (cleaned === 'booking' || cleaned === 'booking.html') return 'booking-detail'
+	if (cleaned === 'counter-ticket' || cleaned === 'counter-ticket.html') return 'counter-detail'
 	if (cleaned === 'login' || cleaned === 'login.html') return 'login'
 	return cleaned
 })()
+
+const getCounterTicketIdFromLocation = () => {
+	const parts = (window.location.pathname || '').split('/').filter(Boolean)
+	const idx = parts.findIndex((part) => part.toLowerCase() === 'counter')
+	if (idx >= 0 && parts[idx + 1]) return decodeURIComponent(parts[idx + 1])
+	return new URLSearchParams(window.location.search).get('ticketId') || ''
+}
 
 // Diagnostic: confirm this script file is the one loaded in the browser
 console.log('[admin-script] loaded', { page, href: window.location.href })
@@ -281,7 +329,7 @@ function applyRoleVisibility() {
 function guardAdminPage() {
 	const role = getCurrentRole()
 	if (!role) {
-		window.location.href = './login.html'
+		window.location.href = '/admin/login'
 		return
 	}
 	if (role !== 'ADMIN') {
@@ -310,6 +358,8 @@ async function loginWithCredentials({ email, password, secretCode, expectedRole,
 		sessionStorage.setItem('role', data.role)
 		sessionStorage.setItem('isLoggedIn', 'true')
 		sessionStorage.setItem('user', JSON.stringify(data.user || {}))
+		localStorage.setItem('token', data.token)
+		localStorage.setItem('role', data.role)
 		if (typeof onSuccess === 'function') onSuccess()
 	} catch (err) {
 		if (errorBox) errorBox.textContent = err?.message || 'Login failed'
@@ -334,14 +384,14 @@ function initLogin() {
 			return
 		}
 
-		loginWithCredentials({ email, password, secretCode: otp, expectedRole: 'ADMIN', errorBox, onSuccess: () => window.location.href = './dashboard.html' })
+		loginWithCredentials({ email, password, secretCode: otp, expectedRole: 'ADMIN', errorBox, onSuccess: () => window.location.href = '/admin/dashboard.html' })
 	})
 }
 
 function guardDashboard() {
 	const role = getCurrentRole()
 	if (!role) {
-		window.location.href = './login.html'
+		window.location.href = '/admin/login'
 		return
 	}
 	if (role !== 'ADMIN') {
@@ -398,6 +448,7 @@ function setupNavigation() {
 	navLinks.forEach((btn) => {
 		btn.addEventListener('click', () => {
 			const target = btn.dataset.target
+			if (!target) return
 			// update hash so direct links and history work
 			try { window.location.hash = `#${target}` } catch (_e) {}
 			navLinks.forEach((b) => b.classList.toggle('active', b === btn))
@@ -430,8 +481,7 @@ function setupNavigation() {
 	window.addEventListener('hashchange', handleSectionNavigation)
 
 	logoutBtn?.addEventListener('click', () => {
-		sessionStorage.removeItem('isLoggedIn')
-		window.location.href = './login.html'
+		void logoutAdmin({ redirect: true })
 	})
 }
 
@@ -571,10 +621,7 @@ function initUserManagement() {
 	}
 
 	logoutBtn?.addEventListener('click', () => {
-		sessionStorage.clear()
-		localStorage.removeItem('token')
-		localStorage.removeItem('role')
-		window.location.href = './login.html'
+		void logoutAdmin({ redirect: true })
 	})
 
 	addBtn?.addEventListener('click', () => openUserModal())
@@ -1132,6 +1179,71 @@ function debounce(fn, delay) {
 	}
 }
 
+const RANGE_LABELS = {
+	today: 'Today',
+	yesterday: 'Yesterday',
+	last7: 'Last 7 Days',
+	month: 'This Month',
+	custom: 'Custom Range',
+}
+
+const startOfMonthIso = (value) => {
+	const date = new Date(value)
+	if (Number.isNaN(date.getTime())) return ''
+	date.setDate(1)
+	return date.toISOString().slice(0, 10)
+}
+
+const normalizeDateInput = (value) => {
+	if (!value) return ''
+	const date = new Date(value)
+	return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10)
+}
+
+const deriveRange = (filter = {}) => {
+	const { range, from, to } = filter
+	const preset = (range || 'today').toString().toLowerCase()
+	if (preset === 'today') return { range: 'today', from: today, to: today }
+	if (preset === 'yesterday') {
+		const y = addDays(today, -1)
+		return { range: 'yesterday', from: y, to: y }
+	}
+	if (preset === 'last7') return { range: 'last7', from: addDays(today, -6), to: today }
+	if (preset === 'month') return { range: 'month', from: startOfMonthIso(today), to: today }
+	return { range: 'custom', from: normalizeDateInput(from), to: normalizeDateInput(to) }
+}
+
+const rangeLabel = (filter) => {
+	const resolved = deriveRange(filter)
+	if (resolved.range === 'custom') {
+		if (resolved.from && resolved.to) return `${resolved.from} to ${resolved.to}`
+		return RANGE_LABELS.custom
+	}
+	return RANGE_LABELS[resolved.range] || 'All Dates'
+}
+
+const buildAnalyticsQuery = (filter) => {
+	const resolved = deriveRange(filter)
+	const params = new URLSearchParams()
+	if (resolved.range === 'custom') {
+		if (resolved.from && resolved.to) {
+			params.set('from', resolved.from)
+			params.set('to', resolved.to)
+		}
+	} else {
+		params.set('range', resolved.range)
+	}
+	return params.toString() ? `?${params.toString()}` : ''
+}
+
+const syncReportRange = (filter) => {
+	const resolved = deriveRange(filter)
+	const reportFrom = document.getElementById('reportFrom')
+	const reportTo = document.getElementById('reportTo')
+	if (reportFrom) reportFrom.value = resolved.from || ''
+	if (reportTo) reportTo.value = resolved.to || ''
+}
+
 function renderOverview() {
 	const summary = state.analytics.summary
 	const hasData = Boolean(summary)
@@ -1146,44 +1258,116 @@ function renderOverview() {
 }
 
 function setupAnalytics() {
-	const dateInput = document.getElementById('globalDateFilter')
-	const statusEl = document.getElementById('analyticsStatus')
+	if (analyticsSetupDone) return
+	analyticsSetupDone = true
 
-	if (dateInput) {
-		dateInput.value = state.globalDate || ''
-		dateInput.addEventListener('change', () => {
-			state.globalDate = (dateInput.value || '').trim()
-			const reportFrom = document.getElementById('reportFrom')
-			const reportTo = document.getElementById('reportTo')
-			if (reportFrom) reportFrom.value = state.globalDate
-			if (reportTo) reportTo.value = state.globalDate
-			loadAnalytics()
+	const toggle = document.getElementById('dateRangeToggle')
+	const labelEl = document.getElementById('dateRangeLabel')
+	const menu = document.getElementById('dateRangeMenu')
+	const customFields = document.getElementById('customRangeFields')
+	const fromInput = document.getElementById('rangeFrom')
+	const toInput = document.getElementById('rangeTo')
+	const applyBtn = document.getElementById('applyRangeBtn')
+	const statusEl = document.getElementById('analyticsStatus')
+	const messageEl = document.getElementById('rangeMessage')
+
+	const closeMenu = () => menu?.classList.add('hidden')
+	const openMenu = () => menu?.classList.remove('hidden')
+
+	const syncUi = () => {
+		const resolved = deriveRange(state.analyticsFilter)
+		state.analyticsFilter = resolved
+		if (labelEl) labelEl.textContent = rangeLabel(resolved)
+		if (customFields) {
+			if (resolved.range === 'custom') customFields.classList.remove('hidden')
+			else customFields.classList.add('hidden')
+		}
+		if (fromInput) fromInput.value = resolved.range === 'custom' ? resolved.from || '' : ''
+		if (toInput) toInput.value = resolved.range === 'custom' ? resolved.to || '' : ''
+		if (messageEl) messageEl.textContent = ''
+		syncReportRange(resolved)
+	}
+
+	toggle?.addEventListener('click', (event) => {
+		event.stopPropagation()
+		if (menu?.classList.contains('hidden')) openMenu()
+		else closeMenu()
+	})
+
+	document.addEventListener('click', (event) => {
+		if (!menu) return
+		if (menu.contains(event.target) || toggle?.contains(event.target)) return
+		closeMenu()
+	})
+
+	if (menu) {
+		menu.querySelectorAll('button[data-range]').forEach((btn) => {
+			btn.addEventListener('click', () => {
+				const selected = btn.dataset.range || 'today'
+				if (messageEl) messageEl.textContent = ''
+				if (selected === 'custom') {
+					const currentFrom = normalizeDateInput(fromInput?.value) || today
+					const currentTo = normalizeDateInput(toInput?.value) || today
+					state.analyticsFilter = deriveRange({ range: 'custom', from: currentFrom, to: currentTo })
+					syncUi()
+					closeMenu()
+					return
+				}
+				state.analyticsFilter = deriveRange({ range: selected })
+				syncUi()
+				closeMenu()
+				loadAnalytics()
+			})
 		})
 	}
 
+	applyBtn?.addEventListener('click', () => {
+		const from = normalizeDateInput(fromInput?.value)
+		const to = normalizeDateInput(toInput?.value)
+		if (!from || !to) {
+			if (messageEl) messageEl.textContent = 'Select both From and To dates.'
+			return
+		}
+		if (from > to) {
+			if (messageEl) messageEl.textContent = 'From date cannot be greater than To date.'
+			window.alert('From date cannot be greater than To date.')
+			return
+		}
+		if (messageEl) messageEl.textContent = ''
+		state.analyticsFilter = { range: 'custom', from, to }
+		syncUi()
+		closeMenu()
+		loadAnalytics()
+	})
+
+	syncUi()
 	if (statusEl) statusEl.textContent = 'Loading analytics...'
 	loadAnalytics()
 }
 
 async function loadAnalytics() {
-	const date = state.globalDate || ''
 	const statusEl = document.getElementById('analyticsStatus')
-	const query = date ? `?date=${encodeURIComponent(date)}` : ''
-	const fetchJson = async (path) => {
-		const url = `${adminApiBase}${path}${query}`
-		console.debug('[admin] analytics fetch', { url })
+	const messageEl = document.getElementById('rangeMessage')
+	const resolvedFilter = deriveRange(state.analyticsFilter)
+	state.analyticsFilter = resolvedFilter
+	const query = buildAnalyticsQuery(resolvedFilter)
+	const label = rangeLabel(resolvedFilter)
+	const fetchDashboard = async () => {
+		const url = `${adminApiBase}/dashboard${query}`
+		console.debug('[admin] dashboard fetch', { url })
 		const data = await adminFetch(url)
-		if (data?.success === false) throw new Error(data?.message || 'Analytics fetch failed')
+		if (data?.success === false) throw new Error(data?.message || 'Dashboard fetch failed')
 		return data
 	}
 
-	try {
-		state.analytics.summary = null
-		state.analytics.ticketTypes = []
-		state.analytics.categories = []
-		state.analytics.sourceSplit = []
-		state.analytics.entries = null
-		state.analytics.scanlogs = null
+	const fetchLegacy = async () => {
+		const fetchJson = async (path) => {
+			const url = `${adminApiBase}${path}${query}`
+			console.debug('[admin] analytics fetch', { url })
+			const data = await adminFetch(url)
+			if (data?.success === false) throw new Error(data?.message || 'Analytics fetch failed')
+			return data
+		}
 
 		const [summary, ticketTypes, categories, sourceSplit, entries, scanlogs] = await Promise.all([
 			fetchJson('/analytics/summary'),
@@ -1194,26 +1378,54 @@ async function loadAnalytics() {
 			fetchJson('/analytics/scanlogs'),
 		])
 
-		state.analytics.summary = summary
-		state.analytics.ticketTypes = ticketTypes?.rows || []
-		state.analytics.categories = categories?.rows || []
-		state.analytics.sourceSplit = sourceSplit?.rows || []
-		state.analytics.entries = entries || null
-		state.analytics.scanlogs = scanlogs || null
-		console.debug('[admin] analytics loaded', {
-			date,
+		return {
 			summary,
+			ticketTypes: ticketTypes?.rows || [],
+			categories: categories?.rows || [],
+			sourceSplit: sourceSplit?.rows || [],
+			entries: entries || null,
+			scanlogs: scanlogs || null,
+		}
+	}
+
+	try {
+		if (messageEl) messageEl.textContent = ''
+		if (statusEl) statusEl.textContent = `Loading ${label.toLowerCase()}...`
+		state.analytics.summary = null
+		state.analytics.ticketTypes = []
+		state.analytics.categories = []
+		state.analytics.sourceSplit = []
+		state.analytics.entries = null
+		state.analytics.scanlogs = null
+
+		let dashboardData
+		try {
+			dashboardData = await fetchDashboard()
+		} catch (dashboardError) {
+			console.warn('[admin] dashboard endpoint unavailable, using analytics fallback', dashboardError)
+			dashboardData = await fetchLegacy()
+		}
+
+		state.analytics.summary = dashboardData?.summary || null
+		state.analytics.ticketTypes = Array.isArray(dashboardData?.ticketTypes) ? dashboardData.ticketTypes : []
+		state.analytics.categories = Array.isArray(dashboardData?.categories) ? dashboardData.categories : []
+		state.analytics.sourceSplit = Array.isArray(dashboardData?.sourceSplit) ? dashboardData.sourceSplit : []
+		state.analytics.entries = dashboardData?.entries || null
+		state.analytics.scanlogs = dashboardData?.scanlogs || null
+		console.debug('[admin] analytics loaded', {
+			filter: resolvedFilter,
+			summary: state.analytics.summary,
 			ticketTypes: state.analytics.ticketTypes.length,
 			categories: state.analytics.categories.length,
 			sourceSplit: state.analytics.sourceSplit.length,
-			entries,
-			scanlogs,
+			entries: state.analytics.entries,
+			scanlogs: state.analytics.scanlogs,
 		})
 
 		renderOverview()
 		renderTicketDistribution()
 		renderCategoryChart()
-		if (statusEl) statusEl.textContent = date ? `Visit date ${date}` : 'All dates'
+		if (statusEl) statusEl.textContent = label
 	} catch (error) {
 		state.analytics.summary = null
 		state.analytics.ticketTypes = []
@@ -1225,7 +1437,7 @@ async function loadAnalytics() {
 		renderTicketDistribution()
 		renderCategoryChart()
 		if (statusEl) statusEl.textContent = error?.message || 'Analytics unavailable'
-		console.error('[admin] analytics error', { date, error })
+		console.error('[admin] analytics error', { filter: resolvedFilter, error })
 	}
 }
 
@@ -1284,7 +1496,6 @@ function renderCategoryChart() {
 
 function setupBookings() {
 	const dateFilter = document.getElementById('bookingDateFilter')
-	const paymentFilter = document.getElementById('bookingPaymentFilter')
 	const entryFilter = document.getElementById('bookingEntryFilter')
 	const searchInput = document.getElementById('bookingSearchInput')
 	const tableBody = document.getElementById('bookingTableBody')
@@ -1301,8 +1512,6 @@ function setupBookings() {
 	const setLoading = (message) => {
 		tableBody.innerHTML = `<tr><td colspan="9">${message}</td></tr>`
 	}
-
-	const toTitle = (value) => (value ? value.toString().replace(/_/g, ' ') : '—')
 
 	const updatePagination = () => {
 		if (paginationLabel) {
@@ -1328,13 +1537,13 @@ function setupBookings() {
 					<td>${b.visitorName || '—'}</td>
 					<td>${b.visitorMobile || '—'}</td>
 					<td>${b.visitDate || '—'}</td>
+					<td>${b.bookedAt ? formatDateTime(b.bookedAt) : (b.issueDate ? formatDateTime(b.issueDate) : '—')}</td>
 					<td>${formatCount(b.ticketCount ?? b.items)}</td>
 					<td>${formatINR(b.totalAmount)}</td>
-					<td><span class="status-pill ${pillClass(b.paymentStatus)}">${toTitle(b.paymentStatus)}</span></td>
 					<td><span class="status-pill ${pillClass(b.entryStatus)}">${b.entryStatus || 'Not Entered'}</span></td>
 					<td class="actions">
 						<button class="link" data-action="view" data-id="${b.ticketId}">View</button>
-						<button class="link" data-action="resend" data-id="${b.ticketId}" ${b.paymentStatus && b.paymentStatus.toString().toUpperCase() !== 'PAID' ? 'disabled' : ''}>Resend</button>
+						<button class="link" data-action="resend" data-id="${b.ticketId}">Resend</button>
 					</td>
 				</tr>
 			`,
@@ -1348,14 +1557,13 @@ function setupBookings() {
 		const params = new URLSearchParams()
 		const filters = {
 			visitDate: dateFilter?.value || '',
-			paymentStatus: paymentFilter?.value || 'all',
 			entryStatus: entryFilter?.value || 'all',
 			search: searchInput?.value?.trim() || '',
 			page,
 			limit: state.bookingPagination.limit,
 		}
 
-		state.bookingFilters = { date: filters.visitDate, payment: filters.paymentStatus, entry: filters.entryStatus, search: filters.search }
+		state.bookingFilters = { date: filters.visitDate, entry: filters.entryStatus, search: filters.search }
 
 		Object.entries(filters).forEach(([key, value]) => {
 			if (value && value !== 'all') params.set(key, value)
@@ -1523,8 +1731,12 @@ function setupBookings() {
 		}
 	}
 
+	const openAdminBookingDetailsPage = (ticketId) => {
+		if (!ticketId) return
+		window.location.href = `/admin/booking/${encodeURIComponent(ticketId)}`
+	}
+
 	dateFilter?.addEventListener('change', () => fetchBookings(1))
-	paymentFilter?.addEventListener('change', () => fetchBookings(1))
 	entryFilter?.addEventListener('change', () => fetchBookings(1))
 	searchInput?.addEventListener('input', () => {
 		clearTimeout(searchTimeout)
@@ -1541,26 +1753,156 @@ function setupBookings() {
 		const id = target.dataset.id
 		if (!action || !id) return
 
-		if (action === 'view') return openTicketPreview(id)
+		if (action === 'view') return openAdminBookingDetailsPage(id)
 		if (action === 'resend') return requestResend(id)
 	})
 
 	fetchBookings(1)
 }
 
+function initBookingDetailsPage() {
+	const titleEl = document.getElementById('bookingDetailTitle')
+	const messageEl = document.getElementById('bookingDetailMessage')
+	const qrImageEl = document.getElementById('detailQrImage')
+	const qrPlaceholderEl = document.getElementById('detailQrPlaceholder')
+	const resendBtn = document.getElementById('detailResendBtn')
+	const downloadBtn = document.getElementById('detailDownloadBtn')
+	const viewQrBtn = document.getElementById('detailViewQrBtn')
+	const backBtn = document.getElementById('backToBookingsBtn')
+	const logoutBtn = document.getElementById('logoutBtn')
+
+	const setField = (id, value) => {
+		const el = document.getElementById(id)
+		if (el) el.textContent = value
+	}
+
+	const setMessage = (text, tone = 'muted') => {
+		if (!messageEl) return
+		messageEl.textContent = text || ''
+		messageEl.style.color = tone === 'error' ? 'var(--danger)' : 'var(--muted)'
+	}
+
+	const ticketIdFromPath = (() => {
+		const parts = (window.location.pathname || '').split('/').filter(Boolean)
+		const idx = parts.findIndex((part) => part.toLowerCase() === 'booking')
+		if (idx >= 0 && parts[idx + 1]) return decodeURIComponent(parts[idx + 1])
+		return new URLSearchParams(window.location.search).get('ticketId') || ''
+	})()
+
+	if (!ticketIdFromPath) {
+		setMessage('Missing booking ID.', 'error')
+		return
+	}
+
+	if (titleEl) titleEl.textContent = `Booking Details: ${ticketIdFromPath}`
+	setField('detailBookingId', ticketIdFromPath)
+
+	backBtn?.addEventListener('click', () => {
+		window.location.href = '/admin/dashboard.html#bookings'
+	})
+
+	logoutBtn?.addEventListener('click', () => {
+		void logoutAdmin({ redirect: true })
+	})
+
+	let bookingData = null
+
+	const wireActions = () => {
+		resendBtn?.addEventListener('click', async () => {
+			try {
+				const confirmed = confirm('Resend ticket communication to the visitor?')
+				if (!confirmed) return
+				resendBtn.disabled = true
+				const payload = await adminFetch(`${adminApiBase}/bookings/${encodeURIComponent(ticketIdFromPath)}/resend`, {
+					method: 'POST',
+				})
+				setMessage(payload?.message || 'Resend queued.')
+			} catch (error) {
+				setMessage(error?.message || 'Resend failed.', 'error')
+			} finally {
+				resendBtn.disabled = false
+			}
+		})
+
+		downloadBtn?.addEventListener('click', () => {
+			window.open(`/admin/ticket/download/${encodeURIComponent(ticketIdFromPath)}`, '_blank')
+		})
+
+		viewQrBtn?.addEventListener('click', () => {
+			if (!bookingData?.qrImage) {
+				setMessage('QR code is not available for this booking.', 'error')
+				return
+			}
+			window.open(bookingData.qrImage, '_blank')
+		})
+	}
+
+	const renderBooking = (data) => {
+		bookingData = data || {}
+		const source = (data?.ticketSource || 'ONLINE').toString().toUpperCase()
+		const sourceLabel = source === 'ONLINE' ? 'Online' : source
+		const countValue = Number(data?.ticketCount || formatCount(data?.items) || 0)
+
+		setField('detailBookingId', data?.ticketId || ticketIdFromPath)
+		setField('detailVisitorName', data?.visitorName || '—')
+		setField('detailVisitorMobile', data?.visitorMobile || '—')
+		setField('detailVisitDate', data?.visitDate || '—')
+		setField('detailBookedAt', data?.bookedAt ? formatDateTime(data.bookedAt) : (data?.issueDate ? formatDateTime(data.issueDate) : '—'))
+		setField('detailTicketCount', Number.isFinite(countValue) && countValue > 0 ? String(countValue) : '—')
+		setField('detailTotalAmount', formatINR(data?.totalAmount || 0))
+		setField('detailTicketSource', sourceLabel)
+
+		const entryEl = document.getElementById('detailEntryStatus')
+		if (entryEl) {
+			const statusText = data?.entryStatus || 'Not Entered'
+			entryEl.innerHTML = `<span class="status-pill ${pillClass(statusText)}">${escapeHtml(statusText)}</span>`
+		}
+
+		if (qrImageEl) {
+			if (data?.qrImage) {
+				qrImageEl.src = data.qrImage
+				qrImageEl.alt = 'Booking QR code'
+				qrImageEl.classList.remove('hidden')
+				if (qrPlaceholderEl) qrPlaceholderEl.classList.add('hidden')
+				if (viewQrBtn) viewQrBtn.disabled = false
+			} else {
+				qrImageEl.removeAttribute('src')
+				qrImageEl.classList.add('hidden')
+				if (qrPlaceholderEl) qrPlaceholderEl.classList.remove('hidden')
+				if (viewQrBtn) viewQrBtn.disabled = true
+			}
+		}
+	}
+
+	wireActions()
+
+	setMessage('Loading booking details...')
+	adminFetch(`${adminApiBase}/bookings/${encodeURIComponent(ticketIdFromPath)}`, {
+		headers: adminAuthHeaders(),
+	})
+		.then((data) => {
+			renderBooking(data)
+			setMessage('')
+		})
+		.catch((error) => {
+			setMessage(error?.message || 'Unable to load booking details.', 'error')
+		})
+}
+
 function setupCounterTickets() {
-	const dateFilter = document.getElementById('counterDateFilter')
+	const fromDateFilter = document.getElementById('counterFromDateFilter')
+	const toDateFilter = document.getElementById('counterToDateFilter')
+	const paymentModeFilter = document.getElementById('counterPaymentModeFilter')
+	const searchInput = document.getElementById('counterSearchInput')
 	const tableBody = document.getElementById('counterTableBody')
-	const dailyTotal = document.getElementById('counterDailyTotal')
-	const exportBtn = document.getElementById('exportCounterBtn')
 	const counterPageLabel = document.getElementById('counterPageLabel')
 	const counterPrevBtn = document.getElementById('counterPrevBtn')
 	const counterNextBtn = document.getElementById('counterNextBtn')
 	const counterContextLabel = document.getElementById('counterContextLabel')
-	const breakdownModal = document.getElementById('counterBreakdownModal')
-	const breakdownBody = document.getElementById('counterBreakdownBody')
 
 	if (!tableBody) return
+
+	let searchTimeout
 
 	const summarizeItemsCompact = (items = [], max = 2) => {
 		if (!Array.isArray(items) || items.length === 0) return '—'
@@ -1591,10 +1933,32 @@ function setupCounterTickets() {
 		if (counterContextLabel) counterContextLabel.textContent = text
 	}
 
+	const readFilters = () => ({
+		from: fromDateFilter?.value || '',
+		to: toDateFilter?.value || '',
+		paymentMode: (paymentModeFilter?.value || 'ALL').toUpperCase(),
+		search: searchInput?.value?.trim() || '',
+	})
+
+	const buildContextText = (filters) => {
+		const parts = []
+		if (filters.from) parts.push(`From ${filters.from}`)
+		if (filters.to) parts.push(`To ${filters.to}`)
+		if (filters.paymentMode && filters.paymentMode !== 'ALL') parts.push(`Payment ${filters.paymentMode}`)
+		if (filters.search) parts.push(`Ticket ID contains "${filters.search}"`)
+		return parts.length ? `Filtered by: ${parts.join(' | ')}` : 'Showing all counter-issued tickets.'
+	}
+
+	const validateDateRange = (filters) => {
+		if (filters.from && filters.to && filters.from > filters.to) {
+			setContext('From date cannot be greater than To date.')
+			return false
+		}
+		return true
+	}
+
 	const setEmpty = (message) => {
-		tableBody.innerHTML = `<tr><td colspan="8">${message}</td></tr>`
-		if (dailyTotal) dailyTotal.textContent = state.counterDate ? formatINR(0) : '—'
-		if (exportBtn) exportBtn.disabled = true
+		tableBody.innerHTML = `<tr><td colspan="8">${escapeHtml(message)}</td></tr>`
 		if (counterPageLabel) counterPageLabel.textContent = 'Page 1 of 1'
 		if (counterPrevBtn) counterPrevBtn.disabled = true
 		if (counterNextBtn) counterNextBtn.disabled = true
@@ -1609,7 +1973,7 @@ function setupCounterTickets() {
 
 	const renderTable = () => {
 		if (!state.counterTickets.length) {
-			setEmpty(state.counterDate ? 'No counter tickets for the selected date.' : 'Showing all counter-issued tickets (none returned).')
+			setEmpty('No counter tickets for the selected filters.')
 			return
 		}
 
@@ -1632,35 +1996,47 @@ function setupCounterTickets() {
 				`
 			})
 			.join('')
-
-		const total = state.counterTickets.reduce((sum, t) => sum + Number(t.totalAmount || 0), 0)
-		if (dailyTotal) dailyTotal.textContent = state.counterDate ? formatINR(total) : '—'
-		if (exportBtn) exportBtn.disabled = state.counterTickets.length === 0
 		updatePagination()
 	}
 
-	const fetchCounterTickets = async (date, page = 1) => {
+	const buildQuery = (page = 1) => {
+		const filters = readFilters()
+		const params = new URLSearchParams()
+		if (filters.from) params.set('from', filters.from)
+		if (filters.to) params.set('to', filters.to)
+		if (filters.paymentMode && filters.paymentMode !== 'ALL') params.set('paymentMode', filters.paymentMode)
+		if (filters.search) params.set('search', filters.search)
+		params.set('page', page)
+		params.set('limit', state.counterPagination.limit)
+		return { params, filters }
+	}
+
+	const fetchCounterTickets = async (page = 1) => {
+		const { params, filters } = buildQuery(page)
+		if (!validateDateRange(filters)) {
+			state.counterTickets = []
+			state.counterPagination = { ...state.counterPagination, page: 1, total: 0, hasNext: false }
+			setEmpty('Select a valid date range to continue.')
+			return
+		}
+
 		setEmpty('Loading counter tickets...')
 		try {
-			const params = new URLSearchParams()
-			if (date) params.set('date', date)
-			params.set('page', page)
-			params.set('limit', state.counterPagination.limit)
 			const url = `${backendOrigin}/api/counter/history?${params.toString()}`
 			console.debug('[admin] counter fetch', { url })
 			const payload = await adminFetch(url, {
 				headers: adminAuthHeaders(),
 			})
-			state.counterDate = date || ''
+
 			state.counterTickets = Array.isArray(payload?.tickets) ? payload.tickets : []
 			const totalRecords = Number(payload?.pagination?.total || state.counterTickets.length || 0)
-			const limit = Number(payload?.pagination?.limit || state.counterPagination.limit || 100)
+			const limit = Number(payload?.pagination?.limit || state.counterPagination.limit || 15)
 			const hasNext = Boolean(payload?.pagination?.hasNext)
 			const currentPage = Number(payload?.pagination?.page || page)
 			state.counterPagination = { page: currentPage, limit, total: totalRecords, hasNext }
-			setContext(state.counterDate ? `Showing counter tickets for ${state.counterDate}` : 'Showing all counter-issued tickets')
+			setContext(buildContextText(filters))
 			console.debug('[admin] counter loaded', {
-				date: state.counterDate,
+				filters,
 				returned: state.counterTickets.length,
 				total: state.counterPagination.total,
 				page: state.counterPagination.page,
@@ -1670,107 +2046,289 @@ function setupCounterTickets() {
 			console.error('Failed to fetch counter tickets', error)
 			state.counterTickets = []
 			state.counterPagination = { page: 1, limit: state.counterPagination.limit, total: 0, hasNext: false }
-			setEmpty('Unable to load counter tickets')
+			setEmpty(error?.message || 'Unable to load counter tickets')
 		}
 	}
 
-	const exportCsv = () => {
-		if (!state.counterTickets.length) return
-		const header = ['Counter Ticket ID', 'Issue Date & Time', 'Ticket Type', 'Quantity', 'Amount', 'Payment Mode', 'Issued By', 'Breakdown']
-		const csvRows = [header.join(',')]
-		state.counterTickets.forEach((t) => {
-			const displayType = summarizeItemsCompact(t.items, 2)
-			const displayQuantity = t.hasBreakdown ? (t.quantityTotal || '—') : '—'
-			const breakdown = Array.isArray(t.items)
-				? t.items
-						.map((i) => {
-							const label = (i.label || i.itemCode || 'Item').replace(/,/g, ';')
-							const qty = Number(i.quantity || 0)
-							const unit = Number(i.unitPrice || 0)
-							const amount = Number((i.amount ?? (qty * unit)) || 0)
-							const pricePart = unit === 0 ? 'FREE' : unit
-							return `${label} x${qty} @${pricePart}=${amount}`
-						})
-						.join(' | ')
-				: ''
-			csvRows.push([
-				t.ticketId,
-				formatDateTime(t.issueDate),
-				displayType,
-				displayQuantity,
-				t.totalAmount,
-				t.paymentMode,
-				t.issuedBy || '',
-				breakdown,
-			].join(','))
-		})
-		const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' })
-		const url = URL.createObjectURL(blob)
-		const link = document.createElement('a')
-		link.href = url
-		link.download = `counter-tickets-${state.counterDate || 'selected'}.csv`
-		link.click()
-		URL.revokeObjectURL(url)
+	const openCounterTicketDetailsPage = (ticketId) => {
+		if (!ticketId) return
+		window.location.href = `/admin/counter/${encodeURIComponent(ticketId)}`
 	}
 
-	const openBreakdown = (ticketId) => {
-		if (!breakdownModal || !breakdownBody) return
-		const ticket = state.counterTickets.find((t) => t.ticketId === ticketId)
-		breakdownBody.innerHTML = '<p>No breakdown available.</p>'
-		if (ticket && Array.isArray(ticket.items) && ticket.items.length) {
-			breakdownBody.innerHTML = `
-				<div class="detail-list">
-					${ticket.items
-						.map(
-							(item) => `
-							<div>
-								<strong>${item.label || item.itemCode || 'Item'}</strong>
-								<div>Quantity: ${item.quantity}</div>
-								<div>Unit Price: ${Number(item.unitPrice || 0) === 0 ? 'FREE' : formatINR(item.unitPrice)}</div>
-								<div>Line Total: ${formatINR(item.amount)}</div>
-							</div>
-						`,
-						)
-						.join('')}
-				</div>
-			`
-		}
-		// lock background and attach cleanup
-		_modalState.lastFocused = document.activeElement
-		lockBodyForModal()
-		attachModalCleanup(breakdownModal)
-		try { breakdownModal.showModal() } catch (_) { breakdownModal.setAttribute('open', '') }
-	}
-
-	dateFilter?.addEventListener('change', (event) => {
-		const value = event.target?.value
-		fetchCounterTickets(value, 1)
+	fromDateFilter?.addEventListener('change', () => fetchCounterTickets(1))
+	toDateFilter?.addEventListener('change', () => fetchCounterTickets(1))
+	paymentModeFilter?.addEventListener('change', () => fetchCounterTickets(1))
+	searchInput?.addEventListener('input', () => {
+		clearTimeout(searchTimeout)
+		searchTimeout = setTimeout(() => fetchCounterTickets(1), 250)
 	})
 
 	counterPrevBtn?.addEventListener('click', () => {
 		const prevPage = Math.max(1, state.counterPagination.page - 1)
-		fetchCounterTickets(state.counterDate, prevPage)
+		fetchCounterTickets(prevPage)
 	})
 
 	counterNextBtn?.addEventListener('click', () => {
 		const nextPage = state.counterPagination.page + 1
-		fetchCounterTickets(state.counterDate, nextPage)
+		fetchCounterTickets(nextPage)
 	})
 
 	tableBody.addEventListener('click', (event) => {
 		const target = event.target
 		if (!(target instanceof HTMLElement)) return
 		if (target.dataset.action === 'view-ticket' && target.dataset.id) {
-			openTicketPreview(target.dataset.id, { source: 'counter' })
+			openCounterTicketDetailsPage(target.dataset.id)
 		}
 	})
 
-	exportBtn?.addEventListener('click', exportCsv)
-	fetchCounterTickets('', 1)
+	fetchCounterTickets(1)
+}
 
-	breakdownModal?.addEventListener('click', (event) => {
-		if (event.target === breakdownModal) breakdownModal.close()
+function initCounterTicketDetailsPage() {
+	const titleEl = document.getElementById('counterDetailTitle')
+	const messageEl = document.getElementById('counterDetailMessage')
+	const itemsBody = document.getElementById('counterDetailItemsBody')
+	const qrImageEl = document.getElementById('counterDetailQrImage')
+	const qrPlaceholderEl = document.getElementById('counterDetailQrPlaceholder')
+	const viewQrBtn = document.getElementById('counterDetailViewQrBtn')
+	const printBtn = document.getElementById('counterDetailPrintBtn')
+	const backBtn = document.getElementById('backToCounterBtn')
+	const logoutBtn = document.getElementById('logoutBtn')
+
+	const setField = (id, value) => {
+		const el = document.getElementById(id)
+		if (el) el.textContent = value
+	}
+
+	const setMessage = (text, tone = 'muted') => {
+		if (!messageEl) return
+		messageEl.textContent = text || ''
+		messageEl.style.color = tone === 'error' ? 'var(--danger)' : 'var(--muted)'
+	}
+
+	const ticketIdFromPath = getCounterTicketIdFromLocation()
+
+	if (!ticketIdFromPath) {
+		setMessage('Missing counter ticket ID.', 'error')
+		if (itemsBody) itemsBody.innerHTML = '<tr><td colspan="4">Missing counter ticket ID.</td></tr>'
+		return
+	}
+
+	if (titleEl) titleEl.textContent = `Counter Ticket Details: ${ticketIdFromPath}`
+	setField('counterDetailTicketId', ticketIdFromPath)
+
+	backBtn?.addEventListener('click', () => {
+		window.location.href = '/admin/dashboard.html#counter'
 	})
+
+	logoutBtn?.addEventListener('click', () => {
+		void logoutAdmin({ redirect: true })
+	})
+
+	let ticketData = null
+
+	viewQrBtn?.addEventListener('click', () => {
+		if (!ticketData?.qrImage) {
+			setMessage('QR code is not available for this ticket.', 'error')
+			return
+		}
+		window.open(ticketData.qrImage, '_blank')
+	})
+
+	printBtn?.addEventListener('click', () => {
+		const printUrl = `/admin/counter/${encodeURIComponent(ticketIdFromPath)}/print`
+		const popup = window.open(printUrl, '_blank', 'noopener')
+		if (!popup) {
+			window.location.href = printUrl
+		}
+	})
+
+	const renderItems = (items = []) => {
+		if (!itemsBody) return
+		if (!Array.isArray(items) || !items.length) {
+			itemsBody.innerHTML = '<tr><td colspan="4">No stored item breakdown for this ticket.</td></tr>'
+			return
+		}
+
+		itemsBody.innerHTML = items
+			.map((item) => {
+				const label = escapeHtml(item.label || item.itemLabel || item.itemCode || 'Item')
+				const quantity = Number(item.quantity || 0)
+				const unitPrice = Number(item.unitPrice ?? item.price ?? 0)
+				const amount = Number(item.amount ?? quantity * unitPrice)
+				const unitDisplay = Number(unitPrice) === 0 ? 'FREE' : formatINR(unitPrice)
+				const amountDisplay = Number(amount) === 0 ? 'FREE' : formatINR(amount)
+				return `
+					<tr>
+						<td>${label}</td>
+						<td>${quantity || '—'}</td>
+						<td>${unitDisplay}</td>
+						<td>${amountDisplay}</td>
+					</tr>
+				`
+			})
+			.join('')
+	}
+
+	const renderTicket = (ticket) => {
+		ticketData = ticket || {}
+		const items = Array.isArray(ticketData.items) ? ticketData.items : []
+		const quantityTotal = Number(ticketData.quantityTotal || items.reduce((sum, item) => sum + Number(item?.quantity || 0), 0))
+		const ticketType = ticketData.ticketTypeSummary || (items.length ? items.map((item) => item.label || item.itemLabel || item.itemCode).join(', ') : '—')
+
+		setField('counterDetailTicketId', ticketData.ticketId || ticketIdFromPath)
+		setField('counterDetailDateTime', ticketData.issueDate ? formatDateTime(ticketData.issueDate) : '—')
+		setField('counterDetailTicketType', ticketType || '—')
+		setField('counterDetailQuantity', Number.isFinite(quantityTotal) && quantityTotal > 0 ? String(quantityTotal) : '—')
+		setField('counterDetailAmount', formatINR(ticketData.totalAmount || 0))
+		setField('counterDetailPaymentMode', (ticketData.paymentMode || '—').toString().toUpperCase())
+		setField('counterDetailIssuedBy', ticketData.issuedBy || ticketData.visitorName || 'COUNTER')
+
+		renderItems(items)
+
+		if (qrImageEl) {
+			if (ticketData.qrImage) {
+				qrImageEl.src = ticketData.qrImage
+				qrImageEl.alt = 'Counter ticket QR code'
+				qrImageEl.classList.remove('hidden')
+				if (qrPlaceholderEl) qrPlaceholderEl.classList.add('hidden')
+				if (viewQrBtn) viewQrBtn.disabled = false
+			} else {
+				qrImageEl.removeAttribute('src')
+				qrImageEl.classList.add('hidden')
+				if (qrPlaceholderEl) qrPlaceholderEl.classList.remove('hidden')
+				if (viewQrBtn) viewQrBtn.disabled = true
+			}
+		}
+	}
+
+	setMessage('Loading counter ticket details...')
+	adminFetch(`${backendOrigin}/api/counter/tickets/${encodeURIComponent(ticketIdFromPath)}`, {
+		headers: adminAuthHeaders(),
+	})
+		.then((payload) => {
+			const ticket = payload?.ticket || payload
+			renderTicket(ticket)
+			setMessage('')
+		})
+		.catch((error) => {
+			if (itemsBody) itemsBody.innerHTML = '<tr><td colspan="4">Unable to load ticket details.</td></tr>'
+			setMessage(error?.message || 'Unable to load counter ticket details.', 'error')
+		})
+}
+
+function initCounterTicketPrintPage() {
+	const ticketIdFromPath = getCounterTicketIdFromLocation()
+	const messageEl = document.getElementById('counterPrintMessage')
+	const itemsBody = document.getElementById('counterPrintItemsBody')
+	const qrImageEl = document.getElementById('counterPrintQrImage')
+	const qrPlaceholderEl = document.getElementById('counterPrintQrPlaceholder')
+	const printBtn = document.getElementById('counterPrintBtn')
+	const backBtn = document.getElementById('counterPrintBackBtn')
+
+	const setField = (id, value) => {
+		const el = document.getElementById(id)
+		if (el) el.textContent = value
+	}
+
+	const setMessage = (text, tone = 'muted') => {
+		if (!messageEl) return
+		messageEl.textContent = text || ''
+		messageEl.style.color = tone === 'error' ? 'var(--danger)' : 'var(--muted)'
+	}
+
+	let printTriggered = false
+	const triggerPrint = () => {
+		if (printTriggered) return
+		printTriggered = true
+		window.setTimeout(() => window.print(), 180)
+	}
+
+	printBtn?.addEventListener('click', () => {
+		window.print()
+	})
+
+	backBtn?.addEventListener('click', () => {
+		window.location.href = '/admin/dashboard.html#counter'
+	})
+
+	if (!ticketIdFromPath) {
+		setMessage('Missing counter ticket ID.', 'error')
+		if (itemsBody) itemsBody.innerHTML = '<tr><td colspan="3">Missing counter ticket ID.</td></tr>'
+		if (printBtn) printBtn.disabled = true
+		return
+	}
+
+	const renderItems = (items = []) => {
+		if (!itemsBody) return
+		if (!Array.isArray(items) || !items.length) {
+			itemsBody.innerHTML = '<tr><td colspan="3">No stored item breakdown for this ticket.</td></tr>'
+			return
+		}
+
+		itemsBody.innerHTML = items
+			.map((item) => {
+				const label = escapeHtml(item.label || item.itemLabel || item.itemCode || 'Item')
+				const quantity = Number(item.quantity || 0)
+				const unitPrice = Number(item.unitPrice ?? item.price ?? 0)
+				const amount = Number(item.amount ?? quantity * unitPrice)
+				const amountDisplay = Number(amount) === 0 ? 'FREE' : formatINR(amount)
+				return `
+					<tr>
+						<td>${label}</td>
+						<td>${quantity || '—'}</td>
+						<td>${amountDisplay}</td>
+					</tr>
+				`
+			})
+			.join('')
+	}
+
+	const renderTicket = (ticket) => {
+		const items = Array.isArray(ticket?.items) ? ticket.items : []
+		const quantityTotal = Number(ticket?.quantityTotal || items.reduce((sum, item) => sum + Number(item?.quantity || 0), 0))
+
+		setField('counterPrintTicketId', ticket?.ticketId || ticketIdFromPath)
+		setField('counterPrintDateTime', ticket?.issueDate ? formatDateTime(ticket.issueDate) : '—')
+		setField('counterPrintPaymentMode', (ticket?.paymentMode || '—').toString().toUpperCase())
+		setField('counterPrintIssuedBy', ticket?.issuedBy || ticket?.visitorName || 'COUNTER')
+		setField('counterPrintQuantity', Number.isFinite(quantityTotal) && quantityTotal > 0 ? String(quantityTotal) : '—')
+		setField('counterPrintAmount', formatINR(ticket?.totalAmount || 0))
+
+		renderItems(items)
+
+		if (qrImageEl) {
+			if (ticket?.qrImage) {
+				qrImageEl.onload = () => triggerPrint()
+				qrImageEl.onerror = () => triggerPrint()
+				qrImageEl.src = ticket.qrImage
+				qrImageEl.classList.remove('hidden')
+				if (qrPlaceholderEl) qrPlaceholderEl.classList.add('hidden')
+			} else {
+				qrImageEl.removeAttribute('src')
+				qrImageEl.classList.add('hidden')
+				if (qrPlaceholderEl) qrPlaceholderEl.classList.remove('hidden')
+				triggerPrint()
+			}
+		} else {
+			triggerPrint()
+		}
+	}
+
+	setMessage('Loading counter ticket print view...')
+	adminFetch(`${backendOrigin}/api/counter/tickets/${encodeURIComponent(ticketIdFromPath)}`, {
+		headers: adminAuthHeaders(),
+	})
+		.then((payload) => {
+			const ticket = payload?.ticket || payload
+			renderTicket(ticket)
+			setMessage('')
+		})
+		.catch((error) => {
+			if (itemsBody) itemsBody.innerHTML = '<tr><td colspan="3">Unable to load ticket details.</td></tr>'
+			setMessage(error?.message || 'Unable to load counter ticket print view.', 'error')
+			if (printBtn) printBtn.disabled = true
+		})
 }
 
 function setupScannerLogs() {
@@ -1997,6 +2555,13 @@ function setupReports() {
 		'revenue-summary': 'category-wise',
 		'entry-status': 'entry-compliance',
 	}
+	const CATEGORY_SORT_ORDER = {
+		entry: 1,
+		parking: 2,
+		transport: 3,
+		camera: 4,
+	}
+	const BALANCE_EPSILON = 0.01
 
 	const setExportsEnabled = (enabled) => {
 		const flag = !enabled
@@ -2005,10 +2570,60 @@ function setupReports() {
 		if (exportPdfBtn) exportPdfBtn.disabled = flag
 	}
 
-	const resetTable = (message) => {
+	const resetTable = (message, colspan = 1) => {
 		tableHead.innerHTML = ''
-		tableBody.innerHTML = `<tr><td>${message}</td></tr>`
+		tableBody.innerHTML = `<tr><td colspan="${colspan}">${message}</td></tr>`
 		setExportsEnabled(false)
+	}
+
+	const toNumber = (value) => {
+		const numeric = Number(value)
+		return Number.isFinite(numeric) ? numeric : 0
+	}
+
+	const normalizeMode = (value) => (value || '').toString().trim().toUpperCase()
+
+	const normalizeCategoryKey = (value) => {
+		const normalized = (value || '').toString().trim().toLowerCase()
+		if (!normalized) return ''
+		if (normalized === 'zoo' || normalized === 'entry') return 'entry'
+		if (normalized.includes('parking')) return 'parking'
+		if (normalized.includes('transport') || normalized.includes('battery')) return 'transport'
+		if (normalized.includes('camera')) return 'camera'
+		return normalized
+	}
+
+	const mapCategoryLabel = (value) => {
+		const key = normalizeCategoryKey(value)
+		if (key === 'entry') return 'Entry'
+		if (key === 'parking') return 'Parking'
+		if (key === 'transport') return 'Transport'
+		if (key === 'camera') return 'Camera'
+		if (!key) return 'Category'
+		return key.charAt(0).toUpperCase() + key.slice(1)
+	}
+
+	const toApiCategory = (value) => {
+		const key = normalizeCategoryKey(value)
+		if (key === 'entry') return 'zoo'
+		return key
+	}
+
+	const isKidsZoneType = (itemCode, label) => {
+		const code = (itemCode || '').toString().toLowerCase()
+		const text = (label || '').toString().toLowerCase()
+		return code === 'zoo_kid_zone' || text.includes('kids zone') || text.includes('kid zone')
+	}
+
+	const formatQuantityCell = (value) => Math.max(0, Math.round(toNumber(value))).toLocaleString('en-IN')
+
+	const formatAmountCell = (value) => {
+		const amount = toNumber(value)
+		const isWhole = Math.abs(amount - Math.round(amount)) < 0.001
+		return amount.toLocaleString('en-IN', {
+			minimumFractionDigits: isWhole ? 0 : 2,
+			maximumFractionDigits: 2,
+		})
 	}
 
 	const updateSummaryCards = (rows, type) => {
@@ -2027,69 +2642,362 @@ function setupReports() {
 		setTextSafe('reportTotalRevenue', totals.revenue ? formatINR(totals.revenue) : '₹ --')
 	}
 
-	const renderCategoryCharts = () => {}
+	const fetchReportRows = async ({ type, from, to, source, category }) => {
+		const params = new URLSearchParams({ type, from, to })
+		if (source) params.set('source', source)
+		const apiCategory = toApiCategory(category)
+		if (apiCategory) params.set('category', apiCategory)
+		const payload = await adminFetch(`${adminApiBase}/reports?${params.toString()}`, {
+			headers: adminAuthHeaders(),
+		})
+		if (payload?.success === false) throw new Error(payload?.message || 'Report fetch failed')
+		return Array.isArray(payload?.rows) ? payload.rows : []
+	}
 
-	const renderTrendChart = () => {}
+	const fetchPricingConfig = async () => {
+		const payload = await adminFetch(`${backendOrigin}/api/bookings/pricing`, {
+			headers: adminAuthHeaders(),
+		})
+		if (payload?.success === false) throw new Error(payload?.message || 'Unable to load ticket configuration')
+		return Array.isArray(payload?.data) ? payload.data : []
+	}
 
-	const renderReportTable = (type, rows) => {
-		let headers = []
-		if (type === 'daily-summary') {
-			headers = ['Date', 'Total Tickets', 'Online Tickets', 'Counter Tickets', 'Revenue (₹)', 'Online Revenue', 'Counter Revenue']
-			tableHead.innerHTML = `<tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr>`
-			tableBody.innerHTML = rows.length
-				? rows
-						.map(
-							(row) => `
-								<tr>
-									<td>${escapeHtml(row._id)}</td>
-									<td>${Number(row.tickets || 0)}</td>
-									<td>${Number(row.onlineTickets || 0)}</td>
-									<td>${Number(row.counterTickets || 0)}</td>
-									<td>${formatINR(row.revenue || 0)}</td>
-									<td>${formatINR(row.onlineRevenue || 0)}</td>
-									<td>${formatINR(row.counterRevenue || 0)}</td>
-								</tr>`
-						)
-						.join('')
-				: '<tr><td colspan="7">No data for range.</td></tr>'
-			renderTrendChart(rows)
-		} else if (type === 'ticket-wise') {
-			headers = ['Ticket Type', 'Quantity', 'Amount (₹)']
-			tableHead.innerHTML = `<tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr>`
-			const ordered = [...rows].sort((a, b) => {
-				const orderA = TARIFF_DISPLAY_ORDER[a?._id] || 999
-				const orderB = TARIFF_DISPLAY_ORDER[b?._id] || 999
-				return orderA - orderB || (a.ticketType || a._id || '').localeCompare(b.ticketType || b._id || '')
+	const fetchCounterTicketsForRange = async ({ from, to }) => {
+		const tickets = []
+		let page = 1
+		const limit = 200
+
+		while (page <= 500) {
+			const params = new URLSearchParams({
+				from,
+				to,
+				page: String(page),
+				limit: String(limit),
 			})
-			tableBody.innerHTML = ordered.length
-				? ordered
-						.map(
-							(row) => `<tr><td>${escapeHtml(row.ticketType || row._id || 'Ticket')}</td><td>${Number(row.quantity || 0)}</td><td>${formatINR(row.amount || 0)}</td></tr>`,
-						)
-						.join('')
-				: '<tr><td colspan="3">No tickets in range.</td></tr>'
-			renderTrendChart(ordered.map((r) => ({ _id: r.ticketType || r._id, quantity: r.quantity || 0 })))
-		} else if (type === 'category-wise' || type === 'revenue-summary') {
-			headers = ['Category', 'Quantity', 'Revenue (₹)']
-			tableHead.innerHTML = `<tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr>`
-			tableBody.innerHTML = rows.length
-				? rows
-						.map(
-							(row) => `<tr><td>${escapeHtml(mapCategory(row._id))}</td><td>${Number(row.quantity || 0)}</td><td>${formatINR(row.amount || 0)}</td></tr>`,
-						)
-						.join('')
-				: '<tr><td colspan="3">No categories in range.</td></tr>'
-			renderCategoryCharts(rows)
-		} else if (type === 'entry-compliance') {
-			headers = ['Metric', 'Value']
-			tableHead.innerHTML = `<tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr>`
-			tableBody.innerHTML = rows.length
-				? rows
-						.map((row) => `<tr><td>${escapeHtml(row.metric)}</td><td>${Number(row.value || 0)}</td></tr>`)
-						.join('')
-				: '<tr><td colspan="2">No entry data.</td></tr>'
-			renderTrendChart([])
+			const payload = await adminFetch(`${backendOrigin}/api/counter/history?${params.toString()}`, {
+				headers: adminAuthHeaders(),
+			})
+			const chunk = Array.isArray(payload?.tickets) ? payload.tickets : []
+			tickets.push(...chunk)
+			if (!payload?.pagination?.hasNext || chunk.length === 0) break
+			page += 1
 		}
+
+		return tickets
+	}
+
+	const renderCollectionSummaryTable = ({ pricingRows, metricsByCode }) => {
+		const headers = ['DESCRIPTION', 'PRICE', 'QUANTITY', 'AMOUNT', 'ZAT', 'VCF', 'CASH', 'BANK']
+		tableHead.innerHTML = `<tr>${headers
+			.map((header, index) => `<th${index === 0 ? '' : ' class="report-num"'}>${header}</th>`)
+			.join('')}</tr>`
+
+		if (!Array.isArray(pricingRows) || pricingRows.length === 0) {
+			tableBody.innerHTML = '<tr><td colspan="8">No ticket types available for the selected filters.</td></tr>'
+			return
+		}
+
+		const grouped = new Map()
+		pricingRows.forEach((row) => {
+			const key = row.categoryKey || 'other'
+			if (!grouped.has(key)) grouped.set(key, [])
+			grouped.get(key).push(row)
+		})
+
+		const sortedCategories = [...grouped.keys()].sort((a, b) => {
+			const orderA = CATEGORY_SORT_ORDER[a] || 99
+			const orderB = CATEGORY_SORT_ORDER[b] || 99
+			return orderA - orderB || a.localeCompare(b)
+		})
+
+		const total = {
+			total_quantity: 0,
+			total_amount: 0,
+			total_zat: 0,
+			total_vcf: 0,
+			total_cash: 0,
+			total_bank: 0,
+		}
+
+		const html = []
+		sortedCategories.forEach((categoryKey) => {
+			html.push(`<tr class="report-group-row"><td colspan="8">${escapeHtml(mapCategoryLabel(categoryKey))}</td></tr>`)
+			const rows = grouped.get(categoryKey) || []
+			rows.forEach((row) => {
+				const metric = metricsByCode.get(row.itemCode) || {
+					quantity: 0,
+					row_amount: 0,
+					zat_amount: 0,
+					vcf_amount: 0,
+					cash_amount: 0,
+					bank_amount: 0,
+				}
+
+				total.total_quantity += toNumber(metric.quantity)
+				total.total_amount += toNumber(metric.row_amount)
+				total.total_zat += toNumber(metric.zat_amount)
+				total.total_vcf += toNumber(metric.vcf_amount)
+				total.total_cash += toNumber(metric.cash_amount)
+				total.total_bank += toNumber(metric.bank_amount)
+
+				html.push(`
+					<tr>
+						<td>${escapeHtml(row.label)}</td>
+						<td class="report-num">${formatAmountCell(row.price)}</td>
+						<td class="report-num">${formatQuantityCell(metric.quantity)}</td>
+						<td class="report-num">${formatAmountCell(metric.row_amount)}</td>
+						<td class="report-num">${formatAmountCell(metric.zat_amount)}</td>
+						<td class="report-num">${formatAmountCell(metric.vcf_amount)}</td>
+						<td class="report-num">${formatAmountCell(metric.cash_amount)}</td>
+						<td class="report-num">${formatAmountCell(metric.bank_amount)}</td>
+					</tr>
+				`)
+			})
+		})
+
+		html.push(`
+			<tr class="report-total-row">
+				<td>TOTAL</td>
+				<td class="report-num">-</td>
+				<td class="report-num">${formatQuantityCell(total.total_quantity)}</td>
+				<td class="report-num">${formatAmountCell(total.total_amount)}</td>
+				<td class="report-num">${formatAmountCell(total.total_zat)}</td>
+				<td class="report-num">${formatAmountCell(total.total_vcf)}</td>
+				<td class="report-num">${formatAmountCell(total.total_cash)}</td>
+				<td class="report-num">${formatAmountCell(total.total_bank)}</td>
+			</tr>
+		`)
+
+		tableBody.innerHTML = html.join('')
+	}
+
+	const buildCollectionSummaryData = async ({ from, to, source, category, ticketFilter }) => {
+		const sourceMode = normalizeMode(source)
+		const includeOnline = sourceMode !== 'COUNTER'
+		const includeCounter = sourceMode !== 'ONLINE'
+
+		const pricingPromise = fetchPricingConfig()
+		const ticketWisePromise = fetchReportRows({ type: 'ticket-wise', from, to, source: sourceMode, category })
+		const onlineTicketWisePromise = includeOnline
+			? (sourceMode === 'ONLINE'
+				? ticketWisePromise
+				: fetchReportRows({ type: 'ticket-wise', from, to, source: 'ONLINE', category }))
+			: Promise.resolve([])
+		const counterHistoryPromise = includeCounter ? fetchCounterTicketsForRange({ from, to }) : Promise.resolve([])
+
+		const [pricingRaw, ticketWiseRows, onlineTicketWiseRows, counterTickets] = await Promise.all([
+			pricingPromise,
+			ticketWisePromise,
+			onlineTicketWisePromise,
+			counterHistoryPromise,
+		])
+
+		const selectedCategory = normalizeCategoryKey(category)
+		const ticketNeedle = (ticketFilter || '').toString().trim().toLowerCase()
+
+		const dedupedPricing = new Map()
+		;(Array.isArray(pricingRaw) ? pricingRaw : []).forEach((entry) => {
+			const itemCode = (entry?.itemCode || entry?.code || '').toString().trim().toLowerCase()
+			if (!itemCode) return
+			const record = {
+				itemCode,
+				label: (entry?.label || entry?.itemCode || entry?.code || 'Ticket').toString(),
+				price: Math.max(0, toNumber(entry?.price)),
+				displayOrder: toNumber(entry?.displayOrder) || 999,
+				categoryKey: normalizeCategoryKey(entry?.category),
+			}
+
+			const previous = dedupedPricing.get(itemCode)
+			if (!previous || record.displayOrder < previous.displayOrder) {
+				dedupedPricing.set(itemCode, record)
+			}
+		})
+
+		const pricingRows = [...dedupedPricing.values()]
+			.filter((row) => !selectedCategory || row.categoryKey === selectedCategory)
+			.filter((row) => {
+				if (!ticketNeedle) return true
+				return row.label.toLowerCase().includes(ticketNeedle) || row.itemCode.includes(ticketNeedle)
+			})
+			.sort((a, b) => {
+				const catOrderA = CATEGORY_SORT_ORDER[a.categoryKey] || 99
+				const catOrderB = CATEGORY_SORT_ORDER[b.categoryKey] || 99
+				if (catOrderA !== catOrderB) return catOrderA - catOrderB
+				if (a.displayOrder !== b.displayOrder) return a.displayOrder - b.displayOrder
+				return a.label.localeCompare(b.label)
+			})
+
+		const metricsByCode = new Map()
+		pricingRows.forEach((row) => {
+			metricsByCode.set(row.itemCode, {
+				quantity: 0,
+				row_amount: 0,
+				zat_amount: 0,
+				vcf_amount: 0,
+				cash_amount: 0,
+				bank_amount: 0,
+				isKidsZone: isKidsZoneType(row.itemCode, row.label),
+			})
+		})
+
+		const toPaidAmount = (value) => {
+			const paid = toNumber(value)
+			return paid > 0 ? paid : 0
+		}
+
+		const applyTicketWiseBookingRows = () => {
+			metricsByCode.forEach((metric) => {
+				metric.quantity = 0
+				metric.row_amount = 0
+			})
+
+			;(Array.isArray(ticketWiseRows) ? ticketWiseRows : []).forEach((row) => {
+				const ticket_type = (row?._id || row?.itemCode || '').toString().trim().toLowerCase()
+				const metric = metricsByCode.get(ticket_type)
+				if (!metric) return
+
+				const quantity = Math.max(0, Math.round(toNumber(row?.quantity)))
+				const paid_amount = toPaidAmount(row?.amount ?? row?.row_amount)
+
+				metric.quantity += quantity
+				metric.row_amount += paid_amount
+			})
+		}
+
+		const resolveCounterBookingPaidAmount = (booking) => {
+			return toPaidAmount(booking?.amount_paid ?? booking?.amountPaid ?? booking?.paymentAmount ?? booking?.totalAmount)
+		}
+
+		const resolveCounterTicketTypePaidAmount = (item) => {
+			return toPaidAmount(item?.amount_paid ?? item?.amountPaid ?? item?.amount)
+		}
+
+		const allocateCounterBookingToTicketTypes = (booking) => {
+			const paid_amount = resolveCounterBookingPaidAmount(booking)
+			if (paid_amount <= 0) return []
+
+			const lines = []
+			let ticket_type_paid_total = 0
+			;(Array.isArray(booking?.items) ? booking.items : []).forEach((item) => {
+				const ticket_type = (item?.itemCode || item?.code || '').toString().trim().toLowerCase()
+				const metric = metricsByCode.get(ticket_type)
+				if (!metric) return
+
+				const ticket_type_paid_amount = resolveCounterTicketTypePaidAmount(item)
+				ticket_type_paid_total += ticket_type_paid_amount
+				lines.push({ metric, ticket_type_paid_amount })
+			})
+
+			if (!lines.length) return []
+
+			if (ticket_type_paid_total > BALANCE_EPSILON) {
+				return lines.map((line) => ({
+					metric: line.metric,
+					paid_amount: paid_amount * (line.ticket_type_paid_amount / ticket_type_paid_total),
+				}))
+			}
+
+			const equal_share = paid_amount / lines.length
+			return lines.map((line) => ({ metric: line.metric, paid_amount: equal_share }))
+		}
+
+		const applyPaymentSplitFromBookingRecords = () => {
+			metricsByCode.forEach((metric) => {
+				metric.cash_amount = 0
+				metric.bank_amount = 0
+			})
+
+			if (includeCounter && Array.isArray(counterTickets)) {
+				counterTickets.forEach((booking) => {
+					const payment_mode = normalizeMode(booking?.paymentMode)
+					const allocated_rows = allocateCounterBookingToTicketTypes(booking)
+					if (!allocated_rows.length) return
+
+					if (payment_mode === 'CASH') {
+						allocated_rows.forEach((row) => {
+							row.metric.cash_amount += row.paid_amount
+						})
+						return
+					}
+
+					allocated_rows.forEach((row) => {
+						row.metric.bank_amount += row.paid_amount
+					})
+				})
+			}
+
+			if (includeOnline) {
+				;(Array.isArray(onlineTicketWiseRows) ? onlineTicketWiseRows : []).forEach((row) => {
+					const ticket_type = (row?._id || row?.itemCode || '').toString().trim().toLowerCase()
+					const metric = metricsByCode.get(ticket_type)
+					if (!metric) return
+
+					const paid_amount = toPaidAmount(row?.amount ?? row?.row_amount)
+					metric.bank_amount += paid_amount
+				})
+			}
+
+			metricsByCode.forEach((metric) => {
+				metric.row_amount = toPaidAmount(metric.row_amount)
+				metric.cash_amount = toPaidAmount(metric.cash_amount)
+				metric.bank_amount = toPaidAmount(metric.bank_amount)
+
+				if (Math.abs((metric.cash_amount + metric.bank_amount) - metric.row_amount) > BALANCE_EPSILON) {
+					metric.cash_amount = Math.min(metric.row_amount, metric.cash_amount)
+					metric.bank_amount = Math.max(0, metric.row_amount - metric.cash_amount)
+				}
+
+				if (metric.isKidsZone) {
+					metric.vcf_amount = metric.row_amount
+					metric.zat_amount = 0
+				} else {
+					metric.zat_amount = metric.row_amount
+					metric.vcf_amount = 0
+				}
+			})
+		}
+
+		const applyBookingRecordCalculations = () => {
+			applyTicketWiseBookingRows()
+			applyPaymentSplitFromBookingRecords()
+
+			metricsByCode.forEach((metric) => {
+				metric.quantity = Math.max(0, Math.round(toNumber(metric.quantity)))
+			})
+		}
+
+		const computeRenderedTotals = () => {
+			const totals = {
+				total_quantity: 0,
+				total_amount: 0,
+				total_zat: 0,
+				total_vcf: 0,
+				total_cash: 0,
+				total_bank: 0,
+			}
+
+			metricsByCode.forEach((metric) => {
+				totals.total_quantity += toNumber(metric.quantity)
+				totals.total_amount += toNumber(metric.row_amount)
+				totals.total_zat += toNumber(metric.zat_amount)
+				totals.total_vcf += toNumber(metric.vcf_amount)
+				totals.total_cash += toNumber(metric.cash_amount)
+				totals.total_bank += toNumber(metric.bank_amount)
+			})
+
+			return totals
+		}
+
+		applyBookingRecordCalculations()
+		let totals = computeRenderedTotals()
+
+		// Validation rule: if total_cash + total_bank != total_amount, recompute from booking rows.
+		if (Math.abs((totals.total_cash + totals.total_bank) - totals.total_amount) > BALANCE_EPSILON) {
+			applyBookingRecordCalculations()
+			totals = computeRenderedTotals()
+		}
+
+		return { pricingRows, metricsByCode }
 	}
 
 	const getFilters = () => {
@@ -2106,14 +3014,15 @@ function setupReports() {
 	const runReport = async (exportFormat = 'json') => {
 		const { from, to, uiType, source, category, ticketFilter } = getFilters()
 		if (!from || !to || !uiType) {
-			resetTable('Select from/to dates and report type.')
+			resetTable('Select from/to dates and report type.', 8)
 			return
 		}
 
 		const apiType = API_TYPE_MAP[uiType] || 'daily-summary'
 		const params = new URLSearchParams({ type: apiType, from, to })
 		if (source) params.set('source', source)
-		if (category) params.set('category', category)
+		const apiCategory = toApiCategory(category)
+		if (apiCategory) params.set('category', apiCategory)
 		if (exportFormat !== 'json') params.set('format', exportFormat)
 
 		if (meta) meta.textContent = exportFormat === 'json' ? 'Running report...' : 'Preparing export...'
@@ -2136,23 +3045,18 @@ function setupReports() {
 				return
 			}
 
-			const data = await adminFetch(`${adminApiBase}/reports?${params.toString()}`, {
-				headers: adminAuthHeaders(),
-			})
-			if (data?.success === false) throw new Error(data?.message || 'Report fetch failed')
+			const summaryPromise = fetchReportRows({ type: apiType, from, to, source, category })
+			const tablePromise = buildCollectionSummaryData({ from, to, source, category, ticketFilter })
 
-			let rows = Array.isArray(data.rows) ? data.rows : []
-			if (uiType === 'ticket-wise' && ticketFilter) {
-				const needle = ticketFilter.toLowerCase()
-				rows = rows.filter((r) => (r.ticketType || r._id || '').toLowerCase().includes(needle))
-			}
-			renderReportTable(apiType, rows)
-			updateSummaryCards(rows, apiType)
-			setExportsEnabled(rows.length > 0)
+			const [summaryRows, tableData] = await Promise.all([summaryPromise, tablePromise])
+
+			renderCollectionSummaryTable(tableData)
+			updateSummaryCards(summaryRows, apiType)
+			setExportsEnabled(Array.isArray(tableData?.pricingRows) && tableData.pricingRows.length > 0)
 			if (meta) meta.textContent = `Showing ${uiType} for ${from} to ${to}`
 		} catch (error) {
 			console.error('Report error', error)
-			resetTable(error?.message || 'Unable to load report')
+			resetTable(error?.message || 'Unable to load report', 8)
 			if (meta) meta.textContent = ''
 		}
 	}
@@ -2251,6 +3155,9 @@ document.addEventListener('DOMContentLoaded', () => {
 		'setupAdoptions',
 		'setupReports',
 		'setupAnalytics',
+		'initBookingDetailsPage',
+		'initCounterTicketDetailsPage',
+		'initCounterTicketPrintPage',
 	].forEach((name) => {
 		if (typeof window[name] !== 'function' && typeof globalThis[name] === 'function') {
 			window[name] = globalThis[name]
@@ -2271,6 +3178,24 @@ document.addEventListener('DOMContentLoaded', () => {
 	if (page === 'users' && typeof guardAdminPage === 'function' && typeof initUserManagement === 'function') {
 		guardAdminPage()
 		initUserManagement()
+		return
+	}
+
+	if (page === 'booking-detail' && typeof guardAdminPage === 'function' && typeof initBookingDetailsPage === 'function') {
+		guardAdminPage()
+		initBookingDetailsPage()
+		return
+	}
+
+	if (page === 'counter-detail' && typeof guardAdminPage === 'function' && typeof initCounterTicketDetailsPage === 'function') {
+		guardAdminPage()
+		initCounterTicketDetailsPage()
+		return
+	}
+
+	if (page === 'counter-print' && typeof guardAdminPage === 'function' && typeof initCounterTicketPrintPage === 'function') {
+		guardAdminPage()
+		initCounterTicketPrintPage()
 	}
 })
 

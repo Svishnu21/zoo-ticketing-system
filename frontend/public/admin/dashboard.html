@@ -21,6 +21,7 @@
           <button class="nav-link" data-target="adoptions">Adoptions</button>
           <button class="nav-link" id="navUserMgmt" onclick="window.location.href='/admin/users.html'" data-requires-role="ADMIN">User Management</button>
           <button class="nav-link" data-target="reports">Reports</button>
+          <button class="nav-link" onclick="window.location.href='/admin/web-control.html'">Web Control</button>
         </nav>
         <div class="sidebar-footer">
           <button id="logoutBtn" class="btn ghost">Logout</button>
@@ -40,6 +41,29 @@
             <div>
               <h3>Today at a glance</h3>
               <p>Live metrics from online and counter sources.</p>
+            </div>
+            <div class="panel-actions overview-filters" aria-label="Date filters">
+              <div class="range-picker">
+                <button id="dateRangeToggle" class="btn ghost small" type="button">
+                  <span id="dateRangeLabel">Today</span>
+                  <span aria-hidden="true">&#9662;</span>
+                </button>
+                <div id="dateRangeMenu" class="range-menu hidden" role="menu">
+                  <button type="button" data-range="today">Today</button>
+                  <button type="button" data-range="yesterday">Yesterday</button>
+                  <button type="button" data-range="last7">Last 7 Days</button>
+                  <button type="button" data-range="month">This Month</button>
+                  <button type="button" data-range="custom">Custom Range</button>
+                </div>
+              </div>
+              <div id="customRangeFields" class="custom-range hidden" aria-label="Custom date range">
+                <label class="sr-only" for="rangeFrom">From date</label>
+                <input type="date" id="rangeFrom" />
+                <label class="sr-only" for="rangeTo">To date</label>
+                <input type="date" id="rangeTo" />
+                <button id="applyRangeBtn" class="btn primary small" type="button">Apply</button>
+              </div>
+              <div id="rangeMessage" class="inline-message" role="status"></div>
             </div>
           </div>
 
@@ -184,16 +208,6 @@
               <input type="date" id="bookingDateFilter" />
             </label>
             <label>
-              <span>Payment Status</span>
-              <select id="bookingPaymentFilter">
-                <option value="all">All</option>
-                <option value="Paid">Paid</option>
-                <option value="Pending">Pending</option>
-                <option value="Failed">Failed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-            </label>
-            <label>
               <span>Entry Status</span>
               <select id="bookingEntryFilter">
                 <option value="all">All</option>
@@ -216,9 +230,9 @@
                   <th>Visitor Name</th>
                   <th>Mobile</th>
                   <th>Visit Date</th>
+                  <th>Booked At</th>
                   <th>Ticket Count</th>
                   <th>Total Amount</th>
-                  <th>Payment Status</th>
                   <th>Entry Status</th>
                   <th>Actions</th>
                 </tr>
@@ -244,24 +258,35 @@
           <div class="panel-header">
             <div>
               <h3>Counter Tickets Report</h3>
-              <p>Read-only view of counter-issued tickets. No edits or deletes.</p>
-            </div>
-            <div class="panel-actions">
-              <button id="exportCounterBtn" class="btn ghost">Export CSV</button>
+              <p>Read-only view of counter-issued tickets. Filter, search, and open ticket details.</p>
             </div>
           </div>
 
-          <div class="filters">
+          <div class="filters counter-filters">
             <label>
-              <span>Date</span>
-              <input type="date" id="counterDateFilter" />
+              <span>From Date</span>
+              <input type="date" id="counterFromDateFilter" />
             </label>
-            <div class="totals">
-              <p>Daily Total (date only): <strong id="counterDailyTotal">—</strong></p>
-            </div>
+            <label>
+              <span>To Date</span>
+              <input type="date" id="counterToDateFilter" />
+            </label>
+            <label>
+              <span>Payment Mode</span>
+              <select id="counterPaymentModeFilter">
+                <option value="ALL">All</option>
+                <option value="CASH">Cash</option>
+                <option value="UPI">UPI</option>
+                <option value="SPLIT">Split</option>
+              </select>
+            </label>
+            <label class="search-field">
+              <span>Search (Counter Ticket ID)</span>
+              <input type="search" id="counterSearchInput" placeholder="KZP-..." />
+            </label>
           </div>
 
-          <p id="counterContextLabel" class="panel-note">Showing all counter-issued tickets. Select a date to view totals; legacy tickets without breakdown will display with placeholders.</p>
+          <p id="counterContextLabel" class="panel-note">Showing all counter-issued tickets.</p>
 
           <div class="table-wrapper">
             <table>

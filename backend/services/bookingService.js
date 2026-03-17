@@ -4,6 +4,7 @@ import { Booking } from '../models/Booking.js'
 import { ApiError } from '../utils/errors.js'
 import { assertPaymentModeAllowed, coerceQuantity, validateQuantity } from '../utils/pricing.js'
 import { assertVisitDateBounds, normaliseVisitDate } from '../utils/dates.js'
+import { assertOnlineBookingDateOpen } from './bookingDayOverrideService.js'
 import { generateQrToken, generateVerificationToken, hashVerificationToken } from '../utils/qr.js'
 import { loadActivePricingMap, resolveCategoryCodeForItem } from './pricingService.js'
 import { normaliseVisitorDetails } from '../utils/validation.js'
@@ -65,11 +66,14 @@ export const createBooking = async (payload = {}) => {
   const paymentBreakup = normalisePaymentBreakup(payload.paymentBreakup)
 
   const { isoDate: visitDateIso, dateOnly: visitDate } = normaliseVisitDate(visitDateInput)
-  assertVisitDateBounds(visitDateIso)
+  assertVisitDateBounds(visitDateIso, { enforceTuesdayClosure: ticketSource !== 'ONLINE' })
+  if (ticketSource === 'ONLINE') {
+    await assertOnlineBookingDateOpen(visitDateIso)
+  }
   assertPaymentModeAllowed(paymentMode)
 
   // Backend owns validation and pricing; client sends minimal item details (code/name/qty)
-  const pricingMap = await loadActivePricingMap()
+  const pricingMap = await loadActivePricingMap({ includeCounterOnly: ticketSource === 'COUNTER' })
 
   let totalAmount = 0
   const resolvedItems = []
@@ -230,13 +234,13 @@ export const getTicketSummary = async (ticketId) => {
 
 const TICKET_ID_PATTERN = /^KZP-[0-9]{6}-[A-Z0-9]{6}$/
 
-export const getTicketForDisplay = async (ticketId, { verificationToken } = {}) => {
+export const getTicketForDisplay = async (ticketId, { verificationToken, allowTokenBypass = false } = {}) => {
   if (!ticketId || typeof ticketId !== 'string' || !TICKET_ID_PATTERN.test(ticketId)) {
     throw ApiError.badRequest('Ticket ID is invalid.')
   }
 
   const ticket = await Ticket.findOne({ ticketId })
-    .select('ticketId visitDate issueDate paymentMode paymentStatus ticketSource paymentBreakup items totalAmount qrToken verificationTokenHash')
+    .select('ticketId visitDate issueDate createdAt paymentMode paymentStatus ticketSource paymentBreakup items totalAmount visitorName visitorMobile qrToken verificationTokenHash')
     .lean()
 
   if (!ticket) {
@@ -247,7 +251,7 @@ export const getTicketForDisplay = async (ticketId, { verificationToken } = {}) 
   console.log('QR token (server-side only):', ticket.qrToken)
 
   // Enforce verification token if stored
-  if (ticket.verificationTokenHash) {
+  if (ticket.verificationTokenHash && !allowTokenBypass) {
     if (!verificationToken) {
       throw ApiError.unauthorized('Verification token is required for this ticket.')
     }
@@ -267,14 +271,22 @@ export const getTicketForDisplay = async (ticketId, { verificationToken } = {}) 
     throw ApiError.internal('Unable to generate QR image for this ticket.')
   }
 
+  const ticketCount = Array.isArray(ticket.items)
+    ? ticket.items.reduce((sum, item) => sum + Number(item?.quantity || 0), 0)
+    : 0
+
   return {
     ticketId: ticket.ticketId,
     visitDate: ticket.visitDate instanceof Date ? ticket.visitDate.toISOString().slice(0, 10) : ticket.visitDate,
     issueDate: ticket.issueDate instanceof Date ? ticket.issueDate.toISOString() : ticket.issueDate,
+    bookedAt: ticket.createdAt instanceof Date ? ticket.createdAt.toISOString() : ticket.createdAt,
     paymentMode: ticket.paymentMode,
     paymentStatus: ticket.paymentStatus,
     ticketSource: ticket.ticketSource || 'ONLINE',
     paymentBreakup: ticket.paymentBreakup,
+    visitorName: ticket.visitorName,
+    visitorMobile: ticket.visitorMobile,
+    ticketCount,
     items: ticket.items,
     totalAmount: ticket.totalAmount,
     qrImage,

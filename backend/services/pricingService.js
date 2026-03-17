@@ -26,6 +26,18 @@ const FREE_CATEGORY_FALLBACKS = {
   },
 }
 
+const COUNTER_ONLY_TARIFFS = [
+  {
+    code: 'zoo_school_visit',
+    categoryCode: 'schoolVisitEntry',
+    itemCode: 'zoo_school_visit',
+    label: 'School Visit',
+    category: 'zoo',
+    price: 10,
+    isActive: true,
+  },
+]
+
 // Shared mapping for any legacy callers of buildPricedItems
 export const ITEM_CODE_TO_CATEGORY_CODE = {
   // Zoo Entry
@@ -35,6 +47,7 @@ export const ITEM_CODE_TO_CATEGORY_CODE = {
   kidZoneEntry: 'kidZoneEntry',
   zoo_differently_abled: 'differentlyAbled',
   zoo_child_free: 'childBelow5',
+  zoo_school_visit: 'schoolVisitEntry',
 
   // Parking (canonical DB keys)
   parking_4w_lmv: 'parkingLMV',
@@ -103,7 +116,7 @@ export const resolveCategoryCodeForItem = (itemCode, pricingMap = {}) => {
   return resolved
 }
 
-export const loadActivePricingMap = async () => {
+export const loadActivePricingMap = async ({ includeCounterOnly = false } = {}) => {
   await ensureDefaultTicketPricing()
   const normalized = await resequenceTariffs(TicketPricing)
 
@@ -134,6 +147,27 @@ export const loadActivePricingMap = async () => {
       for (const k of keys) {
         if (!k) continue
         if (!pricingMap.has(k)) pricingMap.set(k, p)
+      }
+    }
+  }
+
+  if (includeCounterOnly) {
+    for (const entry of COUNTER_ONLY_TARIFFS) {
+      const keys = []
+      if (entry.categoryCode) keys.push(entry.categoryCode)
+      if (entry.itemCode) keys.push(entry.itemCode)
+      if (entry.code) keys.push(entry.code)
+      if (entry.itemCode) {
+        const alt = ITEM_CODE_TO_CATEGORY_CODE[entry.itemCode]
+        if (alt) keys.push(alt)
+      }
+      for (const key of [...keys]) {
+        if (typeof key === 'string' && key.trim()) keys.push(key.toLowerCase())
+      }
+
+      for (const key of keys) {
+        if (!key) continue
+        if (!pricingMap.has(key)) pricingMap.set(key, entry)
       }
     }
   }

@@ -7,14 +7,17 @@ import { Document, Page, Text, View, pdf } from '@react-pdf/renderer'
 import { fileURLToPath } from 'url'
 
 import bookingRoutes from './routes/bookingRoutes.js'
+import dayControlRoutes from './routes/dayControlRoutes.js'
+import systemSettingsRoutes from './routes/systemSettings.js'
 import scannerRoutes from './routes/scannerRoutes.js'
 import counterRoutes from './routes/counterRoutes.js'
 import authRoutes from './routes/authRoutes.js'
 import userRoutes from './routes/userRoutes.js'
 import assignmentRoutes from './routes/assignmentRoutes.js'
 import adminRoutes from '../admin/admin.routes.js'
-import { requireAuth, requireRole } from './middleware/authMiddleware.js'
+import { requireAuth, requireRole, requireAdminSession } from './middleware/authMiddleware.js'
 import { ApiError, errorHandler } from './utils/errors.js'
+import { getCounterTicket } from './services/counterBookingService.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -34,12 +37,438 @@ const staticHtmlRoutes = [
 
 const staticRouteSet = new Set(staticHtmlRoutes.map((item) => item.route))
 
+const escapeHtml = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;')
+
+const formatCounterDateOnly = (value) => {
+  if (!value) return 'NOT SET'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+const formatCounterDateTime = (value) => {
+  if (!value) return 'NOT SET'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+const formatCounterNumber = (value) => String(Number(value || 0).toFixed(0))
+
+const buildCounterPrintHtml = (ticket = {}) => {
+  const items = Array.isArray(ticket.items) ? ticket.items : []
+
+  const itemRows = items.length
+    ? items.map((item) => {
+      const rawLabel = item?.itemLabel || item?.label || item?.categoryName || item?.itemCode || item?.categoryCode || 'Category'
+      const isChildCode = (item?.itemCode || item?.code || '').toString().toLowerCase() === 'zoo_child'
+      const label = escapeHtml(isChildCode ? 'Child (5 to 12 years)' : rawLabel)
+      const qty = Number(item?.quantity || 0)
+      const unitPrice = Number(item?.unitPrice ?? item?.price ?? 0)
+      const amount = Number(item?.amount ?? qty * unitPrice)
+      return `
+        <tr>
+          <td>${label}</td>
+          <td class="qty">${qty}</td>
+          <td class="price">${formatCounterNumber(unitPrice)}</td>
+          <td class="amount">${formatCounterNumber(amount)}</td>
+        </tr>
+      `
+    }).join('')
+    : '<tr><td colspan="4">No items</td></tr>'
+
+  const qrMarkup = ticket.qrImage
+    ? `<img src="${escapeHtml(ticket.qrImage)}" alt="QR code" style="width: 140px; height: 140px; object-fit: contain; border: 1px solid #000; display: block;" />`
+    : 'QR'
+
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kurumbapatti Zoological Park - Printable Ticket (Counter)</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: #fff;
+        color: #000;
+        font-family: "Courier New", Consolas, Monaco, Menlo, monospace;
+        display: flex;
+        justify-content: center;
+      }
+
+      main {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 16px 0;
+        gap: 12px;
+      }
+
+      .ticket-wrapper {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+      }
+
+      .ticket-container {
+        width: 300px;
+        max-width: calc(100vw - 24px);
+      }
+
+      .ticket {
+        border: 1px solid #000;
+        padding: 12px;
+        line-height: 1.35;
+        page-break-inside: avoid;
+        background: #fff;
+        margin-bottom: 0;
+      }
+
+      .ticket-header {
+        text-align: center;
+      }
+
+      .ticket-header .gov {
+        font-size: 0.82rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .ticket-header .zoo {
+        margin: 2px 0;
+        font-weight: 700;
+        font-size: 1rem;
+      }
+
+      .ticket-header .title {
+        margin: 0;
+        font-size: 0.92rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .divider {
+        border-top: 1px dashed #000;
+        margin: 8px 0;
+      }
+
+      .meta {
+        display: grid;
+        gap: 4px;
+        font-size: 0.92rem;
+      }
+
+      .meta-row {
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .meta-label {
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .meta-value {
+        font-weight: 700;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+        margin-top: 6px;
+        font-family: inherit;
+        font-variant-numeric: tabular-nums;
+      }
+
+      th,
+      td {
+        padding: 4px 0;
+        text-align: left;
+        border-bottom: 1px dashed #000;
+      }
+
+      th {
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      td.qty,
+      td.price,
+      td.amount {
+        text-align: right;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: 1px solid #000;
+      }
+
+      .total {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 700;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 2px solid #000;
+      }
+
+      .qr-block {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        margin: 10px 0 4px;
+      }
+
+      .qr-label {
+        font-weight: 700;
+      }
+
+      .qr-box {
+        width: 140px;
+        height: 140px;
+        border: 1px solid #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        text-align: center;
+      }
+
+      .notes {
+        width: 100%;
+        font-size: 0.9rem;
+        margin: 6px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .notes li {
+        margin: 2px 0;
+      }
+
+      .footer {
+        text-align: center;
+        font-size: 0.9rem;
+        margin-top: 6px;
+        line-height: 1.3;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 0;
+      }
+
+      button {
+        border: 1px solid #000;
+        background: #fff;
+        padding: 8px 10px;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        text-decoration: none;
+        color: #000;
+      }
+
+      .btn-print {
+        background: #16a34a;
+        border-color: #16a34a;
+        color: #fff;
+      }
+
+      .btn-print:hover {
+        background: #15803d;
+        border-color: #15803d;
+      }
+
+      .btn-home {
+        background: #dc2626;
+        border-color: #dc2626;
+        color: #fff;
+      }
+
+      .btn-home:hover {
+        background: #b91c1c;
+        border-color: #b91c1c;
+      }
+
+      @media print {
+        @page {
+          size: auto;
+          margin: 0;
+        }
+
+        body {
+          margin: 0;
+          padding: 0;
+          background: #fff;
+        }
+
+        main {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+        }
+
+        .ticket-wrapper {
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          margin: 0;
+          padding: 0;
+        }
+
+        .no-print {
+          display: none !important;
+        }
+
+        .ticket-container {
+          width: 300px;
+          max-width: 300px;
+          margin: 0 auto;
+        }
+
+        .ticket {
+          border: 1px solid #000;
+          margin: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="print-wrap">
+      <div id="print-area" class="ticket-wrapper">
+        <section class="ticket ticket-container" aria-label="Kurumbapatti Zoological Park Ticket">
+        <header class="ticket-header">
+          <div class="gov">Government of Tamil Nadu</div>
+          <div class="zoo">Kurumbapatti Zoological Park, Salem</div>
+          <div class="title">Zoo Ticket</div>
+        </header>
+
+        <div class="divider"></div>
+
+        <section class="meta" aria-label="Ticket identifiers">
+          <div class="meta-row"><span class="meta-label">Ticket ID</span><span class="meta-value">${escapeHtml(ticket.ticketId || 'NOT SET')}</span></div>
+          <div class="meta-row"><span class="meta-label">Ticket Source</span><span class="meta-value">${escapeHtml((ticket.ticketSource || 'COUNTER').toString().toUpperCase())}</span></div>
+          <div class="meta-row"><span class="meta-label">Visit Date</span><span class="meta-value">${escapeHtml(formatCounterDateOnly(ticket.visitDate))}</span></div>
+          <div class="meta-row"><span class="meta-label">Issue Date &amp; Time</span><span class="meta-value">${escapeHtml(formatCounterDateTime(ticket.issueDate))}</span></div>
+          <div class="meta-row"><span class="meta-label">Payment Mode</span><span class="meta-value">${escapeHtml((ticket.paymentMode || 'NOT SET').toString().toUpperCase())}</span></div>
+        </section>
+
+        <div class="divider"></div>
+
+        <section aria-label="Ticket breakdown">
+          <table>
+          <thead>
+            <tr>
+              <th>Ticket Items</th>
+              <th>Quantity</th>
+              <th>Unit Price</th>
+              <th>Total Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemRows}
+          </tbody>
+        </table>
+          <div class="total"><span>Total Amount Paid</span><span>${escapeHtml(formatCounterNumber(ticket.totalAmount || 0))}</span></div>
+        </section>
+
+        <div class="divider"></div>
+
+        <section class="qr-block" aria-label="QR and entry notes">
+          <div class="qr-label">Ticket Type</div>
+          <div class="qr-box">${qrMarkup}</div>
+          <ul class="notes">
+            <li>Single entry only.</li>
+            <li>Entry timings: 09:00 AM - 05:00 PM.</li>
+            <li>Closed on Tuesdays (weekly holiday).</li>
+            <li>Keep this ticket until you exit the park.</li>
+          </ul>
+        </section>
+
+        <div class="footer">
+          <div>Scan this QR code at the entry gate.</div>
+          <div>Ticket once used is invalid for re-entry.</div>
+        </div>
+        </section>
+      </div>
+
+      <div class="actions no-print">
+        <button class="btn-print" type="button" onclick="window.print()">Print Ticket</button>
+        <button class="btn-home" type="button" onclick="window.location.href='/admin/dashboard.html#counter'">Back to Counter Report</button>
+      </div>
+    </main>
+
+    <script>
+      window.addEventListener('load', function () {
+        window.setTimeout(function () {
+          window.print();
+        }, 180);
+      });
+    </script>
+  </body>
+</html>`
+}
+
 export const createApp = () => {
   const app = express()
+  const ADMIN_PATH = path.join(PUBLIC_PATH, 'admin')
+
+  const resolveAdminFile = (fileName) => {
+    const candidates = [
+      path.join(ADMIN_PATH, fileName),
+      path.join(FRONTEND_PUBLIC, 'admin', fileName),
+    ]
+    return candidates.find((filePath) => fs.existsSync(filePath))
+  }
+
+  const sendAdminFile = (fileName, notFoundMessage, res, next) => {
+    const filePath = resolveAdminFile(fileName)
+    if (!filePath) return next(ApiError.notFound(notFoundMessage))
+
+    return res.sendFile(filePath, (error) => {
+      if (error) next(error)
+    })
+  }
+
+  const isProtectedAdminHtml = (requestPath) => {
+    const normalized = (requestPath || '').toString().toLowerCase()
+    if (!normalized.startsWith('/admin/')) return false
+    if (!normalized.endsWith('.html')) return false
+    if (normalized === '/admin/login.html' || normalized === '/admin/index.html') return false
+    return true
+  }
 
   app.set('trust proxy', 1)
   app.use(cors({ origin: true, credentials: true }))
   app.use(express.json({ limit: '1mb' }))
+
+  // Protect all admin HTML pages except login/index with server-side admin session checks.
+  app.use((req, res, next) => {
+    if (!isProtectedAdminHtml(req.path)) return next()
+    return requireAdminSession(req, res, next)
+  })
 
   if (fs.existsSync(PUBLIC_PATH)) {
     app.use(express.static(PUBLIC_PATH))
@@ -72,12 +501,73 @@ export const createApp = () => {
   })
 
   // Serve admin static files from /public/admin
-  const ADMIN_PATH = path.join(PUBLIC_PATH, 'admin')
   if (fs.existsSync(ADMIN_PATH)) {
     app.use('/admin', express.static(ADMIN_PATH))
   }
 
+  app.get('/admin/login', (_req, res, next) => {
+    return sendAdminFile('login.html', 'Admin login page not found.', res, next)
+  })
+
+  // Admin booking details page entrypoint, protected by server-side admin session validation.
+  app.get('/admin/booking/:ticketId', requireAdminSession, (_req, res, next) => {
+    return sendAdminFile('booking.html', 'Admin booking page not found.', res, next)
+  })
+
+  // Admin counter ticket print route: render server-side print template with counter ticket data.
+  app.get('/admin/counter/:ticketId/print', requireAdminSession, async (req, res, next) => {
+    try {
+      const ticketId = (req.params.ticketId || '').trim()
+      if (!ticketId) return next(ApiError.badRequest('Counter ticket ID is required.'))
+
+      const ticket = await getCounterTicket(ticketId)
+      const html = buildCounterPrintHtml(ticket)
+      res.setHeader('Content-Type', 'text/html; charset=utf-8')
+      return res.status(200).send(html)
+    } catch (error) {
+      return next(error)
+    }
+  })
+
+  // Admin counter ticket details page entrypoint, protected by server-side admin session validation.
+  app.get('/admin/counter/:ticketId', requireAdminSession, (_req, res, next) => {
+    return sendAdminFile('counter-ticket.html', 'Admin counter ticket page not found.', res, next)
+  })
+
+  // Protected admin download route for ticket view access.
+  app.get('/admin/ticket/download/:ticketId', requireAdminSession, (req, res) => {
+    const ticketId = (req.params.ticketId || '').trim()
+    if (!ticketId) {
+      return res.redirect('/admin/dashboard.html#bookings')
+    }
+
+    return res.redirect(`/ticket/${encodeURIComponent(ticketId)}`)
+  })
+
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
+
+  // Canonical ticket view route for opening the original booking ticket template.
+  app.get('/ticket/:ticketId', (req, res) => {
+    const ticketId = (req.params.ticketId || '').trim()
+    if (!ticketId) {
+      return res.redirect('/success.html')
+    }
+
+    const params = new URLSearchParams()
+    params.set('ticketId', ticketId)
+    Object.entries(req.query || {}).forEach(([key, value]) => {
+      if (key === 'ticketId') return
+      if (Array.isArray(value)) {
+        value.forEach((item) => {
+          if (item !== undefined && item !== null && String(item).length) params.append(key, String(item))
+        })
+      } else if (value !== undefined && value !== null && String(value).length) {
+        params.set(key, String(value))
+      }
+    })
+
+    return res.redirect(`/success.html?${params.toString()}`)
+  })
 
   app.use('/api/auth', authRoutes)
   app.use('/api', assignmentRoutes)
@@ -85,9 +575,11 @@ export const createApp = () => {
 
   app.use('/api/tickets', bookingRoutes)
   app.use('/api/bookings', bookingRoutes)
+  app.use('/api/day-control', dayControlRoutes)
+  app.use('/api', systemSettingsRoutes)
   app.use('/api/counter', requireAuth, requireRole('ADMIN', 'COUNTER'), counterRoutes)
   app.use('/api/scanner', requireAuth, requireRole('ADMIN', 'SCANNER'), scannerRoutes)
-  app.use('/admin', requireAuth, requireRole('ADMIN'), adminRoutes)
+  app.use('/admin', requireAdminSession, adminRoutes)
 
   // --- PDF ISOLATION TEST (no shared logic, no DB) ---
   app.get('/__pdf_isolation_test__', async (_req, res, next) => {

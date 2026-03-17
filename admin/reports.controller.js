@@ -21,6 +21,18 @@ const buildRange = (from, to) => {
   return { $gte: start, $lt: end }
 }
 
+const bookingPaidAmountExpr = {
+  $ifNull: ['$amount_paid', { $ifNull: ['$amountPaid', { $ifNull: ['$totalAmount', 0] }] }],
+}
+
+const ticketTypePaidAmountExpr = {
+  $ifNull: ['$items.amount_paid', { $ifNull: ['$items.amountPaid', { $ifNull: ['$items.amount', 0] }] }],
+}
+
+const ticketTypePaidAmountFromReduceExpr = {
+  $ifNull: ['$$this.amount_paid', { $ifNull: ['$$this.amountPaid', { $ifNull: ['$$this.amount', 0] }] }],
+}
+
 const csv = (rows, headers) => {
   const escape = (value) => {
     const str = value === null || value === undefined ? '' : String(value)
@@ -83,6 +95,19 @@ router.get(
     } else if (type === 'ticket-wise') {
       const pipeline = [
         matchStage,
+        {
+          $addFields: {
+            bookingPaidAmount: bookingPaidAmountExpr,
+            ticketTypePaidAmountTotalInBooking: {
+              $reduce: {
+                input: { $ifNull: ['$items', []] },
+                initialValue: 0,
+                in: { $add: ['$$value', ticketTypePaidAmountFromReduceExpr] },
+              },
+            },
+            ticketTypeLineCountInBooking: { $size: { $ifNull: ['$items', []] } },
+          },
+        },
         { $unwind: '$items' },
         ...(categoryFilter
           ? [
@@ -96,11 +121,26 @@ router.get(
             ]
           : []),
         {
+          $addFields: {
+            ticketTypeRowPaidAmount: {
+              $cond: [
+                { $gt: ['$ticketTypePaidAmountTotalInBooking', 0] },
+                {
+                  $multiply: [ticketTypePaidAmountExpr, { $divide: ['$bookingPaidAmount', '$ticketTypePaidAmountTotalInBooking'] }],
+                },
+                {
+                  $cond: [{ $gt: ['$ticketTypeLineCountInBooking', 0] }, { $divide: ['$bookingPaidAmount', '$ticketTypeLineCountInBooking'] }, 0],
+                },
+              ],
+            },
+          },
+        },
+        {
           $group: {
             _id: '$items.itemCode',
             ticketType: { $last: '$items.itemLabel' },
-            quantity: { $sum: '$items.quantity' },
-            amount: { $sum: '$items.amount' },
+            quantity: { $sum: 1 },
+            amount: { $sum: '$ticketTypeRowPaidAmount' },
           },
         },
         { $sort: { ticketType: 1 } },

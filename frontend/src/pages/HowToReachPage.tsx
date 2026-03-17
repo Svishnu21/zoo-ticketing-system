@@ -91,7 +91,7 @@ export function HowToReachPage() {
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="rounded-2xl border border-forest-green/12 bg-soft-bg/70 p-5 shadow-sm">
                   <h3 className="text-lg font-semibold text-forest-green">Mini Bus — New Bus Stand → Zoological Park (KZP)</h3>
-                  <div className="mt-3 w-full overflow-x-auto">
+                  <div className="mt-3 w-full overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth pb-1 [-webkit-overflow-scrolling:touch] touch-pan-x">
                     <table className="min-w-[360px] table-auto text-forest-green">
                       <thead>
                         <tr className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-green/80">
@@ -119,7 +119,7 @@ export function HowToReachPage() {
 
                 <div className="rounded-2xl border border-forest-green/12 bg-soft-bg/70 p-5 shadow-sm">
                   <h3 className="text-lg font-semibold text-forest-green">Mini Bus — Old Bus Stand → Zoological Park (KZP)</h3>
-                  <div className="mt-3 w-full overflow-x-auto">
+                  <div className="mt-3 w-full overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth pb-1 [-webkit-overflow-scrolling:touch] touch-pan-x">
                     <table className="min-w-[360px] table-auto text-forest-green">
                       <thead>
                         <tr className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-green/80">
@@ -151,7 +151,7 @@ export function HowToReachPage() {
 
                 <div className="rounded-2xl border border-forest-green/12 bg-soft-bg/70 p-5 shadow-sm">
                   <h3 className="text-lg font-semibold text-forest-green">Bus No. 3 — Old Bus Stand → Zoological Park (via intermediate stops)</h3>
-                  <div className="mt-3 w-full overflow-x-auto">
+                  <div className="mt-3 w-full overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth pb-1 [-webkit-overflow-scrolling:touch] touch-pan-x">
                     <table className="min-w-[380px] table-auto text-forest-green">
                       <thead>
                         <tr className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-green/80">
@@ -179,7 +179,7 @@ export function HowToReachPage() {
 
                 <div className="rounded-2xl border border-forest-green/12 bg-soft-bg/70 p-5 shadow-sm">
                   <h3 className="text-lg font-semibold text-forest-green">Bus No. 3 / 73 — Old Bus Stand → Zoological Park (Direct)</h3>
-                  <div className="mt-3 w-full overflow-x-auto">
+                  <div className="mt-3 w-full overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth pb-1 [-webkit-overflow-scrolling:touch] touch-pan-x">
                     <table className="min-w-[380px] table-auto text-forest-green">
                       <thead>
                         <tr className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-green/80">

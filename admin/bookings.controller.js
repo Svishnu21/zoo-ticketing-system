@@ -5,6 +5,7 @@ import { getTicketForDisplay } from '../backend/services/bookingService.js'
 import { ApiError, asyncHandler } from '../backend/utils/errors.js'
 
 const router = express.Router()
+const BOOKINGS_PAGE_SIZE = 15
 
 const normaliseVisitDate = (value) => {
   if (!value) return undefined
@@ -51,11 +52,13 @@ const presentBookingRow = (ticket, payment) => {
   const ticketCount = Array.isArray(ticket.items)
     ? ticket.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
     : undefined
+  const bookedAt = ticket.createdAt || ticket.issueDate
 
   return {
     ticketId: ticket.ticketId,
     visitDate: ticket.visitDate instanceof Date ? ticket.visitDate.toISOString().slice(0, 10) : ticket.visitDate,
     issueDate: ticket.issueDate instanceof Date ? ticket.issueDate.toISOString() : ticket.issueDate,
+    bookedAt: bookedAt instanceof Date ? bookedAt.toISOString() : bookedAt,
     visitorName: ticket.visitorName,
     visitorMobile: ticket.visitorMobile,
     ticketSource: ticket.ticketSource,
@@ -75,24 +78,35 @@ router.get(
   '/bookings',
   asyncHandler(async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1)
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20))
+    const limit = BOOKINGS_PAGE_SIZE
     const skip = (page - 1) * limit
 
-    // Allow filtering by ticket source but default to all sources so counter-issued tickets are included.
-    const match = {}
+    // Online bookings view: include only true online records and hide known counter placeholders.
+    const match = {
+      $and: [
+        { ticketSource: 'ONLINE' },
+        { source: { $ne: 'COUNTER' } },
+        { visitorName: { $not: /^counter$/i } },
+        { visitorMobile: { $ne: '0000000000' } },
+      ],
+    }
     const source = typeof req.query.ticketSource === 'string' ? req.query.ticketSource.toUpperCase() : 'ALL'
-    if (source === 'ONLINE' || source === 'COUNTER') {
-      match.ticketSource = source
+    if (source === 'COUNTER') {
+      // Keep backward compatibility for callers that intentionally request counter records.
+      match.$and = [{ ticketSource: 'COUNTER' }]
+    } else if (source === 'ONLINE') {
+      match.$and = [
+        { ticketSource: 'ONLINE' },
+        { source: { $ne: 'COUNTER' } },
+        { visitorName: { $not: /^counter$/i } },
+        { visitorMobile: { $ne: '0000000000' } },
+      ]
     }
 
     const visitDate = normaliseVisitDate(req.query.visitDate)
     if (visitDate) {
       const range = buildVisitDateRange(visitDate)
       match.visitDate = range
-    }
-
-    if (typeof req.query.paymentStatus === 'string' && req.query.paymentStatus.toLowerCase() !== 'all') {
-      match.paymentStatus = req.query.paymentStatus.toUpperCase()
     }
 
     const entryFilter = normaliseEntryFilter(req.query.entryStatus)
@@ -126,10 +140,10 @@ router.get(
     })
 
     const query = Ticket.find(match)
-      .sort({ issueDate: -1 })
+      .sort({ createdAt: -1, issueDate: -1 })
       .skip(skip)
       .limit(limit)
-      .select('ticketId visitDate issueDate totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt usedVia usedAt visitorName visitorMobile items')
+      .select('ticketId visitDate issueDate createdAt totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt usedVia usedAt visitorName visitorMobile items')
 
     const [tickets, total] = await Promise.all([query.lean(), Ticket.countDocuments(match)])
 
@@ -180,14 +194,15 @@ router.get(
     }
 
     const ticketDoc = await Ticket.findOne({ ticketId })
-      .select('ticketId visitDate issueDate totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt usedVia usedAt visitorName visitorMobile items')
+      .select('ticketId visitDate issueDate createdAt totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt usedVia usedAt visitorName visitorMobile items')
       .lean()
 
     if (!ticketDoc) {
       throw ApiError.notFound('Booking not found.')
     }
 
-    const display = await getTicketForDisplay(ticketId)
+    // Admin-authenticated details view: bypass public verification-token requirement.
+    const display = await getTicketForDisplay(ticketId, { allowTokenBypass: true })
 
     const payment = await Payment.findOne({ ticketId: ticketDoc._id })
       .select('status provider providerPaymentId mode amount metadata completedAt')
@@ -197,6 +212,7 @@ router.get(
       ...display,
       visitorName: ticketDoc.visitorName,
       visitorMobile: ticketDoc.visitorMobile,
+      bookedAt: ticketDoc.createdAt || ticketDoc.issueDate,
       entryStatus: computeEntryStatus(ticketDoc),
       entryTimestamp: ticketDoc.usedAt || ticketDoc.qrUsedAt,
       paymentProvider: payment?.provider,

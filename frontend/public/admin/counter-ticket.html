@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Counter Ticket Details</title>
+    <link rel="stylesheet" href="/admin/style.css" />
+  </head>
+  <body class="admin">
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>Admin Dashboard</h1>
+          <p>Read-only oversight</p>
+        </div>
+        <nav class="nav">
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html'">Overview</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#bookings'">Bookings</button>
+          <button class="nav-link active" onclick="window.location.href='/admin/dashboard.html#counter'">Counter</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#qrlogs'">QR Logs</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#adoptions'">Adoptions</button>
+          <button class="nav-link" id="navUserMgmt" data-requires-role="ADMIN" onclick="window.location.href='/admin/users.html'">User Management</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#reports'">Reports</button>
+          <button class="nav-link" onclick="window.location.href='/admin/web-control.html'">Web Control</button>
+        </nav>
+        <div class="sidebar-footer">
+          <button id="logoutBtn" class="btn ghost">Logout</button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <div class="topbar">
+          <div>
+            <h2 id="counterDetailTitle">Counter Ticket Details</h2>
+            <p>Secure read-only view of a single counter-issued ticket.</p>
+          </div>
+        </div>
+
+        <section class="panel active">
+          <div class="panel-header">
+            <div>
+              <h3>Ticket Information</h3>
+              <p>Details fetched securely from counter ticket APIs.</p>
+            </div>
+          </div>
+
+          <dl class="detail-list">
+            <div><dt>Counter Ticket ID</dt><dd id="counterDetailTicketId">--</dd></div>
+            <div><dt>Date &amp; Time</dt><dd id="counterDetailDateTime">--</dd></div>
+            <div><dt>Ticket Type</dt><dd id="counterDetailTicketType">--</dd></div>
+            <div><dt>Quantity</dt><dd id="counterDetailQuantity">--</dd></div>
+            <div><dt>Amount</dt><dd id="counterDetailAmount">--</dd></div>
+            <div><dt>Payment Mode</dt><dd id="counterDetailPaymentMode">--</dd></div>
+            <div><dt>Issued By</dt><dd id="counterDetailIssuedBy">--</dd></div>
+          </dl>
+
+          <div class="panel-subheader" style="margin-top: 1.2rem">
+            <h4>Ticket Items</h4>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticket Type</th>
+                  <th>Quantity</th>
+                  <th>Unit Price</th>
+                  <th>Line Total</th>
+                </tr>
+              </thead>
+              <tbody id="counterDetailItemsBody">
+                <tr><td colspan="4">Loading ticket items...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="panel-subheader" style="margin-top: 1.2rem">
+            <h4>QR Code</h4>
+            <div class="panel-actions">
+              <button id="counterDetailViewQrBtn" class="btn ghost" type="button">View QR Code</button>
+            </div>
+          </div>
+
+          <div class="category-chart booking-qr-card">
+            <div id="counterDetailQrPlaceholder" class="chart-placeholder">QR code will appear here.</div>
+            <img
+              id="counterDetailQrImage"
+              class="hidden"
+              alt="Counter ticket QR code"
+              style="width: 180px; height: 180px; object-fit: contain; border: 1px solid var(--border); border-radius: 10px"
+            />
+          </div>
+
+          <div class="panel-actions" style="margin-top: 1rem">
+            <button id="counterDetailPrintBtn" class="btn primary" type="button">Print Ticket</button>
+            <button id="backToCounterBtn" class="btn ghost" type="button">Back to Counter Report</button>
+          </div>
+
+          <div id="counterDetailMessage" class="report-meta" role="status"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/admin/admin-script.js"></script>
+  </body>
+</html>

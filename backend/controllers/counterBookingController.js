@@ -37,8 +37,29 @@ export const getCounterRecent = asyncHandler(async (_req, res) => {
 })
 
 export const getCounterHistoryController = asyncHandler(async (req, res) => {
-  const { date, paymentMode, dateField, page, limit } = req.query
-  const result = await getCounterHistory({ date, paymentMode, dateField, page, limit })
+  const {
+    date,
+    from,
+    to,
+    fromDate,
+    toDate,
+    paymentMode,
+    dateField,
+    page,
+    limit,
+    search,
+  } = req.query
+
+  const result = await getCounterHistory({
+    date,
+    from: from ?? fromDate,
+    to: to ?? toDate,
+    paymentMode,
+    dateField,
+    page,
+    limit,
+    search,
+  })
   res.json({ success: true, ...result })
 })
 

@@ -26,7 +26,7 @@ export const normaliseVisitDate = (value) => {
   return { dateOnly: normalized, isoDate }
 }
 
-export const assertVisitDateBounds = (isoDate) => {
+export const assertVisitDateBounds = (isoDate, { enforceTuesdayClosure = true } = {}) => {
   const today = todayIsoDate()
 
   if (isoDate < today) {
@@ -41,10 +41,12 @@ export const assertVisitDateBounds = (isoDate) => {
     throw ApiError.badRequest(`Visit date cannot be more than ${MAX_FUTURE_DAYS} days from today.`)
   }
 
-  // Park remains closed on Tuesdays; enforce here instead of relying on the UI calendar
-  const visitWeekday = new Date(isoDate).getUTCDay()
-  if (visitWeekday === 2) {
-    throw ApiError.badRequest('The park is closed on Tuesdays. Please select another date.')
+  if (enforceTuesdayClosure) {
+    // Park remains closed on Tuesdays unless an online override is explicitly applied.
+    const visitWeekday = new Date(isoDate).getUTCDay()
+    if (visitWeekday === 2) {
+      throw ApiError.badRequest('The park is closed on Tuesdays. Please select another date.')
+    }
   }
 }
 

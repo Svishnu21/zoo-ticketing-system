@@ -103,6 +103,8 @@ const bookingSchema = new Schema(
 )
 
 bookingSchema.index({ bookingId: 1 })
+bookingSchema.index({ visitorMobile: 1 })
+bookingSchema.index({ createdAt: -1 })
 bookingSchema.index({ visitDate: 1, ticketSource: 1, paymentStatus: 1 })
 bookingSchema.index({ ticketSource: 1, entryStatus: 1 })
 bookingSchema.index({ counterId: 1, visitDate: 1 })

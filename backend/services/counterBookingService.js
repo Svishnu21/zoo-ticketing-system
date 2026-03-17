@@ -8,6 +8,19 @@ import { generateQrDataUrl } from '../utils/qrImage.js'
 import { createBooking } from './bookingService.js'
 
 const isAmountEqual = (a = 0, b = 0, tolerance = 0.01) => Math.abs(Number(a) - Number(b)) <= tolerance
+const COUNTER_HISTORY_PAGE_SIZE = 15
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const parseIsoDateStart = (value, fieldLabel) => {
+  if (!value) return null
+  const parsed = new Date(`${value}T00:00:00.000Z`)
+  if (Number.isNaN(parsed.getTime())) {
+    throw ApiError.badRequest(`${fieldLabel} is invalid. Expected YYYY-MM-DD format.`)
+  }
+
+  return parsed
+}
 
 const sanitizeCounterItems = (rawItems = []) => {
   if (!Array.isArray(rawItems)) return []
@@ -268,7 +281,7 @@ export const getCounterTicket = async (ticketId, _opts = {}) => {
   }
 
   const ticket = await Ticket.findOne({ ticketId })
-    .select('ticketId visitDate issueDate paymentMode paymentStatus ticketSource paymentBreakup items totalAmount qrToken verificationTokenHash')
+    .select('ticketId visitDate issueDate paymentMode paymentStatus ticketSource paymentBreakup items totalAmount visitorName qrToken verificationTokenHash')
     .lean()
 
   if (!ticket) {
@@ -287,16 +300,12 @@ export const getCounterTicket = async (ticketId, _opts = {}) => {
     throw ApiError.internal('Unable to generate QR image for this ticket.')
   }
 
+  const presented = presentCounterTicket(ticket)
+
   return {
-    ticketId: ticket.ticketId,
-    visitDate: ticket.visitDate instanceof Date ? ticket.visitDate.toISOString().slice(0, 10) : ticket.visitDate,
-    issueDate: ticket.issueDate instanceof Date ? ticket.issueDate.toISOString() : ticket.issueDate,
-    paymentMode: ticket.paymentMode,
-    paymentStatus: ticket.paymentStatus,
-    ticketSource: ticket.ticketSource || 'COUNTER',
+    ...presented,
     paymentBreakup: ticket.paymentBreakup,
-    items: ticket.items,
-    totalAmount: ticket.totalAmount,
+    paymentStatus: ticket.paymentStatus,
     qrImage,
   }
 }
@@ -314,33 +323,52 @@ export const getRecentCounterTickets = async () => {
     .then((tickets) => tickets.map(presentCounterTicket))
 }
 
-export const getCounterHistory = async ({ date, paymentMode, dateField, page = 1, limit = 100 } = {}) => {
+export const getCounterHistory = async ({ date, from, to, paymentMode, dateField, page = 1, limit, search } = {}) => {
   const match = { ticketSource: 'COUNTER' }
 
   if (typeof paymentMode === 'string' && paymentMode.toUpperCase() !== 'ALL') {
     match.paymentMode = paymentMode.toUpperCase()
   }
 
+  const searchText = typeof search === 'string' ? search.trim() : ''
+  if (searchText) {
+    match.ticketId = { $regex: new RegExp(escapeRegex(searchText), 'i') }
+  }
+
   const normalizedPage = Math.max(1, parseInt(page, 10) || 1)
-  const normalizedLimit = Math.min(200, Math.max(1, parseInt(limit, 10) || 100))
+  const requestedLimit = parseInt(limit, 10)
+  const normalizedLimit = Number.isInteger(requestedLimit)
+    ? Math.min(200, Math.max(1, requestedLimit))
+    : COUNTER_HISTORY_PAGE_SIZE
   const skip = (normalizedPage - 1) * normalizedLimit
 
-  if (date) {
-    const parsed = new Date(date)
-    if (Number.isNaN(parsed.getTime())) {
-      throw ApiError.badRequest('History date is invalid. Expected YYYY-MM-DD format.')
+  const filterField = dateField === 'visitDate' ? 'visitDate' : 'issueDate'
+  const fromStart = parseIsoDateStart(from, 'From date')
+  const toStart = parseIsoDateStart(to, 'To date')
+
+  if (fromStart || toStart) {
+    if (fromStart && toStart && fromStart.getTime() > toStart.getTime()) {
+      throw ApiError.badRequest('From date cannot be greater than To date.')
     }
-    const start = new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()))
-    const end = new Date(start)
-    end.setUTCDate(end.getUTCDate() + 1)
-    // Default to filtering by issueDate; pass dateField=visitDate to filter by visit date instead
-    const filterField = dateField === 'visitDate' ? 'visitDate' : 'issueDate'
-    match[filterField] = { $gte: start, $lt: end }
+
+    const range = {}
+    if (fromStart) range.$gte = fromStart
+    if (toStart) {
+      const toExclusive = new Date(toStart)
+      toExclusive.setUTCDate(toExclusive.getUTCDate() + 1)
+      range.$lt = toExclusive
+    }
+    match[filterField] = range
+  } else if (date) {
+    const singleStart = parseIsoDateStart(date, 'History date')
+    const singleEnd = new Date(singleStart)
+    singleEnd.setUTCDate(singleEnd.getUTCDate() + 1)
+    match[filterField] = { $gte: singleStart, $lt: singleEnd }
   }
 
   const query = Ticket.find(match)
     .select('ticketId visitDate issueDate totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt items visitorName')
-    .sort({ issueDate: -1 })
+    .sort({ createdAt: -1, issueDate: -1 })
     .skip(skip)
     .limit(normalizedLimit)
     .lean()
@@ -373,6 +401,6 @@ export const findCounterTicketsMissingItems = async ({ limit = 100 } = {}) => {
 }
 
 export const getCounterPricing = async () => {
-  const pricingMap = await loadActivePricingMap()
+  const pricingMap = await loadActivePricingMap({ includeCounterOnly: true })
   return typeof pricingMap.values === 'function' ? Array.from(pricingMap.values()) : Object.values(pricingMap)
 }

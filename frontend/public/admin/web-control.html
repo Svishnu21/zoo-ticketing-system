@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Web Control</title>
+    <link rel="stylesheet" href="/admin/style.css" />
+  </head>
+  <body class="admin">
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>Admin Dashboard</h1>
+          <p>Read-only oversight</p>
+        </div>
+        <nav class="nav">
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html'">Overview</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#bookings'">Bookings</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#counter'">Counter</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#qrlogs'">QR Logs</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#adoptions'">Adoptions</button>
+          <button class="nav-link" id="navUserMgmt" data-requires-role="ADMIN" onclick="window.location.href='/admin/users.html'">User Management</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#reports'">Reports</button>
+          <button class="nav-link active" onclick="window.location.href='/admin/web-control.html'">Web Control</button>
+        </nav>
+        <div class="sidebar-footer">
+          <button id="logoutBtn" class="btn ghost">Logout</button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <div class="topbar">
+          <div>
+            <h2>Web Control</h2>
+            <p>Manage Tuesday booking overrides for online ticketing.</p>
+          </div>
+        </div>
+
+        <section class="panel active">
+          <div class="panel-header">
+            <div>
+              <h3>Tuesday Control</h3>
+              <p>Default: all Tuesdays are closed. Add an override to open or keep a specific Tuesday closed.</p>
+            </div>
+          </div>
+
+          <form id="tuesdayOverrideForm" class="filters" autocomplete="off">
+            <label>
+              <span>Select Date</span>
+              <input type="date" id="overrideDate" required />
+            </label>
+            <label>
+              <span>Status</span>
+              <select id="overrideStatus" required>
+                <option value="open">Open Booking</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <label>
+              <span>&nbsp;</span>
+              <button id="saveOverrideBtn" class="btn primary" type="submit">Save</button>
+            </label>
+          </form>
+
+          <div id="webControlMessage" class="report-meta" role="status"></div>
+
+          <div class="panel-subheader" style="margin-top: 1rem">
+            <h4>Current Overrides</h4>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Created At</th>
+                </tr>
+              </thead>
+              <tbody id="overrideTableBody">
+                <tr><td colspan="3">Loading overrides...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <section class="web-control-card emergency-card" aria-label="Emergency booking control">
+            <div class="panel-header" style="margin-bottom: 0.4rem">
+              <div>
+                <h3>Emergency Booking Control</h3>
+                <p>Temporarily disable online booking during technical incidents or maintenance.</p>
+              </div>
+            </div>
+
+            <div class="freeze-toggle-row">
+              <div>
+                <p class="freeze-toggle-label">Freeze Online Ticket Booking</p>
+                <p class="freeze-toggle-help">
+                  When enabled, the online ticket booking page will be temporarily unavailable to visitors.
+                </p>
+              </div>
+              <label class="toggle-switch" for="freezeOnlineBookingToggle">
+                <input type="checkbox" id="freezeOnlineBookingToggle" />
+                <span class="toggle-slider" aria-hidden="true"></span>
+                <span id="freezeToggleState" class="toggle-state">OFF</span>
+              </label>
+            </div>
+
+            <label class="freeze-message-field" for="freezeMessageInput">
+              <span>Public Notice Message</span>
+              <textarea
+                id="freezeMessageInput"
+                rows="4"
+                placeholder="Online ticket booking is temporarily unavailable due to technical maintenance. Please try again later. We apologize for the inconvenience."
+              ></textarea>
+            </label>
+
+            <div class="panel-actions" style="margin-top: 0.9rem">
+              <button id="saveFreezeBtn" class="btn primary" type="button">Save</button>
+              <button id="resetFreezeDefaultBtn" class="btn ghost" type="button">Reset to Default</button>
+            </div>
+
+            <p class="freeze-note">If no record exists, online booking remains enabled by default.</p>
+            <div id="freezeControlMessage" class="report-meta" role="status"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="/admin/web-control.js"></script>
+  </body>
+</html>

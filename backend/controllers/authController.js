@@ -2,6 +2,29 @@ import { ApiError, asyncHandler } from '../utils/errors.js'
 import { User } from '../models/User.js'
 import { hashPassword, verifyPassword, signAccessToken, normaliseEmail, presentUser } from '../utils/auth.js'
 
+const ADMIN_SESSION_COOKIE = 'admin_session'
+
+const isSecureRequest = (req) => {
+  if (req.secure) return true
+  const forwardedProto = (req.headers?.['x-forwarded-proto'] || '').toString().split(',')[0].trim().toLowerCase()
+  return forwardedProto === 'https'
+}
+
+const adminCookieOptions = (req) => ({
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: isSecureRequest(req),
+  path: '/',
+})
+
+const setAdminSessionCookie = (req, res, token) => {
+  res.cookie(ADMIN_SESSION_COOKIE, token, adminCookieOptions(req))
+}
+
+const clearAdminSessionCookie = (req, res) => {
+  res.clearCookie(ADMIN_SESSION_COOKIE, adminCookieOptions(req))
+}
+
 // Strip quotes and whitespace from environment values to avoid accidental mismatches
 const cleanEnv = (value) => (value ?? '').toString().trim().replace(/^['"]|['"]$/g, '')
 
@@ -36,6 +59,7 @@ export const login = asyncHandler(async (req, res) => {
     }
 
     const accessToken = signAccessToken(adminUser)
+    setAdminSessionCookie(req, res, accessToken)
     return res.json({ success: true, token: accessToken, role: 'ADMIN', user: presentUser(adminUser) })
   }
 
@@ -55,6 +79,12 @@ export const login = asyncHandler(async (req, res) => {
 
   const accessToken = signAccessToken(user)
 
+  if ((user.role || '').toString().toUpperCase() === 'ADMIN') {
+    setAdminSessionCookie(req, res, accessToken)
+  } else {
+    clearAdminSessionCookie(req, res)
+  }
+
   res.json({
     success: true,
     token: accessToken,
@@ -65,6 +95,7 @@ export const login = asyncHandler(async (req, res) => {
 
 export const logout = asyncHandler(async (_req, res) => {
   // Stateless JWT logout; client should discard tokens.
+  clearAdminSessionCookie(_req, res)
   res.json({ success: true })
 })
 

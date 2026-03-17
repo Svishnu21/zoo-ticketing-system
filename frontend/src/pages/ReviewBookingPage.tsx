@@ -230,7 +230,7 @@ export function ReviewBookingPage() {
     }
   }
 
-  const handleProceedToPayment = () => {
+  const handleProceedToPayment = async () => {
     if (!hasAcceptedTerms || isSubmittingBooking) {
       return
     }
@@ -260,46 +260,76 @@ export function ReviewBookingPage() {
 
     setIsSubmittingBooking(true)
     setSubmissionStatus('verifying')
-    setSubmissionMessage(language === 'en' ? 'Confirming your booking…' : 'உங்கள் முன்பதிவை உறுதிப்படுத்துகிறது…')
+    try {
+      setSubmissionMessage(language === 'en' ? 'Checking booking date...' : 'முன்பதிவு தேதியை சரிபார்க்கிறது...')
 
-    fetch(`${apiBase}/api/bookings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-      .then(async (response) => {
-        const data = await response.json().catch(() => ({}))
-        if (!response.ok || data?.success !== true) {
-          const message = data?.message || (language === 'en' ? 'Unable to create booking.' : 'முன்பதிவை உருவாக்க முடியவில்லை.')
-          console.error('Booking failed:', message, data)
-          throw new Error(message)
+      const dayStatusResponse = await fetch(
+        `${apiBase}/api/day-control/status?date=${encodeURIComponent(visitDate)}`,
+      )
+      const dayStatusPayload = await dayStatusResponse.json().catch(() => ({}))
+
+      if (!dayStatusResponse.ok || dayStatusPayload?.success !== true) {
+        const message =
+          dayStatusPayload?.message ||
+          (language === 'en'
+            ? 'Unable to validate selected date. Please try again.'
+            : 'தேர்ந்தெடுத்த தேதியை சரிபார்க்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.')
+        throw new Error(message)
+      }
+
+      const dayStatus = dayStatusPayload?.data
+      if (dayStatus?.status === 'closed') {
+        if (dayStatus?.isTuesday) {
+          throw new Error('Zoo is closed on Tuesdays.')
         }
-        // Always redirect with the ticketId returned by the backend; clients must never invent or reuse IDs
-        const ticketId = data?.ticketId
-        const verificationToken = data?.verificationToken
-        if (!ticketId) {
-          throw new Error(language === 'en' ? 'Ticket ID missing in response.' : 'பதில்-இல் Ticket ID இல்லை.')
-        }
-        // Persist the latest ticketId for any legacy flows that may need it (e.g., static payment redirect)
-        sessionStorage.setItem('latestTicketId', ticketId)
-        if (verificationToken) {
-          sessionStorage.setItem('latestVerificationToken', verificationToken)
-        }
-        setSubmissionStatus('success')
-        setSubmissionMessage(language === 'en' ? 'Booking confirmed.' : 'முன்பதிவு உறுதிப்படுத்தப்பட்டது.')
-        setIsConfirmationOpen(false)
-        const tokenQuery = verificationToken ? `&token=${encodeURIComponent(verificationToken)}` : ''
-        window.location.href = `/success.html?ticketId=${encodeURIComponent(ticketId)}${tokenQuery}`
+        throw new Error(
+          language === 'en'
+            ? 'Zoo is closed on the selected date.'
+            : 'தேர்ந்தெடுத்த தேதியில் பூங்கா மூடப்பட்டுள்ளது.',
+        )
+      }
+
+      setSubmissionMessage(language === 'en' ? 'Confirming your booking…' : 'உங்கள் முன்பதிவை உறுதிப்படுத்துகிறது…')
+
+      const response = await fetch(`${apiBase}/api/bookings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       })
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : language === 'en' ? 'Booking failed.' : 'முன்பதிவு தோல்வியடைந்தது.'
-        setSubmissionStatus('error')
-        setSubmissionMessage(message)
-      })
-      .finally(() => {
-        setIsSubmittingBooking(false)
-        setIsVerifyingOtp(false)
-      })
+
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data?.success !== true) {
+        const message = data?.message || (language === 'en' ? 'Unable to create booking.' : 'முன்பதிவை உருவாக்க முடியவில்லை.')
+        console.error('Booking failed:', message, data)
+        throw new Error(message)
+      }
+
+      // Always redirect with the ticketId returned by the backend; clients must never invent or reuse IDs
+      const ticketId = data?.ticketId
+      const verificationToken = data?.verificationToken
+      if (!ticketId) {
+        throw new Error(language === 'en' ? 'Ticket ID missing in response.' : 'பதில்-இல் Ticket ID இல்லை.')
+      }
+
+      // Persist the latest ticketId for any legacy flows that may need it (e.g., static payment redirect)
+      sessionStorage.setItem('latestTicketId', ticketId)
+      if (verificationToken) {
+        sessionStorage.setItem('latestVerificationToken', verificationToken)
+      }
+
+      setSubmissionStatus('success')
+      setSubmissionMessage(language === 'en' ? 'Booking confirmed.' : 'முன்பதிவு உறுதிப்படுத்தப்பட்டது.')
+      setIsConfirmationOpen(false)
+      const tokenQuery = verificationToken ? `&token=${encodeURIComponent(verificationToken)}` : ''
+      window.location.href = `/success.html?ticketId=${encodeURIComponent(ticketId)}${tokenQuery}`
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : language === 'en' ? 'Booking failed.' : 'முன்பதிவு தோல்வியடைந்தது.'
+      setSubmissionStatus('error')
+      setSubmissionMessage(message)
+    } finally {
+      setIsSubmittingBooking(false)
+      setIsVerifyingOtp(false)
+    }
   }
 
   return (

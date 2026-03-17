@@ -5,32 +5,38 @@ console.log('success.js loaded')
 document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search)
   const ticketId = params.get('ticketId')
+  const hasAdminSession = Boolean(sessionStorage.getItem('token') || localStorage.getItem('token'))
+  const preferAdminFetch = hasAdminSession
   const verificationToken = params.get('token') || sessionStorage.getItem('latestVerificationToken')
   const errorMessage = document.getElementById('errorMessage')
 
   console.log('ticketId from URL:', ticketId)
   console.log('verification token present:', !!verificationToken)
+  console.log('admin session present:', hasAdminSession)
 
   if (!ticketId) {
     showError('Missing ticketId in the URL. Please reopen your ticket link.', errorMessage)
     return
   }
 
-  fetchTicket(ticketId, verificationToken, errorMessage)
+  fetchTicket(ticketId, { verificationToken, preferAdminFetch }, errorMessage)
 })
 
-async function fetchTicket(ticketId, verificationToken, errorContainer) {
+async function fetchTicket(ticketId, { verificationToken, preferAdminFetch }, errorContainer) {
   try {
-    const url = `/api/tickets/${encodeURIComponent(ticketId)}${
-      verificationToken ? `?token=${encodeURIComponent(verificationToken)}` : ''
-    }`
-    const response = await fetch(url)
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}))
-      throw new Error(payload.message || 'Unable to load ticket.')
+    let data = null
+
+    if (preferAdminFetch) {
+      try {
+        data = await fetchAdminTicket(ticketId)
+      } catch (adminError) {
+        if (!verificationToken) throw adminError
+        data = await fetchPublicTicket(ticketId, verificationToken)
+      }
+    } else {
+      data = await fetchPublicTicket(ticketId, verificationToken)
     }
 
-    const data = await response.json()
     console.log('Raw API response:', data)
     console.log('qrImage exists:', !!data.qrImage)
     console.log('qrImage preview:', typeof data.qrImage === 'string' ? data.qrImage.substring(0, 40) : 'none')
@@ -41,12 +47,58 @@ async function fetchTicket(ticketId, verificationToken, errorContainer) {
   }
 }
 
+async function fetchPublicTicket(ticketId, verificationToken) {
+  const url = `/api/tickets/${encodeURIComponent(ticketId)}${
+    verificationToken ? `?token=${encodeURIComponent(verificationToken)}` : ''
+  }`
+  const response = await fetch(url)
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}))
+    throw new Error(payload.message || 'Unable to load ticket.')
+  }
+  return response.json()
+}
+
+async function fetchAdminTicket(ticketId) {
+  const response = await fetch(`/admin/bookings/${encodeURIComponent(ticketId)}`, {
+    headers: adminAuthHeaders(),
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}))
+    throw new Error(payload.message || 'Unable to load ticket from admin view.')
+  }
+
+  return response.json()
+}
+
+function adminAuthHeaders() {
+  const token = sessionStorage.getItem('token') || localStorage.getItem('token')
+  if (!token) return { 'Content-Type': 'application/json' }
+  return {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  }
+}
+
+function computeTicketCount(items) {
+  if (!Array.isArray(items)) return 0
+  return items.reduce((sum, item) => sum + Number(item?.quantity || 0), 0)
+}
+
 function renderTicket(ticket) {
-  document.getElementById('ticketId').innerText = ticket.ticketId || 'NOT SET'
-  document.getElementById('visitDate').innerText = fmtDateOnly(ticket.visitDate) || 'NOT SET'
-  document.getElementById('issueDate').innerText = fmtDateTime(ticket.issueDate) || 'NOT SET'
-  document.getElementById('paymentMode').innerText = (ticket.paymentMode || 'NOT SET').toUpperCase()
-  document.getElementById('totalAmount').innerText = ticket.totalAmount || '0'
+  const ticketCount = Number(ticket.ticketCount || computeTicketCount(ticket.items) || 0)
+
+  setElementText('ticketId', ticket.ticketId || 'NOT SET')
+  setElementText('visitorName', ticket.visitorName || '—')
+  setElementText('visitorMobile', ticket.visitorMobile || '—')
+  setElementText('visitDate', fmtDateOnly(ticket.visitDate) || 'NOT SET')
+  setElementText('bookedAt', fmtDateTime(ticket.bookedAt || ticket.issueDate) || 'NOT SET')
+  setElementText('issueDate', fmtDateTime(ticket.issueDate) || 'NOT SET')
+  setElementText('ticketCount', Number.isFinite(ticketCount) && ticketCount > 0 ? String(ticketCount) : '—')
+  setElementText('paymentMode', (ticket.paymentMode || 'NOT SET').toUpperCase())
+  setElementText('totalAmount', formatCurrency(ticket.totalAmount || 0))
 
   renderItems(ticket.items)
   renderQr(ticket.qrImage)
@@ -85,12 +137,11 @@ function renderQr(qrImage) {
   const img = document.getElementById('qrImage')
   if (!img) return
   if (!qrImage) {
-    img.alt = 'QR NOT RECEIVED FROM BACKEND'
+    img.alt = 'QR not available'
     return
   }
   img.src = qrImage
   img.alt = 'QR Code'
-  img.style.border = '1px solid red'
   img.style.display = 'block'
 }
 
@@ -101,9 +152,9 @@ function formatCurrency(value) {
   })}`
 }
 
-function setText(selector, value) {
-  const el = document.querySelector(selector)
-  if (el) el.textContent = value ?? ''
+function setElementText(id, value) {
+  const el = document.getElementById(id)
+  if (el) el.innerText = value ?? ''
 }
 
 function showError(message, container) {

@@ -32,12 +32,17 @@ function serveAdminPlugin(): Plugin {
         // Redirect bare /admin or /admin/ to the login page
         if (req.url === '/' || req.url === '') {
           res.statusCode = 302
-          res.setHeader('Location', '/admin/login.html')
+          res.setHeader('Location', '/admin/login')
           res.end()
           return
         }
 
         let relativePath = req.url === '/' ? '/login.html' : req.url
+        if (relativePath === '/login') relativePath = '/login.html'
+        if (relativePath === '/dashboard') relativePath = '/dashboard.html'
+        if (relativePath === '/users') relativePath = '/users.html'
+        if (/^\/booking\/[^/?#]+$/i.test(relativePath)) relativePath = '/booking.html'
+        if (/^\/counter\/[^/?#]+$/i.test(relativePath)) relativePath = '/counter-ticket.html'
         // remove query params
         const [cleanPath] = relativePath.split('?')
         relativePath = cleanPath

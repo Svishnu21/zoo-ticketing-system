@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Booking Details</title>
+    <link rel="stylesheet" href="/admin/style.css" />
+  </head>
+  <body class="admin">
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>Admin Dashboard</h1>
+          <p>Read-only oversight</p>
+        </div>
+        <nav class="nav">
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html'">Overview</button>
+          <button class="nav-link active" onclick="window.location.href='/admin/dashboard.html#bookings'">Bookings</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#counter'">Counter</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#qrlogs'">QR Logs</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#adoptions'">Adoptions</button>
+          <button class="nav-link" id="navUserMgmt" data-requires-role="ADMIN" onclick="window.location.href='/admin/users.html'">User Management</button>
+          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#reports'">Reports</button>
+          <button class="nav-link" onclick="window.location.href='/admin/web-control.html'">Web Control</button>
+        </nav>
+        <div class="sidebar-footer">
+          <button id="logoutBtn" class="btn ghost">Logout</button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <div class="topbar">
+          <div>
+            <h2 id="bookingDetailTitle">Booking Details</h2>
+            <p>Secure admin view for a single online booking.</p>
+          </div>
+        </div>
+
+        <section class="panel active">
+          <div class="panel-header">
+            <div>
+              <h3>Booking Information</h3>
+              <p>Booking data fetched securely from admin APIs.</p>
+            </div>
+            <div class="panel-actions">
+              <button id="backToBookingsBtn" class="btn ghost" type="button">Back to Bookings</button>
+            </div>
+          </div>
+
+          <dl class="detail-list">
+            <div><dt>Booking ID</dt><dd id="detailBookingId">--</dd></div>
+            <div><dt>Visitor Name</dt><dd id="detailVisitorName">--</dd></div>
+            <div><dt>Mobile Number</dt><dd id="detailVisitorMobile">--</dd></div>
+            <div><dt>Visit Date</dt><dd id="detailVisitDate">--</dd></div>
+            <div><dt>Booked At</dt><dd id="detailBookedAt">--</dd></div>
+            <div><dt>Ticket Count</dt><dd id="detailTicketCount">--</dd></div>
+            <div><dt>Total Amount</dt><dd id="detailTotalAmount">--</dd></div>
+            <div><dt>Entry Status</dt><dd id="detailEntryStatus">--</dd></div>
+            <div><dt>Ticket Source</dt><dd id="detailTicketSource">Online</dd></div>
+          </dl>
+
+          <div class="panel-subheader" style="margin-top: 1.2rem">
+            <h4>QR Code</h4>
+            
+          </div>
+
+          <div class="category-chart booking-qr-card">
+            <div id="detailQrPlaceholder" class="chart-placeholder">QR code will appear here.</div>
+            <img
+              id="detailQrImage"
+              class="hidden"
+              alt="Booking QR code"
+              style="width: 180px; height: 180px; object-fit: contain; border: 1px solid var(--border); border-radius: 10px"
+            />
+          </div>
+
+          <div class="panel-actions" style="margin-top: 1rem">
+            <button id="detailResendBtn" class="btn primary" type="button">Resend Ticket</button>
+            <button id="detailDownloadBtn" class="btn ghost" type="button">Download Ticket</button>
+          </div>
+
+          <div id="bookingDetailMessage" class="report-meta" role="status"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/admin/admin-script.js"></script>
+  </body>
+</html>
