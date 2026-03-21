@@ -32,6 +32,23 @@ const ticketTypeLabels: Record<ReviewBookingState['ticketTypeId'], { en: string;
 const apiBase = '' // Use relative paths; Vite proxy handles backend routing in dev
 const defaultPaymentMode = import.meta.env.VITE_DEFAULT_PAYMENT_MODE ?? 'online'
 
+function formatReviewItemLabel(label: string): string {
+  const trimmedLabel = label.trim()
+
+  // Remove one or more leading "Parking -" prefixes for display only.
+  const withoutParkingPrefix = trimmedLabel.replace(/^(?:Parking\s*-\s*)+/i, '').trim()
+
+  if (/^2\s*&\s*3\s*Wheeler$/i.test(withoutParkingPrefix)) {
+    return '2 & 3 Wheeler'
+  }
+
+  if (/^2\s*Wheeler$/i.test(withoutParkingPrefix)) {
+    return '2 Wheeler'
+  }
+
+  return withoutParkingPrefix
+}
+
 export function ReviewBookingPage() {
   const { language } = useLanguage()
   const navigate = useNavigate()
@@ -80,6 +97,36 @@ export function ReviewBookingPage() {
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false)
   const otpRefs = useRef<Array<HTMLInputElement | null>>([])
   const defaultOtp = import.meta.env.VITE_DEFAULT_OTP ?? '0000'
+
+  useEffect(() => {
+    const hasRequiredReviewState = Boolean(state.selectedDateKey) && Array.isArray(state.items) && state.items.length > 0
+    const flowState = sessionStorage.getItem('bookingFlowState')
+
+    if (!hasRequiredReviewState || flowState === 'COMPLETED') {
+      window.location.replace('/tickets')
+      return
+    }
+
+    sessionStorage.setItem('bookingFlowState', 'OTP_PENDING')
+
+    window.history.pushState(null, '', window.location.href)
+    const handleBackNavigation = () => {
+      window.location.replace('/tickets')
+    }
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        window.location.replace('/tickets')
+      }
+    }
+
+    window.addEventListener('popstate', handleBackNavigation)
+    window.addEventListener('pageshow', handlePageShow)
+
+    return () => {
+      window.removeEventListener('popstate', handleBackNavigation)
+      window.removeEventListener('pageshow', handlePageShow)
+    }
+  }, [state.items, state.selectedDateKey])
 
   const formattedTimeLeft = useMemo(() => {
     const safeTime = Math.max(timeLeft, 0)
@@ -320,6 +367,8 @@ export function ReviewBookingPage() {
       setSubmissionStatus('success')
       setSubmissionMessage(language === 'en' ? 'Booking confirmed.' : 'முன்பதிவு உறுதிப்படுத்தப்பட்டது.')
       setIsConfirmationOpen(false)
+      sessionStorage.setItem('bookingFlowState', 'COMPLETED')
+      sessionStorage.setItem('latestSuccessTicketId', ticketId)
       const tokenQuery = verificationToken ? `&token=${encodeURIComponent(verificationToken)}` : ''
       window.location.href = `/success.html?ticketId=${encodeURIComponent(ticketId)}${tokenQuery}`
     } catch (error: unknown) {
@@ -389,7 +438,7 @@ export function ReviewBookingPage() {
                 {summaryItems.map((item) => {
                   const displayLabel = item.id === 'zoo_child'
                     ? (language === 'en' ? 'Child (5 to 12 years)' : 'குழந்தை (5 முதல் 12 வயது)')
-                    : item.label
+                    : formatReviewItemLabel(item.label)
 
                   return (
                   <div

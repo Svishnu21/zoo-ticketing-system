@@ -37,6 +37,14 @@ const staticHtmlRoutes = [
 
 const staticRouteSet = new Set(staticHtmlRoutes.map((item) => item.route))
 
+const sensitiveNoCachePathMatchers = [
+  /^\/success(?:\.html)?(?:\/.*)?$/i,
+  /^\/payment(?:\.html)?(?:\/.*)?$/i,
+  /^\/review-adoption(?:\.html)?(?:\/.*)?$/i,
+  /^\/api\/tickets\/[^/]+(?:\/.*)?$/i,
+  /^\/ticket\/[^/]+(?:\/.*)?$/i,
+]
+
 const escapeHtml = (value) => String(value ?? '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
@@ -464,6 +472,18 @@ export const createApp = () => {
   app.use(cors({ origin: true, credentials: true }))
   app.use(express.json({ limit: '1mb' }))
 
+  // Prevent browser/proxy caching for sensitive booking-flow pages and ticket-fetch endpoints.
+  app.use((req, res, next) => {
+    const isSensitivePath = sensitiveNoCachePathMatchers.some((pattern) => pattern.test(req.path || ''))
+    if (!isSensitivePath) return next()
+
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    res.setHeader('Pragma', 'no-cache')
+    res.setHeader('Expires', '0')
+    res.setHeader('Surrogate-Control', 'no-store')
+    return next()
+  })
+
   // Protect all admin HTML pages except login/index with server-side admin session checks.
   app.use((req, res, next) => {
     if (!isProtectedAdminHtml(req.path)) return next()
@@ -545,6 +565,11 @@ export const createApp = () => {
   })
 
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
+
+  // Safe entry route for guarded client-side redirects from sensitive pages.
+  app.get('/tickets', (_req, res) => {
+    return res.redirect('/')
+  })
 
   // Canonical ticket view route for opening the original booking ticket template.
   app.get('/ticket/:ticketId', (req, res) => {

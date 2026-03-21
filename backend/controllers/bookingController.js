@@ -30,7 +30,13 @@ export const postBooking = asyncHandler(async (req, res) => {
 
 export const getBooking = asyncHandler(async (req, res) => {
   console.log('Incoming ticketId:', req.params.id)
-  const ticket = await getTicketForDisplay(req.params.id, { verificationToken: req.query.token })
+  const ticket = await getTicketForDisplay(req.params.id, {
+    verificationToken: req.query.token,
+    accessContext: {
+      ip: req.ip,
+      userAgent: req.get('user-agent'),
+    },
+  })
 
   // Return the sanitized payload produced by the service. Service includes additional debug logs.
   res.json(ticket)

@@ -74,6 +74,8 @@
       .btn-print:hover { background: #15803d; border-color: #15803d; }
       .btn-home { background: #dc2626; border-color: #dc2626; color: #fff; }
       .btn-home:hover { background: #b91c1c; border-color: #b91c1c; }
+      .btn-share { background: #2563eb; border-color: #2563eb; color: #fff; }
+      .btn-share:hover { background: #1d4ed8; border-color: #1d4ed8; }
 
       @media print {
         body { background: #fff; }
@@ -82,6 +84,8 @@
         .actions { display: none; }
       }
     </style>
+    <script src="/js/vendor/html2canvas.min.js"></script>
+    <script src="/js/vendor/jspdf.umd.min.js"></script>
     <script type="module" src="/js/success.js"></script>
   </head>
   <body>
@@ -98,13 +102,9 @@
         <section class="meta" aria-label="Ticket identifiers">
           <div class="meta-row"><span class="meta-label">Ticket ID</span><span class="meta-value" id="ticketId">—</span></div>
           <div class="meta-row"><span class="meta-label">Ticket Source</span><span class="meta-value">ONLINE</span></div>
-          <div class="meta-row"><span class="meta-label">Visitor Name</span><span class="meta-value" id="visitorName">—</span></div>
-          <div class="meta-row"><span class="meta-label">Mobile Number</span><span class="meta-value" id="visitorMobile">—</span></div>
           <div class="meta-row"><span class="meta-label">Visit Date</span><span class="meta-value" id="visitDate">—</span></div>
           <div class="meta-row"><span class="meta-label">Booked At</span><span class="meta-value" id="bookedAt">—</span></div>
-          <div class="meta-row"><span class="meta-label">Issue Date & Time</span><span class="meta-value" id="issueDate">—</span></div>
           <div class="meta-row"><span class="meta-label">Ticket Count</span><span class="meta-value" id="ticketCount">—</span></div>
-          <div class="meta-row"><span class="meta-label">Payment Mode</span><span class="meta-value" id="paymentMode">—</span></div>
         </section>
 
         <div class="divider"></div>
@@ -124,7 +124,6 @@
         <div class="divider"></div>
 
         <section class="qr-block" aria-label="QR and entry notes">
-          <div class="qr-label">Ticket Type</div>
           <div class="qr-box" aria-label="QR code placeholder"><img id="qrImage" alt="QR code" style="width: 140px; height: 140px; object-fit: contain;" /></div>
           <ul class="notes">
             <li>Single entry only.</li>
@@ -141,7 +140,8 @@
       </article>
 
       <div class="actions">
-        <button class="btn btn-print" type="button" onclick="window.print()">Print Ticket</button>
+        <button class="btn btn-print" id="printTicketBtn" type="button">Print Ticket</button>
+        <button class="btn btn-share" id="shareTicketBtn" type="button" hidden>Share Ticket</button>
         <a class="btn btn-home" href="/">Back to Home</a>
       </div>
       <div id="errorMessage" role="alert" style="color: #b91c1c; font-weight: 700; text-align: center;"></div>

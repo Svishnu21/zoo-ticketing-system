@@ -10,6 +10,13 @@ import { loadActivePricingMap, resolveCategoryCodeForItem } from './pricingServi
 import { normaliseVisitorDetails } from '../utils/validation.js'
 import { generateQrDataUrl } from '../utils/qrImage.js'
 
+const BOOKING_FLOW_STATE = {
+  OTP_PENDING: 'OTP_PENDING',
+  COMPLETED: 'COMPLETED',
+}
+
+const verificationFlowStateByTokenHash = new Map()
+
 const formatTicketDate = (date) => {
   const dd = String(date.getUTCDate()).padStart(2, '0')
   const mm = String(date.getUTCMonth() + 1).padStart(2, '0')
@@ -135,6 +142,7 @@ export const createBooking = async (payload = {}) => {
   const qrToken = generateQrToken()
   const verificationToken = generateVerificationToken()
   const verificationTokenHash = hashVerificationToken(verificationToken)
+  verificationFlowStateByTokenHash.set(verificationTokenHash, BOOKING_FLOW_STATE.OTP_PENDING)
 
   const visitor = normaliseVisitorDetails({
     name: payload.visitorName,
@@ -234,7 +242,56 @@ export const getTicketSummary = async (ticketId) => {
 
 const TICKET_ID_PATTERN = /^KZP-[0-9]{6}-[A-Z0-9]{6}$/
 
-export const getTicketForDisplay = async (ticketId, { verificationToken, allowTokenBypass = false } = {}) => {
+const DEFAULT_VERIFICATION_TOKEN_TTL_MINUTES = 30
+
+const resolveVerificationTokenTtlMs = () => {
+  const configuredMinutes = Number.parseInt(process.env.TICKET_VERIFICATION_TOKEN_TTL_MINUTES ?? '', 10)
+  const minutes = Number.isFinite(configuredMinutes) && configuredMinutes > 0
+    ? configuredMinutes
+    : DEFAULT_VERIFICATION_TOKEN_TTL_MINUTES
+  return minutes * 60 * 1000
+}
+
+const constantTimeHexCompare = (leftHex, rightHex) => {
+  if (typeof leftHex !== 'string' || typeof rightHex !== 'string') return false
+  if (leftHex.length !== rightHex.length) return false
+
+  try {
+    const leftBuffer = Buffer.from(leftHex, 'hex')
+    const rightBuffer = Buffer.from(rightHex, 'hex')
+    if (leftBuffer.length !== rightBuffer.length || leftBuffer.length === 0) return false
+    return crypto.timingSafeEqual(leftBuffer, rightBuffer)
+  } catch {
+    return false
+  }
+}
+
+const isVerificationTokenExpired = (ticket) => {
+  const issuedAtValue = ticket?.createdAt ?? ticket?.issueDate
+  if (!issuedAtValue) return false
+
+  const issuedAt = issuedAtValue instanceof Date ? issuedAtValue : new Date(issuedAtValue)
+  if (Number.isNaN(issuedAt.getTime())) return false
+
+  const expiresAt = issuedAt.getTime() + resolveVerificationTokenTtlMs()
+  return Date.now() > expiresAt
+}
+
+const logTicketAccessAttempt = ({ ticketId, status, reason, accessContext, allowTokenBypass }) => {
+  const ip = accessContext?.ip || 'unknown'
+  const userAgent = accessContext?.userAgent || 'unknown'
+  console.info('[ticket-access]', {
+    ticketId,
+    status,
+    reason,
+    bypass: Boolean(allowTokenBypass),
+    ip,
+    userAgent,
+    at: new Date().toISOString(),
+  })
+}
+
+export const getTicketForDisplay = async (ticketId, { verificationToken, allowTokenBypass = false, accessContext } = {}) => {
   if (!ticketId || typeof ticketId !== 'string' || !TICKET_ID_PATTERN.test(ticketId)) {
     throw ApiError.badRequest('Ticket ID is invalid.')
   }
@@ -250,15 +307,72 @@ export const getTicketForDisplay = async (ticketId, { verificationToken, allowTo
   console.log('Ticket found in DB for display:', !!ticket)
   console.log('QR token (server-side only):', ticket.qrToken)
 
-  // Enforce verification token if stored
+  // Enforce verification token if stored.
   if (ticket.verificationTokenHash && !allowTokenBypass) {
     if (!verificationToken) {
-      throw ApiError.unauthorized('Verification token is required for this ticket.')
+      logTicketAccessAttempt({
+        ticketId,
+        status: 'denied',
+        reason: 'missing_token',
+        accessContext,
+        allowTokenBypass,
+      })
+      throw ApiError.forbidden('Invalid ticket link.')
     }
+
+    if (isVerificationTokenExpired(ticket)) {
+      logTicketAccessAttempt({
+        ticketId,
+        status: 'denied',
+        reason: 'expired_token',
+        accessContext,
+        allowTokenBypass,
+      })
+      throw ApiError.forbidden('Session expired. Please rebook or contact support.')
+    }
+
     const incomingHash = hashVerificationToken(verificationToken)
-    if (incomingHash !== ticket.verificationTokenHash) {
-      throw ApiError.unauthorized('Invalid verification token.')
+    if (!constantTimeHexCompare(incomingHash, ticket.verificationTokenHash)) {
+      logTicketAccessAttempt({
+        ticketId,
+        status: 'denied',
+        reason: 'token_mismatch',
+        accessContext,
+        allowTokenBypass,
+      })
+      throw ApiError.forbidden('Invalid ticket link.')
     }
+
+    const tokenFlowState = verificationFlowStateByTokenHash.get(ticket.verificationTokenHash) ?? BOOKING_FLOW_STATE.OTP_PENDING
+    if (tokenFlowState !== BOOKING_FLOW_STATE.OTP_PENDING) {
+      logTicketAccessAttempt({
+        ticketId,
+        status: 'denied',
+        reason: 'token_reuse_blocked',
+        accessContext,
+        allowTokenBypass,
+      })
+      throw ApiError.forbidden('Invalid ticket link.')
+    }
+
+    verificationFlowStateByTokenHash.set(ticket.verificationTokenHash, BOOKING_FLOW_STATE.COMPLETED)
+
+    // Soft one-time-access fallback: access is allowed, but every successful token validation is logged.
+    logTicketAccessAttempt({
+      ticketId,
+      status: 'allowed',
+      reason: 'validated_token',
+      accessContext,
+      allowTokenBypass,
+    })
+  } else {
+    logTicketAccessAttempt({
+      ticketId,
+      status: 'allowed',
+      reason: allowTokenBypass ? 'admin_bypass' : 'legacy_no_token_hash',
+      accessContext,
+      allowTokenBypass,
+    })
   }
 
   let qrImage
