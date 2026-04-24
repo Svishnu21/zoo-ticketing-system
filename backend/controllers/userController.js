@@ -166,7 +166,7 @@ export const updateUser = asyncHandler(async (req, res) => {
     updates.status = normalizedStatus
   }
 
-  const updated = await User.findByIdAndUpdate(id, { $set: updates }, { new: true, runValidators: true })
+  const updated = await User.findByIdAndUpdate(id, { $set: updates }, { returnDocument: 'after', runValidators: true })
   if (!updated) throw ApiError.notFound('User not found.')
 
   await recordUserAudit({
@@ -198,7 +198,7 @@ export const setUserStatus = asyncHandler(async (req, res) => {
     return
   }
 
-  const updated = await User.findByIdAndUpdate(id, { $set: { status: normalizedStatus } }, { new: true })
+  const updated = await User.findByIdAndUpdate(id, { $set: { status: normalizedStatus } }, { returnDocument: 'after' })
   if (!updated) throw ApiError.notFound('User not found.')
 
   await recordUserAudit({
@@ -245,7 +245,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
   if (!existing) throw ApiError.notFound('User not found.')
 
   const passwordHash = await hashPassword(password.trim())
-  const updated = await User.findByIdAndUpdate(id, { $set: { passwordHash } }, { new: true })
+  const updated = await User.findByIdAndUpdate(id, { $set: { passwordHash } }, { returnDocument: 'after' })
   if (!updated) throw ApiError.notFound('User not found.')
 
   await recordUserAudit({

@@ -24,7 +24,7 @@ const bookingItemSchema = new Schema(
 const bookingSchema = new Schema(
   {
     // Human-readable booking identifier (primary business key)
-    bookingId: { type: String, required: true, unique: true, trim: true },
+    bookingId: { type: String, required: true, trim: true },
 
     // Legacy field retained for compatibility; mirrors bookingId
     bookingCode: { type: String, trim: true, index: true },
@@ -102,6 +102,7 @@ const bookingSchema = new Schema(
   { timestamps: true, versionKey: false },
 )
 
+bookingSchema.index({ bookingId: 1 }, { unique: true })
 bookingSchema.index({ visitorMobile: 1 })
 bookingSchema.index({ createdAt: -1 })
 bookingSchema.index({ visitDate: 1, ticketSource: 1, paymentStatus: 1 })

@@ -318,7 +318,7 @@ export const paymentSuccess = async (req, res) => {
           failureReason: undefined,
         }
       },
-      { new: true },
+      { returnDocument: 'after' },
     )
 
     // --- Update Booking to CONFIRMED ---
@@ -332,7 +332,7 @@ export const paymentSuccess = async (req, res) => {
             paymentMode: 'ONLINE',
           }
         },
-        { new: true },
+        { returnDocument: 'after' },
       )
     }
 
@@ -401,7 +401,7 @@ export const paymentFailure = async (req, res) => {
         failureReason: payload.error_Message ? String(payload.error_Message) : 'Payment failed or was dropped by user.',
         completedAt: new Date(),
       },
-      { new: true },
+      { returnDocument: 'after' },
     )
 
     // --- Update Booking status ---
@@ -485,7 +485,7 @@ export const paymentWebhook = async (req, res) => {
             webhookReceivedAt: new Date(),
           }
         },
-        { new: true },
+        { returnDocument: 'after' },
       )
 
       if (payment?.bookingId) {
@@ -523,7 +523,7 @@ export const paymentWebhook = async (req, res) => {
             webhookReceivedAt: new Date(),
           }
         },
-        { new: true },
+        { returnDocument: 'after' },
       )
 
       if (payment?.bookingId) {

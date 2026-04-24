@@ -58,7 +58,7 @@ export const validateAndConsumeQrToken = async (token, { gateId } = {}) => {
         scannedAt: now,
       },
     },
-    { new: true, projection: { ticketId: 1, visitDate: 1, qrUsedAt: 1, bookingId: 1, bookingRef: 1, paymentStatus: 1 } },
+    { returnDocument: 'after', projection: { ticketId: 1, visitDate: 1, qrUsedAt: 1, bookingId: 1, bookingRef: 1, paymentStatus: 1 } },
   ).lean()
 
   if (ticket) {

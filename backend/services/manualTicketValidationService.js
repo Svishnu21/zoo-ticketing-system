@@ -84,7 +84,7 @@ export const validateTicketIdFallback = async ({ ticketId, gateId, reason }) => 
         scannedAt: now,
       },
     },
-    { new: true, projection: { ticketId: 1, visitDate: 1, qrUsedAt: 1, usedAt: 1, _id: 0, paymentStatus: 1 } },
+    { returnDocument: 'after', projection: { ticketId: 1, visitDate: 1, qrUsedAt: 1, usedAt: 1, _id: 0, paymentStatus: 1 } },
   ).lean()
 
   if (ticket) {
