@@ -17,16 +17,19 @@ const clearScannerSession = () => {
   sessionStorage.removeItem(logKey)
 }
 
+const getCsrfToken = () => document.cookie.split('; ').find(row => row.startsWith('_csrf='))?.split('=')[1] ?? ''
+
 const withScannerAuthHeaders = (base = {}) => {
   const headers = { ...base }
   const token = getScannerSession().token
   if (token) headers.Authorization = `Bearer ${token}`
+  headers['x-csrf-token'] = getCsrfToken()
   return headers
 }
 
 async function scannerFetch(url, options = {}) {
   const response = await fetch(url, { ...options, headers: withScannerAuthHeaders(options.headers || {}) })
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     clearScannerSession()
     window.location.href = SCANNER_LOGIN_PATH
     throw new Error('Scanner session expired.')
@@ -60,7 +63,10 @@ function initLogin() {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-csrf-token': getCsrfToken()
+        },
         body: JSON.stringify({ email, password }),
       })
       const payload = await res.json().catch(() => ({}))
@@ -230,7 +236,7 @@ function initValidate() {
       setStatus('', 'Camera ready', 'Point the camera at the QR code.')
       _scanning = true
 
-      const ctx = canvasEl && canvasEl.getContext ? canvasEl.getContext('2d') : null
+      const ctx = canvasEl && canvasEl.getContext ? canvasEl.getContext('2d', { willReadFrequently: true }) : null
 
       const scanFrame = () => {
         if (!_scanning) return
@@ -333,16 +339,17 @@ async function validateWithBackend(token, gateId) {
     }
   }
 
+  const ticketIdFromError = payload.details?.ticketId || payload.ticketId || 'UNKNOWN'
   const message = payload?.message || 'Validation failed.'
 
   if (response.status === 409) {
-    return { ticketId: payload.ticketId || 'UNKNOWN', label: 'Already Used', detail: message, className: 'danger' }
+    return { ticketId: ticketIdFromError, label: 'Already Used', detail: message, className: 'danger' }
   }
   if (response.status === 404) {
     return { ticketId: 'UNKNOWN', label: 'Invalid Ticket', detail: message, className: 'danger' }
   }
   if (response.status === 400) {
-    return { ticketId: 'UNKNOWN', label: 'Wrong Date', detail: message, className: 'warning' }
+    return { ticketId: ticketIdFromError, label: 'Wrong Date', detail: message, className: 'warning' }
   }
 
   throw new Error(message)
@@ -369,18 +376,19 @@ async function validateTicketIdWithBackend(ticketId, reason, gateId) {
   }
 
   const message = payload?.message || 'Validation failed.'
+  const ticketIdFromError = payload.details?.ticketId || payload.ticketId || 'UNKNOWN'
 
   if (response.status === 409) {
-    return { ticketId: payload.ticketId || 'UNKNOWN', label: 'Already Used', detail: message, className: 'danger', mode: 'MANUAL' }
+    return { ticketId: ticketIdFromError, label: 'Already Used', detail: message, className: 'danger', mode: 'MANUAL' }
   }
   if (response.status === 404) {
     return { ticketId: 'UNKNOWN', label: 'Invalid Ticket', detail: message, className: 'danger', mode: 'MANUAL' }
   }
   if (response.status === 400) {
-    return { ticketId: 'UNKNOWN', label: 'Wrong Date / Input', detail: message, className: 'warning', mode: 'MANUAL' }
+    return { ticketId: ticketIdFromError, label: 'Wrong Date / Input', detail: message, className: 'warning', mode: 'MANUAL' }
   }
   if (response.status === 403) {
-    return { ticketId: payload.ticketId || 'UNKNOWN', label: 'Payment Pending', detail: message, className: 'warning', mode: 'MANUAL' }
+    return { ticketId: ticketIdFromError, label: 'Payment Pending', detail: message, className: 'warning', mode: 'MANUAL' }
   }
 
   throw new Error(message)

@@ -14,14 +14,14 @@
           <p>Read-only oversight</p>
         </div>
         <nav class="nav">
-          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html'">Overview</button>
-          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#bookings'">Bookings</button>
-          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#counter'">Counter</button>
-          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#qrlogs'">QR Logs</button>
-          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#adoptions'">Adoptions</button>
-          <button class="nav-link active" id="navUserMgmt" data-requires-role="ADMIN" onclick="window.location.href='/admin/users.html'">User Management</button>
-          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#reports'">Reports</button>
-          <button class="nav-link" onclick="window.location.href='/admin/web-control.html'">Web Control</button>
+          <button class="nav-link" data-href="/admin/dashboard.html">Overview</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#bookings">Bookings</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#counter">Counter</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#qrlogs">QR Logs</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#adoptions">Adoptions</button>
+          <button class="nav-link active" id="navUserMgmt" data-requires-role="ADMIN" data-href="/admin/users.html">User Management</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#reports">Reports</button>
+          <button class="nav-link" data-href="/admin/web-control.html">Web Control</button>
         </nav>
         <div class="sidebar-footer">
           <button id="logoutBtn" class="btn ghost">Logout</button>
@@ -89,12 +89,12 @@
             </table>
           </div>
 
-          <!-- <div class="panel-note">
+          <div class="panel-note">
             <p>Only Admins can access this section. Actions are audited via backend APIs.</p>
           </div>
         </section>
       </main>
-    </div> -->
+    </div>
 
     <dialog id="userModal" class="modal">
       <form method="dialog" id="userForm" class="modal-body">
@@ -123,7 +123,6 @@
             <label>
               <span>Role</span>
               <select id="role" name="role" required>
-                <option value="ADMIN">Admin</option>
                 <option value="COUNTER">Counter</option>
                 <option value="SCANNER">Scanner</option>
               </select>

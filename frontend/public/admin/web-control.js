@@ -16,7 +16,11 @@ const saveFreezeBtn = document.getElementById('saveFreezeBtn')
 const resetFreezeDefaultBtn = document.getElementById('resetFreezeDefaultBtn')
 const freezeControlMessageEl = document.getElementById('freezeControlMessage')
 
-const getAuthToken = () => sessionStorage.getItem('token') || localStorage.getItem('token')
+const getCsrfToken = () =>
+  document.cookie
+    .split('; ')
+    .find((row) => row.startsWith('_csrf='))
+    ?.split('=')[1] ?? ''
 
 const escapeHtml = (value) => String(value ?? '')
   .replace(/&/g, '&amp;')
@@ -26,12 +30,9 @@ const escapeHtml = (value) => String(value ?? '')
   .replace(/'/g, '&#39;')
 
 const clearAdminSession = () => {
-  sessionStorage.removeItem('token')
   sessionStorage.removeItem('role')
   sessionStorage.removeItem('isLoggedIn')
   sessionStorage.removeItem('user')
-  localStorage.removeItem('token')
-  localStorage.removeItem('role')
 }
 
 const setMessage = (text, tone = 'muted') => {
@@ -104,23 +105,27 @@ const formatDateTime = (value) => {
 }
 
 const authHeaders = () => {
-  const token = getAuthToken()
-  return token
-    ? {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      }
-    : { 'Content-Type': 'application/json' }
+  return { 'Content-Type': 'application/json' }
+}
+
+const withCsrfHeader = (headers = {}, method = 'GET') => {
+  const normalizedMethod = (method || 'GET').toUpperCase()
+  if (['GET', 'HEAD', 'OPTIONS'].includes(normalizedMethod)) return headers
+  return {
+    ...headers,
+    'x-csrf-token': getCsrfToken(),
+  }
 }
 
 const adminRequest = async (path, options = {}) => {
+  const method = options.method || 'GET'
   const response = await fetch(`${adminApiBase}${path}`, {
     credentials: 'include',
     ...options,
-    headers: {
+    headers: withCsrfHeader({
       ...authHeaders(),
       ...(options.headers || {}),
-    },
+    }, method),
   })
 
   const payload = await response.json().catch(() => ({}))
@@ -139,13 +144,14 @@ const adminRequest = async (path, options = {}) => {
 }
 
 const apiRequest = async (path, options = {}) => {
+  const method = options.method || 'GET'
   const response = await fetch(`${backendOrigin}${path}`, {
     credentials: 'include',
     ...options,
-    headers: {
+    headers: withCsrfHeader({
       ...authHeaders(),
       ...(options.headers || {}),
-    },
+    }, method),
   })
 
   const payload = await response.json().catch(() => ({}))
@@ -335,9 +341,22 @@ const applyRoleVisibility = () => {
   })
 }
 
+const bindNavigation = () => {
+  const navLinks = document.querySelectorAll('.nav-link')
+  navLinks.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const href = btn.dataset.href
+      if (href) {
+        window.location.href = href
+      }
+    })
+  })
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   applyRoleVisibility()
   bindLogout()
+  bindNavigation()
   form?.addEventListener('submit', saveOverride)
   freezeToggle?.addEventListener('change', updateFreezeToggleLabel)
   saveFreezeBtn?.addEventListener('click', () => {

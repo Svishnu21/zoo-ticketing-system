@@ -19,9 +19,9 @@
           <button class="nav-link" data-target="counter">Counter</button>
           <button class="nav-link" data-target="qrlogs">QR Logs</button>
           <button class="nav-link" data-target="adoptions">Adoptions</button>
-          <button class="nav-link" id="navUserMgmt" onclick="window.location.href='/admin/users.html'" data-requires-role="ADMIN">User Management</button>
+          <button class="nav-link" id="navUserMgmt" data-requires-role="ADMIN">User Management</button>
           <button class="nav-link" data-target="reports">Reports</button>
-          <button class="nav-link" onclick="window.location.href='/admin/web-control.html'">Web Control</button>
+          <button class="nav-link" id="navWebControl">Web Control</button>
         </nav>
         <div class="sidebar-footer">
           <button id="logoutBtn" class="btn ghost">Logout</button>
@@ -227,6 +227,7 @@
               <thead>
                 <tr>
                   <th>Booking ID</th>
+                  <th>Transaction ID</th>
                   <th>Visitor Name</th>
                   <th>Mobile</th>
                   <th>Visit Date</th>
@@ -238,7 +239,7 @@
                 </tr>
               </thead>
               <tbody id="bookingTableBody">
-                <tr><td colspan="9">Loading bookings...</td></tr>
+                <tr><td colspan="10">Loading bookings...</td></tr>
               </tbody>
             </table>
           </div>
@@ -401,44 +402,16 @@
                 <span>Report</span>
                 <select id="reportType">
                   <option value="daily-summary">Daily Summary</option>
-                  <option value="ticket-wise">Ticket Type Breakdown</option>
-                  <option value="category-wise">Category Summary</option>
-                  <option value="revenue-summary">Revenue Summary</option>
-                  <option value="entry-status">Entry Status Report</option>
                 </select>
               </label>
             </div>
           </div>
 
           <div class="filters sticky-filters reports-filters">
-            <label>
-              <span>Source</span>
-              <select id="reportSourceFilter">
-                <option value="">All</option>
-                <option value="ONLINE">Online</option>
-                <option value="COUNTER">Counter</option>
-              </select>
-            </label>
-            <label>
-              <span>Category</span>
-              <select id="reportCategoryFilter">
-                <option value="">All</option>
-                <option value="entry">Entry</option>
-                <option value="parking">Parking</option>
-                <option value="transport">Transport</option>
-                <option value="camera">Camera</option>
-              </select>
-            </label>
-            <label class="search-field">
-              <span>Ticket Type</span>
-              <input type="search" id="reportTicketFilter" placeholder="Contains..." />
-            </label>
             <div class="filters-actions">
               <button class="btn primary" id="runReportBtn" type="button">Run Report</button>
               <div class="export-actions">
-                <button class="btn ghost" id="exportCsvBtn" type="button" disabled>CSV</button>
-                <button class="btn ghost" id="exportExcelBtn" type="button" disabled>Excel</button>
-                <button class="btn ghost" id="exportPdfBtn" type="button" disabled>PDF</button>
+                <button class="btn primary" id="downloadPdfBtn" type="button" disabled>Download PDF</button>
               </div>
             </div>
           </div>

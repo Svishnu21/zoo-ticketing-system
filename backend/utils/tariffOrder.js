@@ -4,12 +4,13 @@ export const CANONICAL_TARIFF_ORDER = [
   { itemCode: 'zoo_kid_zone', category: 'zoo', label: 'Kid Zone (Below 6 Years)', displayOrder: 3, price: 20 },
   { itemCode: 'zoo_child_free', category: 'zoo', label: 'Children (below 5)', displayOrder: 4, price: 0 },
   { itemCode: 'zoo_differently_abled', category: 'zoo', label: 'Differently Abled', displayOrder: 5, price: 0 },
-  { itemCode: 'parking_4w_lmv', category: 'parking', label: 'Parking - 4 Wheeler (LMV)', displayOrder: 6, price: 50 },
-  { itemCode: 'parking_4w_hmv', category: 'parking', label: 'Parking - 4 Wheeler (HMV)', displayOrder: 7, price: 100 },
-  { itemCode: 'parking_2w_3w', category: 'parking', label: 'Parking - 2 & 3 Wheeler', displayOrder: 8, price: 20 },
-  { itemCode: 'battery_vehicle_adult', category: 'transport', label: 'Battery Vehicle - Adult', displayOrder: 9, price: 50 },
-  { itemCode: 'battery_vehicle_child', category: 'transport', label: 'Battery Vehicle - Child (5-12 yrs)', displayOrder: 10, price: 30 },
-  { itemCode: 'camera_video', category: 'camera', label: 'Video Camera', displayOrder: 11, price: 150 },
+  { itemCode: 'zoo_school_visit', category: 'zoo', label: 'School Visit', displayOrder: 6, price: 10 },
+  { itemCode: 'parking_4w_lmv', category: 'parking', label: 'Parking - 4 Wheeler (LMV)', displayOrder: 7, price: 50 },
+  { itemCode: 'parking_4w_hmv', category: 'parking', label: 'Parking - 4 Wheeler (HMV)', displayOrder: 8, price: 100 },
+  { itemCode: 'parking_2w_3w', category: 'parking', label: 'Parking - 2 & 3 Wheeler', displayOrder: 9, price: 20 },
+  { itemCode: 'battery_vehicle_adult', category: 'transport', label: 'Battery Vehicle - Adult', displayOrder: 10, price: 50 },
+  { itemCode: 'battery_vehicle_child', category: 'transport', label: 'Battery Vehicle - Child (5-12 yrs)', displayOrder: 11, price: 30 },
+  { itemCode: 'camera_video', category: 'camera', label: 'Video Camera', displayOrder: 12, price: 150 },
 ]
 
 export const PROTECTED_ITEM_CODES = new Set(CANONICAL_TARIFF_ORDER.map((entry) => entry.itemCode.toLowerCase()))
@@ -19,6 +20,7 @@ const PROTECTED_CATEGORY_CODE_MAP = {
   zoo_kid_zone: 'kidZoneEntry',
   zoo_child_free: 'childBelow5',
   zoo_differently_abled: 'differentlyAbled',
+  zoo_school_visit: 'schoolVisitEntry',
   parking_4w_lmv: 'parkingLMV',
   parking_4w_hmv: 'parkingHMV',
   parking_2w_3w: 'parkingTwoThree',

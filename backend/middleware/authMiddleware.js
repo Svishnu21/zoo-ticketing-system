@@ -1,5 +1,6 @@
 import { ApiError } from '../utils/errors.js'
 import { verifyToken } from '../utils/auth.js'
+import { User } from '../models/User.js'
 
 const ADMIN_SESSION_COOKIE = 'admin_session'
 
@@ -52,6 +53,15 @@ const rejectOrRedirectAdmin = (req, res, next, error) => {
   const statusCode = Number.isInteger(error?.statusCode) ? error.statusCode : 401
   const message = error?.message || 'Authentication required.'
 
+  console.warn('[authz] admin_session_rejected', {
+    path: req.path,
+    method: req.method,
+    statusCode,
+    ip: req.ip,
+    reason: message,
+    at: new Date().toISOString(),
+  })
+
   if (isDocumentNavigation(req)) {
     return res.redirect('/admin/login')
   }
@@ -69,6 +79,14 @@ export const requireAuth = async (req, _res, next) => {
     if (!token) throw ApiError.unauthorized('Authentication required.')
 
     const payload = verifyToken(token)
+
+    if (payload?.userId && payload.userId !== 'env-admin') {
+      const user = await User.findById(payload.userId).select('role status').lean()
+      if (!user || user.status !== 'ACTIVE') {
+        throw ApiError.unauthorized('Authentication required.')
+      }
+      payload.role = user.role
+    }
 
     req.user = payload
     req.auth = payload
@@ -90,6 +108,13 @@ export const requireAdminSession = async (req, res, next) => {
     if (!token) throw ApiError.unauthorized('Admin authentication required.')
 
     const payload = verifyToken(token)
+    if (payload?.userId && payload.userId !== 'env-admin') {
+      const user = await User.findById(payload.userId).select('role status').lean()
+      if (!user || user.status !== 'ACTIVE') {
+        throw ApiError.unauthorized('Admin authentication required.')
+      }
+      payload.role = user.role
+    }
     const role = (payload?.role || '').toString().toUpperCase()
     if (role !== 'ADMIN') throw ApiError.forbidden('Admin access required.')
 
@@ -111,6 +136,17 @@ export const requireRole = (...roles) => (req, _res, next) => {
   if (!req.auth?.role) return next(ApiError.unauthorized('Authentication required.'))
   const role = (req.auth.role || '').toString().toLowerCase()
   const allowed = roles.some((r) => (r || '').toString().toLowerCase() === role)
-  if (!allowed) return next(ApiError.forbidden('Forbidden for this role.'))
+  if (!allowed) {
+    console.warn('[authz] role_denied', {
+      userId: req.auth?.userId,
+      role: req.auth?.role,
+      requiredRoles: roles,
+      path: req.path,
+      method: req.method,
+      ip: req.ip,
+      at: new Date().toISOString(),
+    })
+    return next(ApiError.forbidden('Forbidden for this role.'))
+  }
   return next()
 }

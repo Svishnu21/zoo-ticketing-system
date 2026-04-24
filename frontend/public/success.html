@@ -60,7 +60,7 @@
 
       .qr-block { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 10px 0 4px; }
       .qr-label { font-weight: 700; }
-      .qr-box { width: 140px; height: 140px; border: 1px solid #000; display: flex; align-items: center; justify-content: center; font-weight: 700; text-align: center; }
+      .qr-box { width: 140px; height: 140px; display: flex; align-items: center; justify-content: center; font-weight: 700; text-align: center; }
 
       .notes { width: 100%; font-size: 0.9rem; margin: 6px 0 0; padding: 0; list-style: none; }
       .notes li { margin: 2px 0; }
@@ -124,7 +124,7 @@
         <div class="divider"></div>
 
         <section class="qr-block" aria-label="QR and entry notes">
-          <div class="qr-box" aria-label="QR code placeholder"><img id="qrImage" alt="QR code" style="width: 140px; height: 140px; object-fit: contain;" /></div>
+          <div class="qr-box" aria-label="QR code placeholder"><img id="qrImage" alt="QR code" style="width: 140px; height: 140px; object-fit: contain; border: 1px solid #000; display: block;" /></div>
           <ul class="notes">
             <li>Single entry only.</li>
             <li>Entry timings: 09:00 AM – 05:00 PM.</li>

@@ -2,6 +2,7 @@
   { "categoryCode": "adultEntry", "categoryName": "Entry - Adult", "price": 50, "isActive": true },
   { "categoryCode": "childEntry", "categoryName": "Entry - Child (5-12 yrs)", "price": 10, "isActive": true },
   { "categoryCode": "kidZoneEntry", "categoryName": "Kid Zone (Below 6 Years)", "price": 20, "isActive": true },
+  { "categoryCode": "schoolVisitEntry", "categoryName": "School Visit", "price": 10, "isActive": true },
   { "categoryCode": "childBelow5", "categoryName": "Entry - Child (below 5)", "price": 0, "isActive": true },
   { "categoryCode": "differentlyAbled", "categoryName": "Entry - Differently Abled", "price": 0, "isActive": true },
   { "categoryCode": "videoCamera", "categoryName": "Video Camera (non-commercial use)", "price": 150, "isActive": true },

@@ -4,7 +4,7 @@ import { ApiError } from './errors.js'
 // Generate a QR image that encodes only the secure qrToken.
 // Suitable for on-screen display, printing, or embedding in PDFs.
 // The token should already be a random, opaque value; never include ticket details here.
-export const generateQrDataUrl = async (qrToken, { size = 256, errorCorrection = 'M', margin = 1 } = {}) => {
+export const generateQrDataUrl = async (qrToken, { size = 256, errorCorrection = 'H', margin = 4 } = {}) => {
   if (!qrToken) {
     throw ApiError.badRequest('QR token is required to generate a QR image.')
   }
@@ -22,7 +22,7 @@ export const generateQrDataUrl = async (qrToken, { size = 256, errorCorrection =
 }
 
 // Alternative helper for binary output (e.g., PDFs or attachments)
-export const generateQrPngBuffer = async (qrToken, { size = 256, errorCorrection = 'M', margin = 1 } = {}) => {
+export const generateQrPngBuffer = async (qrToken, { size = 256, errorCorrection = 'H', margin = 4 } = {}) => {
   if (!qrToken) {
     throw ApiError.badRequest('QR token is required to generate a QR image.')
   }

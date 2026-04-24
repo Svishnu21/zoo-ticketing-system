@@ -45,6 +45,9 @@ import { PartnerWithUsPage } from '@/pages/PartnerWithUsPage'
 import { CSRActivityPage } from '@/pages/CSRActivityPage'
 import { OthersPage } from '@/pages/OthersPage'
 import { ZooChartPage } from '@/pages/ZooChartPage'
+import { BookingPage } from '@/pages/BookingPage'
+import { BookingConfirmed } from '@/pages/BookingConfirmed'
+import { PaymentFailed } from '@/pages/PaymentFailed'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -83,6 +86,9 @@ createRoot(document.getElementById('root')!).render(
             <Route path="tickets/parking" element={<ParkingTicketSelectionPage />} />
             <Route path="tickets/safari" element={<SafariTicketSelectionPage />} />
             <Route path="tickets/review" element={<ReviewBookingPage />} />
+            <Route path="booking" element={<BookingPage />} />
+            <Route path="booking-confirmed" element={<BookingConfirmed />} />
+            <Route path="payment-failed" element={<PaymentFailed />} />
             <Route path="rules" element={<ParkRulesPage />} />
             <Route path="terms" element={<TermsPage />} />
             <Route path="privacy" element={<PrivacyPage />} />

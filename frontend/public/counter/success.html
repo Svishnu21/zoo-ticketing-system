@@ -75,31 +75,25 @@
       .btn-home { background: #dc2626; border-color: #dc2626; color: #fff; }
       .btn-home:hover { background: #b91c1c; border-color: #b91c1c; }
 /* =========================
-   PRINT – THERMAL ONLY
+   PRINT
 ========================= */
       @media print {
-        /* Hide EVERYTHING */
-        body * { visibility: hidden; }
+        body { background: #fff; margin: 0; padding: 0; }
+        main { padding: 0; }
+        .no-print, .actions, #errorMessage { display: none !important; }
 
-        /* Show only ticket */
-        #print-area, #print-area * { visibility: visible; }
-
-        /* Position ticket properly */
         #print-area {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 58mm; /* change to 80mm if printer supports */
           margin: 0;
           padding: 0;
+        }
+        .ticket {
+          width: 80mm;
+          max-width: 80mm;
+          border: none;
+          margin: 0 auto;
+          padding: 4mm;
           page-break-inside: avoid;
         }
-
-        /* Remove browser margins */
-        @page { size: 58mm auto; margin: 0; }
-
-        /* Hide buttons */
-        .no-print { display: none !important; }
       }
     </style>
       <script type="module" src="/js/counter.js"></script>
@@ -159,7 +153,7 @@
       </div>
 
       <div class="actions no-print">
-        <button class="btn btn-print" type="button" onclick="window.print()">Print Ticket</button>
+        <button class="btn btn-print" type="button" id="print-btn">Print Ticket</button>
         <a class="btn btn-home" href="/counter/issue.html">Back to Counter</a>
       </div>
       <div id="errorMessage" class="no-print" role="alert" style="color: #b91c1c; font-weight: 700; text-align: center;"></div>

@@ -21,7 +21,7 @@ export function Footer() {
   ]
 
   return (
-    <footer className="relative overflow-hidden gradient-forest text-white">
+    <footer className="relative overflow-hidden gradient-forest text-white print:hidden">
       <div
         className="pointer-events-none absolute inset-0 z-[1] opacity-90"
         style={{

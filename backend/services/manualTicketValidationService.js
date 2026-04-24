@@ -73,7 +73,7 @@ export const validateTicketIdFallback = async ({ ticketId, gateId, reason }) => 
   const now = new Date()
 
   const ticket = await Ticket.findOneAndUpdate(
-    { ticketId: normalizedTicketId, paymentStatus: 'PAID', visitDate: todayDateOnly, qrUsed: false },
+    { ticketId: normalizedTicketId, paymentStatus: { $in: ['PAID', 'SUCCESS'] }, visitDate: todayDateOnly, qrUsed: false },
     {
       $set: {
         qrUsed: true,
@@ -84,7 +84,7 @@ export const validateTicketIdFallback = async ({ ticketId, gateId, reason }) => 
         scannedAt: now,
       },
     },
-    { new: true, projection: { ticketId: 1, visitDate: 1, qrUsedAt: 1, usedAt: 1, _id: 0 } },
+    { new: true, projection: { ticketId: 1, visitDate: 1, qrUsedAt: 1, usedAt: 1, _id: 0, paymentStatus: 1 } },
   ).lean()
 
   if (ticket) {
@@ -105,9 +105,9 @@ export const validateTicketIdFallback = async ({ ticketId, gateId, reason }) => 
     throw ApiError.notFound('Ticket ID not found.')
   }
 
-  if (existing.paymentStatus !== 'PAID') {
-    await logManualAttempt({ ticketId: normalizedTicketId, gateId, reason: normalizedReason, result: 'error' })
-    throw ApiError.forbidden('Payment not completed for this ticket.')
+  if (!['PAID', 'SUCCESS'].includes(existing.paymentStatus)) {
+    await logManualAttempt({ ticketId: normalizedTicketId, gateId: gateId, reason: normalizedReason, result: 'error' })
+    throw ApiError.forbidden('Payment not completed for this ticket.', { ticketId: normalizedTicketId })
   }
 
   const visitDateIso = existing.visitDate instanceof Date ? existing.visitDate.toISOString().slice(0, 10) : undefined

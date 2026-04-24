@@ -30,7 +30,6 @@ const ticketTypeLabels: Record<ReviewBookingState['ticketTypeId'], { en: string;
 }
 
 const apiBase = '' // Use relative paths; Vite proxy handles backend routing in dev
-const defaultPaymentMode = import.meta.env.VITE_DEFAULT_PAYMENT_MODE ?? 'online'
 
 function formatReviewItemLabel(label: string): string {
   const trimmedLabel = label.trim()
@@ -100,14 +99,17 @@ export function ReviewBookingPage() {
 
   useEffect(() => {
     const hasRequiredReviewState = Boolean(state.selectedDateKey) && Array.isArray(state.items) && state.items.length > 0
-    const flowState = sessionStorage.getItem('bookingFlowState')
 
-    if (!hasRequiredReviewState || flowState === 'COMPLETED') {
+    if (!hasRequiredReviewState) {
       window.location.replace('/tickets')
       return
     }
 
-    sessionStorage.setItem('bookingFlowState', 'OTP_PENDING')
+    // Clear stale flow state from any previous booking so the review page
+    // is reachable on subsequent booking attempts (fixes BUG 2).
+    sessionStorage.removeItem('bookingFlowState')
+    sessionStorage.removeItem('latestTxnId')
+    sessionStorage.removeItem('latestBookingId')
 
     window.history.pushState(null, '', window.location.href)
     const handleBackNavigation = () => {
@@ -167,15 +169,26 @@ export function ReviewBookingPage() {
   }, [isOtpVisible, timeLeft, isGenerateDisabled, language])
 
   const handleGenerateOtp = () => {
-    if (!visitorName.trim() || !visitorMobile.trim()) {
+    if (!visitorName.trim() || visitorMobile.trim().length !== 10) {
       setSubmissionStatus('error')
       setSubmissionMessage(
         language === 'en'
-          ? 'Please provide both your name and mobile number before continuing.'
-          : 'தொடருவதற்கு முன் உங்கள் பெயர் மற்றும் கைபேசி எண்ணை நிரப்பவும்.',
+          ? 'Please provide a valid name and exactly a 10-digit mobile number before continuing.'
+          : 'தொடருவதற்கு முன் சரியான பெயரையும் 10-இலக்க கைபேசி எண்ணையும் நிரப்பவும்.',
       )
       return
     }
+    
+    if (visitorEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(visitorEmail.trim())) {
+      setSubmissionStatus('error')
+      setSubmissionMessage(
+        language === 'en'
+          ? 'Please provide a valid email address.'
+          : 'சரியான மின்னஞ்சல் ஐடியை வழங்கவும்.',
+      )
+      return
+    }
+
     setIsOtpVisible(true)
     setIsGenerateDisabled(true)
     setSubmissionStatus('info')
@@ -217,12 +230,22 @@ export function ReviewBookingPage() {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (!visitorName.trim() || !visitorMobile.trim()) {
+    if (!visitorName.trim() || visitorMobile.trim().length !== 10) {
       setSubmissionStatus('error')
       setSubmissionMessage(
         language === 'en'
-          ? 'Please provide both your name and mobile number before continuing.'
-          : 'தொடருவதற்கு முன் உங்கள் பெயர் மற்றும் கைபேசி எண்ணை நிரப்பவும்.',
+          ? 'Please provide a valid name and exactly a 10-digit mobile number before continuing.'
+          : 'தொடருவதற்கு முன் சரியான பெயரையும் 10-இலக்க கைபேசி எண்ணையும் நிரப்பவும்.',
+      )
+      return
+    }
+
+    if (visitorEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(visitorEmail.trim())) {
+      setSubmissionStatus('error')
+      setSubmissionMessage(
+        language === 'en'
+          ? 'Please provide a valid email address.'
+          : 'சரியான மின்னஞ்சல் ஐடியை வழங்கவும்.',
       )
       return
     }
@@ -291,20 +314,6 @@ export function ReviewBookingPage() {
       return
     }
 
-    const payload = {
-      visitDate,
-      paymentMode: defaultPaymentMode,
-      paymentStatus: 'PAID',
-      items: summaryItems.map((item) => ({
-        itemCode: item.id,
-        itemLabel: item.label,
-        quantity: item.quantity,
-      })),
-      visitorName: visitorName.trim(),
-      visitorEmail: visitorEmail.trim(),
-      visitorMobile: visitorMobile.trim(),
-    }
-
     setIsSubmittingBooking(true)
     setSubmissionStatus('verifying')
     try {
@@ -336,41 +345,52 @@ export function ReviewBookingPage() {
         )
       }
 
-      setSubmissionMessage(language === 'en' ? 'Confirming your booking…' : 'உங்கள் முன்பதிவை உறுதிப்படுத்துகிறது…')
+      setSubmissionMessage(language === 'en' ? 'Redirecting to payment gateway…' : 'கட்டண நுழைவாயிலுக்கு மாற்றப்படுகிறது…')
 
-      const response = await fetch(`${apiBase}/api/bookings`, {
+      const paymentPayload = {
+        customerName: visitorName.trim(),
+        customerEmail: visitorEmail.trim(),
+        customerPhone: visitorMobile.trim(),
+        visitDate,
+        items: summaryItems.map((item) => ({
+          itemCode: item.id,
+          label: formatReviewItemLabel(item.label),
+          unitPrice: item.price,
+          quantity: item.quantity,
+          lineTotal: item.total,
+        })),
+        totalAmount,
+      }
+
+      const csrfCookie = document.cookie.split('; ').find(row => row.startsWith('_csrf='))?.split('=')[1] ?? ''
+      const requestHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (csrfCookie) requestHeaders['x-csrf-token'] = csrfCookie
+
+      const response = await fetch(`${apiBase}/api/payment/initiate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        headers: requestHeaders,
+        body: JSON.stringify(paymentPayload),
       })
 
       const data = await response.json().catch(() => ({}))
-      if (!response.ok || data?.success !== true) {
-        const message = data?.message || (language === 'en' ? 'Unable to create booking.' : 'முன்பதிவை உருவாக்க முடியவில்லை.')
-        console.error('Booking failed:', message, data)
+      if (!response.ok || data?.success !== true || !data?.payment_url) {
+        const message = data?.message || (language === 'en' ? 'Unable to initiate payment.' : 'கட்டணத்தை தொடங்க முடியவில்லை.')
+        console.error('Payment initiation failed:', message, data)
         throw new Error(message)
       }
 
-      // Always redirect with the ticketId returned by the backend; clients must never invent or reuse IDs
-      const ticketId = data?.ticketId
-      const verificationToken = data?.verificationToken
-      if (!ticketId) {
-        throw new Error(language === 'en' ? 'Ticket ID missing in response.' : 'பதில்-இல் Ticket ID இல்லை.')
+      // Persist transaction details for optional frontend reconciliation.
+      if (data?.txnid) {
+        sessionStorage.setItem('latestTxnId', String(data.txnid))
       }
-
-      // Persist the latest ticketId for any legacy flows that may need it (e.g., static payment redirect)
-      sessionStorage.setItem('latestTicketId', ticketId)
-      if (verificationToken) {
-        sessionStorage.setItem('latestVerificationToken', verificationToken)
+      if (data?.bookingId) {
+        sessionStorage.setItem('latestBookingId', String(data.bookingId))
       }
 
       setSubmissionStatus('success')
-      setSubmissionMessage(language === 'en' ? 'Booking confirmed.' : 'முன்பதிவு உறுதிப்படுத்தப்பட்டது.')
+      setSubmissionMessage(language === 'en' ? 'Redirecting to payment…' : 'கட்டணத்திற்கு மாற்றப்படுகிறது…')
       setIsConfirmationOpen(false)
-      sessionStorage.setItem('bookingFlowState', 'COMPLETED')
-      sessionStorage.setItem('latestSuccessTicketId', ticketId)
-      const tokenQuery = verificationToken ? `&token=${encodeURIComponent(verificationToken)}` : ''
-      window.location.href = `/success.html?ticketId=${encodeURIComponent(ticketId)}${tokenQuery}`
+      window.location.href = String(data.payment_url)
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : language === 'en' ? 'Booking failed.' : 'முன்பதிவு தோல்வியடைந்தது.'
       setSubmissionStatus('error')
@@ -478,7 +498,10 @@ export function ReviewBookingPage() {
                   type="text"
                   placeholder={language === 'en' ? 'Enter your full name' : 'உங்கள் முழுப் பெயரை எழுதவும்'}
                   value={visitorName}
-                  onChange={(event) => setVisitorName(event.target.value)}
+                  onChange={(event) => {
+                    const sanitized = event.target.value.replace(/[^A-Za-z\s]/g, '').slice(0, 50)
+                    setVisitorName(sanitized)
+                  }}
                   className="w-full rounded-2xl border border-forest-green/20 bg-white px-4 py-3 text-sm text-foreground shadow-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-forest-green/30"
                 />
               </div>
@@ -496,7 +519,10 @@ export function ReviewBookingPage() {
                   type="tel"
                   placeholder={language === 'en' ? '10-digit mobile number' : '10 இலக்க கைபேசி எண்'}
                   value={visitorMobile}
-                  onChange={(event) => setVisitorMobile(event.target.value)}
+                  onChange={(event) => {
+                    const sanitized = event.target.value.replace(/\D/g, '').slice(0, 10)
+                    setVisitorMobile(sanitized)
+                  }}
                   className="w-full rounded-2xl border border-forest-green/20 bg-white px-4 py-3 text-sm text-foreground shadow-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-forest-green/30"
                 />
               </div>

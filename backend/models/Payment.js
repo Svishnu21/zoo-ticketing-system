@@ -5,13 +5,13 @@ const { Schema } = mongoose
 const paymentSchema = new Schema(
   {
     // Booking association (1:1). Keep sparse during migration.
-    bookingId: { type: Schema.Types.ObjectId, ref: 'Booking', unique: true, sparse: true, index: true },
+    bookingId: { type: Schema.Types.ObjectId, ref: 'Booking', unique: true, sparse: true },
 
     // Legacy linkage to a single ticket (historical data)
-    ticketId: { type: Schema.Types.ObjectId, ref: 'Ticket', unique: true, sparse: true, index: true },
+    ticketId: { type: Schema.Types.ObjectId, ref: 'Ticket', unique: true, sparse: true },
 
     // Gateway transaction identifier (business id for reconciliation)
-    transactionId: { type: String, required: true, unique: true, trim: true, index: true },
+    transactionId: { type: String, required: true, unique: true, trim: true },
 
     // Payment method (coerced to uppercase)
     method: {

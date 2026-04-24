@@ -1,21 +1,34 @@
 function adminAuthHeaders() {
-	const token = sessionStorage.getItem('token') || localStorage.getItem('token')
-	return token
-		? {
-			Authorization: `Bearer ${token}`,
-			'Content-Type': 'application/json',
-		}
-		: { 'Content-Type': 'application/json' }
+	return { 'Content-Type': 'application/json' }
+}
+
+function getCsrfToken() {
+	return document.cookie
+		.split('; ')
+		.find((row) => row.startsWith('_csrf='))
+		?.split('=')[1] || ''
+}
+
+function withCsrfHeader(headers = {}, method = 'GET') {
+	const normalizedMethod = (method || 'GET').toUpperCase()
+	if (normalizedMethod === 'GET' || normalizedMethod === 'HEAD' || normalizedMethod === 'OPTIONS') {
+		return headers
+	}
+	return {
+		...headers,
+		'x-csrf-token': getCsrfToken(),
+	}
 }
 
 async function adminFetch(url, options = {}) {
+	const method = options.method || 'GET'
 	const opts = {
 		credentials: 'include',
 		...options,
-		headers: {
+		headers: withCsrfHeader({
 			...adminAuthHeaders(),
 			...(options.headers || {}),
-		},
+		}, method),
 	}
 
 	const res = await fetch(url, opts)
@@ -53,12 +66,9 @@ const userApiBase = `${backendOrigin}/api/users`
 const today = new Date().toISOString().slice(0, 10)
 
 function clearLocalAdminSession() {
-	sessionStorage.removeItem('token')
 	sessionStorage.removeItem('role')
 	sessionStorage.removeItem('isLoggedIn')
 	sessionStorage.removeItem('user')
-	localStorage.removeItem('token')
-	localStorage.removeItem('role')
 }
 
 async function logoutAdmin({ redirect = false } = {}) {
@@ -68,6 +78,9 @@ async function logoutAdmin({ redirect = false } = {}) {
 		await fetch(`${backendOrigin}/api/auth/logout`, {
 			method: 'POST',
 			credentials: 'include',
+			headers: {
+				'x-csrf-token': getCsrfToken(),
+			},
 		})
 	} catch (_err) {
 		// Ignore logout network failures and still clear client state.
@@ -100,11 +113,22 @@ const TICKET_BOXES = [
 	{ code: 'zoo_differently_abled', label: 'Differently Abled', category: 'Entry' },
 	{ code: 'parking_4w_lmv', label: 'Parking - 4 Wheeler (LMV)', category: 'Parking' },
 	{ code: 'parking_4w_hmv', label: 'Parking - 4 Wheeler (HMV)', category: 'Parking' },
-	{ code: 'parking_2w_3w', label: 'Parking - 2 & 3 Wheeler', category: 'Parking' },
+	{ code: 'parking_2w_3w', label: 'Parking - 2 Wheeler', category: 'Parking' },
 	{ code: 'battery_vehicle_adult', label: 'Battery Vehicle - Adult', category: 'Transport' },
 	{ code: 'battery_vehicle_child', label: 'Battery Vehicle - Child (5-12 yrs)', category: 'Transport' },
 	{ code: 'camera_video', label: 'Video Camera', category: 'Camera' },
 ]
+
+const REPORT_DISPLAY_LABEL_ALIASES = {
+	'parking - 2 & 3 wheeler': 'Parking - 2 Wheeler',
+}
+
+const toReportDisplayLabel = (label, itemCode = '') => {
+	const code = (itemCode || '').toString().trim().toLowerCase()
+	if (code === 'parking_2w_3w') return 'Parking - 2 Wheeler'
+	const normalized = (label || '').toString().trim().toLowerCase()
+	return REPORT_DISPLAY_LABEL_ALIASES[normalized] || label || ''
+}
 
 const CATEGORY_ORDER = {
 	zoo: 1,
@@ -188,6 +212,7 @@ async function openTicketPreview(ticketId, options = {}) {
 					<h4 class="park-name">Kurumbapatti Zoological Park</h4>
 					<div class="meta">
 						<div><strong>Booking ID:</strong> ${escapeHtml(data.ticketId || '—')}</div>
+						<div><strong>Transaction ID:</strong> ${escapeHtml(data.paymentReference || '—')}</div>
 						<div><strong>Visit Date:</strong> ${escapeHtml(data.visitDate || '—')}</div>
 						<div><strong>Booked At:</strong> ${data.bookedAt ? formatDateTime(data.bookedAt) : (data.issueDate ? formatDateTime(data.issueDate) : '—')}</div>
 						<div><strong>Source:</strong> ${options.source === 'counter' || (data.issuedBy) ? 'Counter' : 'Online'}</div>
@@ -289,30 +314,20 @@ const getCounterTicketIdFromLocation = () => {
 console.log('[admin-script] loaded', { page, href: window.location.href })
 
 function getCurrentRole() {
-	const storedRole = sessionStorage.getItem('role') || localStorage.getItem('role')
+	const storedRole = sessionStorage.getItem('role')
 	if (storedRole) return storedRole.toUpperCase()
-	const token = sessionStorage.getItem('token') || localStorage.getItem('token')
-	if (!token || typeof token !== 'string') return null
-	const parts = token.split('.')
-	if (parts.length !== 3) return null
 	try {
-		const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
-		const json = atob(base64)
-		const payload = JSON.parse(json)
-		return payload?.role ? String(payload.role).toUpperCase() : null
+		const user = JSON.parse(sessionStorage.getItem('user') || '{}')
+		return user?.role ? String(user.role).toUpperCase() : null
 	} catch (_err) {
 		return null
 	}
 }
 
 function getCurrentUserId() {
-	const token = sessionStorage.getItem('token') || localStorage.getItem('token')
-	if (!token || typeof token !== 'string') return null
-	const parts = token.split('.')
-	if (parts.length !== 3) return null
 	try {
-		const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
-		return payload?.userId || payload?.sub || null
+		const user = JSON.parse(sessionStorage.getItem('user') || '{}')
+		return user?.id || user?._id || null
 	} catch (_err) {
 		return null
 	}
@@ -341,28 +356,33 @@ async function loginWithCredentials({ email, password, secretCode, expectedRole,
 	try {
 		const res = await fetch('/api/auth/login', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				'x-csrf-token': getCsrfToken(),
+			},
 			body: JSON.stringify({ email, password, secretCode }),
+			credentials: 'include',
 		})
 
 		if (!res.ok) {
 			const data = await res.json().catch(() => ({}))
-			throw new Error(data?.message || 'Login failed')
+			const error = new Error(data?.message || 'Login failed')
+			error.status = res.status
+			throw error
 		}
 
 		const data = await res.json()
-		if (!data?.token || !data?.role) throw new Error('Invalid auth response')
+		if (!data?.role) throw new Error('Invalid auth response')
 		if (expectedRole && data.role !== expectedRole) throw new Error('Role not permitted for this console')
 
-		sessionStorage.setItem('token', data.token)
 		sessionStorage.setItem('role', data.role)
 		sessionStorage.setItem('isLoggedIn', 'true')
-		sessionStorage.setItem('user', JSON.stringify(data.user || {}))
-		localStorage.setItem('token', data.token)
-		localStorage.setItem('role', data.role)
+		sessionStorage.setItem('user', JSON.stringify({ ...(data.user || {}), role: data.role }))
 		if (typeof onSuccess === 'function') onSuccess()
+		return true
 	} catch (err) {
 		if (errorBox) errorBox.textContent = err?.message || 'Login failed'
+		throw err
 	}
 }
 
@@ -371,9 +391,30 @@ function initLogin() {
 	const form = document.getElementById('adminLoginForm')
 	if (!form) return
 	const errorBox = document.getElementById('loginError')
+	const submitButton = form.querySelector('button[type="submit"]')
+	let consecutiveFailures = 0
+
+	const setCooldown = (seconds = 60) => {
+		if (!submitButton) return
+		submitButton.disabled = true
+		let remaining = Number(seconds) || 60
+		const tick = () => {
+			if (remaining <= 0) {
+				submitButton.disabled = false
+				submitButton.textContent = 'Sign In'
+				consecutiveFailures = 0
+				return
+			}
+			submitButton.textContent = `Try again in ${remaining}s`
+			remaining -= 1
+			window.setTimeout(tick, 1000)
+		}
+		tick()
+	}
 
 	form.addEventListener('submit', (event) => {
 		event.preventDefault()
+		if (submitButton?.disabled) return
 		const formData = new FormData(form)
 		const email = formData.get('username')?.toString().trim()
 		const password = formData.get('password')?.toString().trim()
@@ -385,7 +426,27 @@ function initLogin() {
 		}
 
 		loginWithCredentials({ email, password, secretCode: otp, expectedRole: 'ADMIN', errorBox, onSuccess: () => window.location.href = '/admin/dashboard.html' })
+			.catch((error) => {
+				const status = Number(error?.status || 0)
+				if (status === 401 || status === 429) {
+					consecutiveFailures += 1
+					if (consecutiveFailures >= 5) {
+						if (errorBox) errorBox.textContent = 'Too many failed attempts. Please wait 60 seconds before retrying.'
+						setCooldown(60)
+					}
+				}
+			})
 	})
+
+	const passInput = document.getElementById('adminPasswordInput')
+	const toggleBtn = document.getElementById('togglePasswordBtn')
+	if (passInput && toggleBtn) {
+		toggleBtn.addEventListener('click', () => {
+			const type = passInput.getAttribute('type') === 'password' ? 'text' : 'password'
+			passInput.setAttribute('type', type)
+			toggleBtn.textContent = type === 'password' ? 'Show' : 'Hide'
+		})
+	}
 }
 
 function guardDashboard() {
@@ -402,30 +463,24 @@ function guardDashboard() {
 function initDashboard() {
 	__adminInitRan = true
 	setupNavigation()
-	const setupNames = ['setupBookings', 'setupCounterTickets', 'setupScannerLogs', 'setupAdoptions', 'setupReports', 'setupAnalytics', 'renderScannerLogs']
-	console.debug('[admin] setup availability', setupNames.reduce((acc, name) => {
-		acc[name] = typeof (globalThis[name] || window[name])
-		return acc
-	}, {}))
-	const callSetup = (name) => {
+	const safeCall = (fn, name) => {
 		try {
-			if (typeof globalThis[name] === 'function') return globalThis[name]()
-			if (typeof window[name] === 'function') return window[name]()
-			// Fallback: try to eval module-scoped identifier (may throw if undeclared)
-			const fn = (function () { try { return eval(name) } catch (_) { return null } })()
-			if (typeof fn === 'function') return fn()
-			console.warn('[admin-script] setup function not found (skipping):', name)
+			if (typeof fn === 'function') {
+				fn()
+			} else {
+				console.warn('[admin-script] setup function not found (skipping):', name)
+			}
 		} catch (e) {
-			console.error('[admin-script] error calling', name, e)
+			console.error(`[admin-script] error calling ${name}:`, e)
 		}
 	}
-	callSetup('setupDashboard')
-	callSetup('setupBookings')
-	callSetup('setupCounterTickets')
-	callSetup('setupScannerLogs')
-	callSetup('setupAdoptions')
-	callSetup('setupReports')
-	callSetup('setupAnalytics')
+	safeCall(typeof setupDashboard !== 'undefined' ? setupDashboard : null, 'setupDashboard')
+	safeCall(typeof setupBookings !== 'undefined' ? setupBookings : null, 'setupBookings')
+	safeCall(typeof setupCounterTickets !== 'undefined' ? setupCounterTickets : null, 'setupCounterTickets')
+	safeCall(typeof setupScannerLogs !== 'undefined' ? setupScannerLogs : null, 'setupScannerLogs')
+	safeCall(typeof setupAdoptions !== 'undefined' ? setupAdoptions : null, 'setupAdoptions')
+	safeCall(typeof setupReports !== 'undefined' ? setupReports : null, 'setupReports')
+	safeCall(typeof setupAnalytics !== 'undefined' ? setupAnalytics : null, 'setupAnalytics')
 	applyRoleVisibility()
 }
 
@@ -445,8 +500,18 @@ function setupNavigation() {
 		reports: 'Quick operational reports.',
 	}
 
+	const navUserMgmt = document.getElementById('navUserMgmt')
+	const navWebControl = document.getElementById('navWebControl')
+	if (navUserMgmt) navUserMgmt.addEventListener('click', () => window.location.href = '/admin/users.html')
+	if (navWebControl) navWebControl.addEventListener('click', () => window.location.href = '/admin/web-control.html')
+
 	navLinks.forEach((btn) => {
 		btn.addEventListener('click', () => {
+			const href = btn.dataset.href
+			if (href) {
+				window.location.href = href
+				return
+			}
 			const target = btn.dataset.target
 			if (!target) return
 			// update hash so direct links and history work
@@ -460,6 +525,7 @@ function setupNavigation() {
 
 	// Activate section based on hash (on load and when hash changes)
 	function handleSectionNavigation() {
+		if (page !== 'dashboard') return
 		const hash = (window.location.hash || '#overview').replace(/^#/, '')
 		const targetBtn = Array.from(navLinks).find((b) => String(b.dataset.target) === hash)
 		const targetPanel = document.getElementById(hash)
@@ -494,6 +560,7 @@ const setTextSafe = (id, value) => {
 
 function initUserManagement() {
 	applyRoleVisibility()
+	setupNavigation()
 
 	const addBtn = document.getElementById('addUserBtn')
 	const searchInput = document.getElementById('userSearchInput')
@@ -606,7 +673,7 @@ function initUserManagement() {
 		userId: null,
 		fullName: '',
 		email: '',
-		role: 'ADMIN',
+		role: 'COUNTER',
 		status: 'ACTIVE',
 		password: '',
 		isSubmitting: false,
@@ -650,7 +717,7 @@ function initUserManagement() {
 		})
 
 		roleSelect?.addEventListener('change', (event) => {
-			formState.role = (event.target.value || 'ADMIN').toUpperCase()
+			formState.role = (event.target.value || 'COUNTER').toUpperCase()
 			syncFormToDom()
 			syncSaveState()
 		})
@@ -1510,7 +1577,7 @@ function setupBookings() {
 	let searchTimeout
 
 	const setLoading = (message) => {
-		tableBody.innerHTML = `<tr><td colspan="9">${message}</td></tr>`
+		tableBody.innerHTML = `<tr><td colspan="10">${message}</td></tr>`
 	}
 
 	const updatePagination = () => {
@@ -1534,6 +1601,7 @@ function setupBookings() {
 					(b) => `
 				<tr>
 					<td>${b.ticketId}</td>
+					<td><span class="tabular-nums font-mono text-[11px]">${b.paymentReference || '—'}</span></td>
 					<td>${b.visitorName || '—'}</td>
 					<td>${b.visitorMobile || '—'}</td>
 					<td>${b.visitDate || '—'}</td>
@@ -1601,7 +1669,7 @@ function setupBookings() {
 			console.error('Failed to fetch bookings', error)
 			state.bookings = []
 			state.bookingPagination = { ...state.bookingPagination, page, total: 0, hasNext: false }
-			tableBody.innerHTML = `<tr><td colspan="9">${escapeHtml(error?.message || 'Unable to fetch bookings at this time')}</td></tr>`
+			tableBody.innerHTML = `<tr><td colspan="10">${escapeHtml(error?.message || 'Unable to fetch bookings at this time')}</td></tr>`
 			updatePagination()
 		}
 	}
@@ -1844,6 +1912,7 @@ function initBookingDetailsPage() {
 		const countValue = Number(data?.ticketCount || formatCount(data?.items) || 0)
 
 		setField('detailBookingId', data?.ticketId || ticketIdFromPath)
+		setField('detailTransactionId', data?.paymentReference || '—')
 		setField('detailVisitorName', data?.visitorName || '—')
 		setField('detailVisitorMobile', data?.visitorMobile || '—')
 		setField('detailVisitDate', data?.visitDate || '—')
@@ -2531,13 +2600,8 @@ function setupReports() {
 	const fromInput = document.getElementById('reportFrom')
 	const toInput = document.getElementById('reportTo')
 	const typeSelect = document.getElementById('reportType')
-	const sourceSelect = document.getElementById('reportSourceFilter')
-	const categorySelect = document.getElementById('reportCategoryFilter')
-	const ticketFilterInput = document.getElementById('reportTicketFilter')
 	const runBtn = document.getElementById('runReportBtn')
-	const exportCsvBtn = document.getElementById('exportCsvBtn')
-	const exportExcelBtn = document.getElementById('exportExcelBtn')
-	const exportPdfBtn = document.getElementById('exportPdfBtn')
+	const downloadPdfBtn = document.getElementById('downloadPdfBtn')
 	const tableHead = document.getElementById('reportTableHead')
 	const tableBody = document.getElementById('reportTableBody')
 	const meta = document.getElementById('reportMeta')
@@ -2560,14 +2624,12 @@ function setupReports() {
 		parking: 2,
 		transport: 3,
 		camera: 4,
+		special: 5,
 	}
 	const BALANCE_EPSILON = 0.01
 
 	const setExportsEnabled = (enabled) => {
-		const flag = !enabled
-		if (exportCsvBtn) exportCsvBtn.disabled = flag
-		if (exportExcelBtn) exportExcelBtn.disabled = flag
-		if (exportPdfBtn) exportPdfBtn.disabled = flag
+		if (downloadPdfBtn) downloadPdfBtn.disabled = !enabled
 	}
 
 	const resetTable = (message, colspan = 1) => {
@@ -2599,6 +2661,7 @@ function setupReports() {
 		if (key === 'parking') return 'Parking'
 		if (key === 'transport') return 'Transport'
 		if (key === 'camera') return 'Camera'
+		if (key === 'special') return 'Special'
 		if (!key) return 'Category'
 		return key.charAt(0).toUpperCase() + key.slice(1)
 	}
@@ -2613,6 +2676,19 @@ function setupReports() {
 		const code = (itemCode || '').toString().toLowerCase()
 		const text = (label || '').toString().toLowerCase()
 		return code === 'zoo_kid_zone' || text.includes('kids zone') || text.includes('kid zone')
+	}
+
+	const inferCategoryFromTicketType = ({ itemCode, label, category }) => {
+		const normalizedCategory = normalizeCategoryKey(category)
+		if (normalizedCategory) return normalizedCategory
+
+		const code = (itemCode || '').toString().trim().toLowerCase()
+		const text = (label || '').toString().trim().toLowerCase()
+		if (code.startsWith('parking_') || text.includes('parking')) return 'parking'
+		if (code.startsWith('battery_') || code.startsWith('transport_') || text.includes('battery') || text.includes('transport')) return 'transport'
+		if (code.startsWith('camera_') || text.includes('camera')) return 'camera'
+		if (code.startsWith('zoo_') || code === 'zoo_school_visit' || text.includes('school visit')) return 'entry'
+		return 'special'
 	}
 
 	const formatQuantityCell = (value) => Math.max(0, Math.round(toNumber(value))).toLocaleString('en-IN')
@@ -2801,7 +2877,7 @@ function setupReports() {
 			if (!itemCode) return
 			const record = {
 				itemCode,
-				label: (entry?.label || entry?.itemCode || entry?.code || 'Ticket').toString(),
+				label: toReportDisplayLabel((entry?.label || entry?.itemCode || entry?.code || 'Ticket').toString(), itemCode),
 				price: Math.max(0, toNumber(entry?.price)),
 				displayOrder: toNumber(entry?.displayOrder) || 999,
 				categoryKey: normalizeCategoryKey(entry?.category),
@@ -2811,6 +2887,45 @@ function setupReports() {
 			if (!previous || record.displayOrder < previous.displayOrder) {
 				dedupedPricing.set(itemCode, record)
 			}
+		})
+
+		// Include all ticket types returned by report aggregation even when pricing config is missing/stale.
+		;(Array.isArray(ticketWiseRows) ? ticketWiseRows : []).forEach((row) => {
+			const itemCode = (row?._id || row?.itemCode || '').toString().trim().toLowerCase()
+			if (!itemCode) return
+
+			const quantity = Math.max(0, Math.round(toNumber(row?.quantity)))
+			const amount = toNumber(row?.amount ?? row?.row_amount)
+			const fallbackLabel = toReportDisplayLabel((row?.ticketType || row?.itemLabel || row?.label || itemCode).toString(), itemCode)
+			const fallbackCategory = inferCategoryFromTicketType({
+				itemCode,
+				label: fallbackLabel,
+				category: row?.category,
+			})
+			const fallbackPrice = quantity > 0 ? amount / quantity : 0
+
+			if (!dedupedPricing.has(itemCode)) {
+				dedupedPricing.set(itemCode, {
+					itemCode,
+					label: fallbackLabel,
+					price: Math.max(0, fallbackPrice),
+					displayOrder: 999,
+					categoryKey: fallbackCategory,
+				})
+				return
+			}
+
+			const existing = dedupedPricing.get(itemCode)
+			if (!existing?.label || existing.label.toLowerCase() === itemCode) {
+				existing.label = fallbackLabel
+			}
+			if (!existing?.categoryKey) {
+				existing.categoryKey = fallbackCategory
+			}
+			if (!toNumber(existing?.price) && fallbackPrice > 0) {
+				existing.price = fallbackPrice
+			}
+			dedupedPricing.set(itemCode, existing)
 		})
 
 		const pricingRows = [...dedupedPricing.values()]
@@ -2920,6 +3035,18 @@ function setupReports() {
 						return
 					}
 
+					if (payment_mode === 'SPLIT') {
+						const total = resolveCounterBookingPaidAmount(booking)
+						const cash = toNumber(booking?.paymentBreakup?.cash)
+						const upi = toNumber(booking?.paymentBreakup?.upi)
+						allocated_rows.forEach((row) => {
+							const ratio = total > 0 ? row.paid_amount / total : 0
+							row.metric.cash_amount += cash * ratio
+							row.metric.bank_amount += upi * ratio
+						})
+						return
+					}
+
 					allocated_rows.forEach((row) => {
 						row.metric.bank_amount += row.paid_amount
 					})
@@ -3002,12 +3129,12 @@ function setupReports() {
 
 	const getFilters = () => {
 		return {
-			from: fromInput.value,
-			to: toInput.value,
-			uiType: typeSelect.value,
-			source: sourceSelect?.value || '',
-			category: categorySelect?.value || '',
-			ticketFilter: ticketFilterInput?.value?.trim() || '',
+			from: fromInput?.value,
+			to: toInput?.value,
+			uiType: typeSelect?.value || 'daily-summary',
+			source: '',
+			category: '',
+			ticketFilter: '',
 		}
 	}
 
@@ -3029,21 +3156,7 @@ function setupReports() {
 		setExportsEnabled(false)
 
 		try {
-			if (exportFormat !== 'json') {
-				const res = await fetch(`${adminApiBase}/reports?${params.toString()}`, {
-					headers: adminAuthHeaders(),
-				})
-				if (!res.ok) throw new Error('Export failed')
-				const blob = await res.blob()
-				const link = document.createElement('a')
-				const extension = exportFormat === 'excel' ? 'xlsx' : exportFormat === 'pdf' ? 'pdf' : 'csv'
-				link.href = URL.createObjectURL(blob)
-				link.download = `${uiType}-${from}-${to}.${extension}`
-				link.click()
-				URL.revokeObjectURL(link.href)
-				if (meta) meta.textContent = `Exported ${uiType} for ${from} to ${to}`
-				return
-			}
+
 
 			const summaryPromise = fetchReportRows({ type: apiType, from, to, source, category })
 			const tablePromise = buildCollectionSummaryData({ from, to, source, category, ticketFilter })
@@ -3061,10 +3174,99 @@ function setupReports() {
 		}
 	}
 
+	const downloadPDF = () => {
+		const { from, to, uiType, source, category, ticketFilter } = getFilters()
+		const totalTickets = document.getElementById('reportTotalTickets')?.textContent || '--'
+		const onlineTickets = document.getElementById('reportOnlineTickets')?.textContent || '--'
+		const counterTickets = document.getElementById('reportCounterTickets')?.textContent || '--'
+		const totalRevenue = document.getElementById('reportTotalRevenue')?.textContent || '₹ --'
+
+		const tableHeadHtml = tableHead.innerHTML
+		const tableBodyHtml = tableBody.innerHTML
+
+		const printWindow = window.open('', '_blank')
+		if (!printWindow) {
+			alert('Please allow popups to download the PDF.')
+			return
+		}
+
+		printWindow.document.write(`
+			<!DOCTYPE html>
+			<html>
+			<head>
+				<title>Report_${from}_to_${to}</title>
+				<style>
+					@page { size: A4; margin: 0.8cm; }
+					body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 10px; color: #333; line-height: 1.3; }
+					header { text-align: center; margin-bottom: 12px; border-bottom: 1.5px solid #0b3b2e; padding-bottom: 10px; }
+					h1 { margin: 0; color: #0b3b2e; font-size: 20px; }
+					.report-info { margin-top: 5px; font-size: 12px; color: #555; }
+					.summary-grid { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 15px; }
+					.stat-card { flex: 1; border: 1px solid #e0e0e0; padding: 10px; border-radius: 6px; text-align: center; background: #f8fdfb; }
+					.stat-card p { margin: 0; font-size: 9px; text-transform: uppercase; color: #666; font-weight: bold; }
+					.stat-card h3 { margin: 3px 0 0; font-size: 16px; color: #0b3b2e; }
+					table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10.5px; border: 1px solid #ddd; }
+					th, td { border: 1px solid #ddd; padding: 6px 5px; text-align: left; }
+					th { background-color: #0b3b2e; color: white; font-weight: 600; text-transform: uppercase; font-size: 9px; letter-spacing: 0.3px; }
+					.report-num { text-align: right; font-family: monospace; font-size: 10.5px; }
+					.report-group-row { background-color: #f0f4f2; font-weight: bold; color: #0b3b2e; }
+					.report-group-row td { border-bottom: 1px solid #ddd; }
+					.report-total-row { background-color: #0b3b2e !important; color: white !important; font-weight: bold; }
+					.report-total-row td { border-color: #0b3b2e; }
+					tr:nth-child(even):not(.report-group-row):not(.report-total-row) { background-color: #fafafa; }
+					.footer { margin-top: 20px; font-size: 10px; color: #888; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
+					@media print {
+						body { padding: 0; }
+						.stat-card { border: 1px solid #ccc; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+						th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+						.report-group-row { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+						.report-total-row { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+					}
+				</style>
+			</head>
+			<body>
+				<header>
+					<h1>Kurumbapatti Zoological Park Report</h1>
+					<div class="report-info">
+						<strong>Report:</strong> ${uiType} | <strong>Period:</strong> ${from} to ${to}
+					</div>
+					<div class="report-info">
+						<strong>Source:</strong> ${source || 'All'} | <strong>Cat:</strong> ${category || 'All'} | <strong>Search:</strong> ${ticketFilter || 'None'}
+					</div>
+				</header>
+
+				<div class="summary-grid">
+					<div class="stat-card"><p>Total Tickets</p><h3>${totalTickets}</h3></div>
+					<div class="stat-card"><p>Online Tickets</p><h3>${onlineTickets}</h3></div>
+					<div class="stat-card"><p>Counter Tickets</p><h3>${counterTickets}</h3></div>
+					<div class="stat-card"><p>Total Revenue</p><h3>${totalRevenue}</h3></div>
+				</div>
+
+				<table>
+					<thead>${tableHeadHtml}</thead>
+					<tbody>${tableBodyHtml}</tbody>
+				</table>
+
+				<div class="footer">
+					Showing summary for ${from} to ${to} — Generated on ${new Date().toLocaleString('en-IN')}
+				</div>
+
+				<script>
+					window.onload = () => {
+						setTimeout(() => {
+							window.print();
+							window.close();
+						}, 700);
+					};
+				</script>
+			</body>
+			</html>
+		`)
+		printWindow.document.close()
+	}
+
 	runBtn?.addEventListener('click', () => runReport('json'))
-	exportCsvBtn?.addEventListener('click', () => runReport('csv'))
-	exportExcelBtn?.addEventListener('click', () => runReport('excel'))
-	exportPdfBtn?.addEventListener('click', () => runReport('pdf'))
+	downloadPdfBtn?.addEventListener('click', () => downloadPDF())
 }
 
 function detailList(pairs) {

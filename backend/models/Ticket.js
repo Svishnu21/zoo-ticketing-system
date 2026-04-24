@@ -63,7 +63,7 @@ const ticketSchema = new Schema(
     ticketPricingId: { type: Schema.Types.ObjectId, ref: 'TicketPricing', index: true },
 
     // Human-friendly ticket code shown to guests
-    ticketId: { type: String, required: true, unique: true, trim: true, index: true },
+    ticketId: { type: String, required: true, unique: true, trim: true },
 
     // Alternate code field if a separate QR payload identifier is used
     ticketCode: { type: String, unique: true, sparse: true, trim: true },

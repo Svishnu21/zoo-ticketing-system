@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import mongoose from 'mongoose'
 import { Ticket } from '../models/Ticket.js'
 import { Booking } from '../models/Booking.js'
 import { ApiError } from '../utils/errors.js'
@@ -14,6 +15,8 @@ const BOOKING_FLOW_STATE = {
   OTP_PENDING: 'OTP_PENDING',
   COMPLETED: 'COMPLETED',
 }
+
+const TICKET_ID_PATTERN = /^KZP-[0-9]{6}-[A-Z0-9]{6}$/
 
 const verificationFlowStateByTokenHash = new Map()
 
@@ -62,7 +65,7 @@ const normalisePaymentBreakup = (value) => {
 }
 
 export const createBooking = async (payload = {}) => {
-  console.log('[booking] incoming payload', payload)
+  console.info('[booking] create_booking_requested')
 
   const visitDateInput = payload.visitDate
   const paymentMode = typeof payload.paymentMode === 'string' ? payload.paymentMode.toUpperCase() : 'ONLINE'
@@ -88,10 +91,6 @@ export const createBooking = async (payload = {}) => {
   for (const item of requestItems) {
     const itemCode = typeof item?.itemCode === 'string' ? item.itemCode.trim() : ''
     const categoryCode = resolveCategoryCodeForItem(itemCode, pricingMap)
-
-    console.log('ITEM CODE:', itemCode)
-    console.log('MAPPED CATEGORY:', categoryCode)
-    console.log('AVAILABLE PRICING KEYS:', typeof pricingMap.keys === 'function' ? Array.from(pricingMap.keys()) : Object.keys(pricingMap))
 
     const isFreeCategory = categoryCode === 'differentlyAbled' || categoryCode === 'childBelow5'
     const pricing = typeof pricingMap.get === 'function' ? pricingMap.get(categoryCode) : pricingMap[categoryCode]
@@ -131,7 +130,7 @@ export const createBooking = async (payload = {}) => {
     throw ApiError.badRequest('At least one ticket item with quantity greater than zero is required.')
   }
 
-  console.log('[booking] totals', {
+  console.info('[booking] totals', {
     backendTotal: totalAmount,
     itemsCount: resolvedItems.length,
   })
@@ -150,79 +149,87 @@ export const createBooking = async (payload = {}) => {
     mobile: payload.visitorMobile,
   })
 
-  const ticket = await Ticket.create({
-    ticketId,
-    visitDate,
-    issueDate: new Date(),
-    paymentMode,
-    paymentStatus,
-    ticketSource,
-    paymentBreakup,
-    items: resolvedItems,
-    ticketCategory: primaryItem?.itemCode || primaryItem?.categoryCode || 'MIXED',
-    quantity: quantityTotal,
-    unitPrice: primaryItem?.unitPrice,
-    lineTotal: totalAmount,
-    totalAmount,
-    qrToken,
-    verificationTokenHash,
-    qrUsed: false,
-    qrUsedAt: undefined,
-    visitorName: visitor.visitorName,
-    visitorEmail: visitor.visitorEmail,
-    visitorMobile: visitor.visitorMobile,
-  })
+  try {
+    const ticketResults = await Ticket.create([{
+      ticketId,
+      visitDate,
+      issueDate: new Date(),
+      paymentMode,
+      paymentStatus,
+      ticketSource,
+      paymentBreakup,
+      items: resolvedItems,
+      ticketCategory: primaryItem?.itemCode || primaryItem?.categoryCode || 'MIXED',
+      quantity: quantityTotal,
+      unitPrice: primaryItem?.unitPrice,
+      lineTotal: totalAmount,
+      totalAmount,
+      qrToken,
+      verificationTokenHash,
+      qrUsed: false,
+      qrUsedAt: undefined,
+      visitorName: visitor.visitorName,
+      visitorEmail: visitor.visitorEmail,
+      visitorMobile: visitor.visitorMobile,
+    }])
+    const ticket = ticketResults[0]
 
-  // Ensure a parent booking exists for all tickets
-  const bookingId = payload.bookingId || ticketId
-  const bookingType = ticketSource === 'ONLINE' ? 'PREBOOK' : 'WALKIN'
+    // Ensure a parent booking exists for all tickets
+    const bookingId = payload.bookingId || ticketId
+    const bookingType = ticketSource === 'ONLINE' ? 'PREBOOK' : 'WALKIN'
 
-  const bookingDoc = await Booking.create({
-    bookingId,
-    bookingCode: bookingId,
-    ticketSource,
-    bookingType,
-    issuedAt: new Date(),
-    issuedBy: payload.issuedBy,
-    visitDate,
-    totalAmount,
-    paymentStatus,
-    paymentMode,
-    status: 'CONFIRMED',
-    entryStatus: 'NOT_ENTERED',
-    items: resolvedItems.map((item) => ({
-      itemCode: item.itemCode,
-      ticketPricingId: item.ticketPricingId,
-      label: item.itemLabel || item.label,
-      unitPrice: item.unitPrice,
-      quantity: item.quantity,
-      lineTotal: item.amount,
-    })),
-    tickets: [ticket._id],
-    customerName: visitor.visitorName,
-    customerEmail: visitor.visitorEmail,
-    customerPhone: visitor.visitorMobile,
-    visitorName: visitor.visitorName,
-    visitorEmail: visitor.visitorEmail,
-    visitorMobile: visitor.visitorMobile,
-    isActive: true,
-  })
+    const bookingResults = await Booking.create([{
+      bookingId,
+      bookingCode: bookingId,
+      ticketSource,
+      bookingType,
+      issuedAt: new Date(),
+      issuedBy: payload.issuedBy,
+      visitDate,
+      totalAmount,
+      paymentStatus,
+      paymentMode,
+      status: payload.status || 'CONFIRMED',
+      entryStatus: 'NOT_ENTERED',
+      items: resolvedItems.map((item) => ({
+        itemCode: item.itemCode,
+        ticketPricingId: item.ticketPricingId,
+        label: item.itemLabel || item.label,
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+        lineTotal: item.amount,
+      })),
+      tickets: [ticket._id],
+      customerName: visitor.visitorName,
+      customerEmail: visitor.visitorEmail,
+      customerPhone: visitor.visitorMobile,
+      visitorName: visitor.visitorName,
+      visitorEmail: visitor.visitorEmail,
+      visitorMobile: visitor.visitorMobile,
+      isActive: true,
+    }])
+    const bookingDoc = bookingResults[0]
 
-  // Backfill ticket with booking linkage for reporting
-  ticket.bookingRef = bookingDoc._id
-  ticket.bookingId = bookingId
-  await ticket.save()
+    // Backfill ticket with booking linkage for reporting
+    await Ticket.updateOne(
+      { _id: ticket._id },
+      { $set: { bookingRef: bookingDoc._id, bookingId: bookingId } }
+    )
 
-  const qrImage = await generateQrDataUrl(qrToken)
+    const qrImage = await generateQrDataUrl(qrToken)
 
-  return {
-    ticket,
-    booking: bookingDoc,
-    qrImage,
-    verificationToken,
-    totalAmount,
-    visitDateIso,
-    pricedItems: resolvedItems,
+    return {
+      ticket,
+      booking: bookingDoc,
+      qrImage,
+      verificationToken,
+      totalAmount,
+      visitDateIso,
+      pricedItems: resolvedItems,
+    }
+  } catch (error) {
+    console.error('[booking] createBooking FAILED', error)
+    throw error
   }
 }
 
@@ -240,7 +247,6 @@ export const getTicketSummary = async (ticketId) => {
   return ticket
 }
 
-const TICKET_ID_PATTERN = /^KZP-[0-9]{6}-[A-Z0-9]{6}$/
 
 const DEFAULT_VERIFICATION_TOKEN_TTL_MINUTES = 30
 
@@ -303,9 +309,11 @@ export const getTicketForDisplay = async (ticketId, { verificationToken, allowTo
   if (!ticket) {
     throw ApiError.notFound('Ticket not found.')
   }
-  // Debug logs for tracing why QR might not render
-  console.log('Ticket found in DB for display:', !!ticket)
-  console.log('QR token (server-side only):', ticket.qrToken)
+
+  // --- Post-Audit Fix: Block QR visibility for pending/failed payments ---
+  if (!['PAID', 'SUCCESS'].includes(ticket.paymentStatus)) {
+    throw ApiError.forbidden('Ticket is not yet confirmed. QR is not available.')
+  }
 
   // Enforce verification token if stored.
   if (ticket.verificationTokenHash && !allowTokenBypass) {
@@ -378,7 +386,6 @@ export const getTicketForDisplay = async (ticketId, { verificationToken, allowTo
   let qrImage
   try {
     qrImage = await generateQrDataUrl(ticket.qrToken)
-    console.log('QR image generated:', typeof qrImage === 'string' && qrImage.startsWith('data:image'))
   } catch (error) {
     // Log server-side for operators; do not leak token or stack traces to clients
     console.error('Failed to generate QR image for ticket', { ticketId, reason: error?.message })

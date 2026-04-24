@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import { BookingDayOverride } from '../models/BookingDayOverride.js'
 import { ApiError } from '../utils/errors.js'
+import { todayIsoDate, isOnlineBookingCutoffReached } from '../utils/dates.js'
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const MAX_RANGE_DAYS = 120
@@ -47,6 +48,17 @@ const serializeOverride = (doc) => ({
 const resolveDayStatus = ({ isoDate, dateOnly, overrideDoc = null }) => {
   const isTuesday = dateOnly.getUTCDay() === 2
   const overrideStatus = overrideDoc?.status
+
+  // Hard cutoff: Online booking for today closes at 4:30 PM daily
+  if (isoDate === todayIsoDate() && isOnlineBookingCutoffReached()) {
+    return {
+      date: isoDate,
+      status: 'closed',
+      isTuesday,
+      source: 'daily_cutoff',
+      override: overrideDoc ? serializeOverride(overrideDoc) : null,
+    }
+  }
 
   if (overrideStatus === 'open') {
     return {
@@ -200,6 +212,10 @@ export const upsertBookingDayOverride = async ({ dateIso, status, createdBy } = 
 export const assertOnlineBookingDateOpen = async (rawIsoDate) => {
   const dayStatus = await getBookingDayStatus(rawIsoDate)
   if (dayStatus.status === 'open') return dayStatus
+
+  if (dayStatus.source === 'daily_cutoff') {
+    throw ApiError.badRequest('Online booking for today closed at 4:30 PM. Please book for another date.')
+  }
 
   if (dayStatus.isTuesday) {
     throw ApiError.badRequest('Zoo is closed on Tuesdays.')

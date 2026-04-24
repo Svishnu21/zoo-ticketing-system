@@ -29,8 +29,13 @@ node_modules/
 # environment variables
 .env
 .env.local
-
+.env.example
 # logs
 trace.log
 npm-debug.log*
+server.log
 
+# local artifacts
+backend/scratch/
+*.pdf
+CRASH_LOG.txt

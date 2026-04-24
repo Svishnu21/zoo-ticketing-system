@@ -10,8 +10,11 @@ const scanLogSchema = new Schema(
     // Human-readable ticket code (legacy KZP- format) for quick lookups
     ticketId: { type: String, trim: true, index: true },
 
-    // Optional booking reference
-    bookingId: { type: Schema.Types.ObjectId, ref: 'Booking', index: true },
+    // Human-readable booking identifier (e.g. KZP-...)
+    bookingId: { type: String, trim: true, index: true },
+
+    // ObjectId reference to parent booking for relational joins
+    bookingRef: { type: Schema.Types.ObjectId, ref: 'Booking', index: true },
 
     // Hash or opaque QR token (never store raw sensitive details)
     qrTokenHash: { type: String, default: null, index: true },

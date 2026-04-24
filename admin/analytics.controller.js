@@ -5,6 +5,17 @@ import { asyncHandler, ApiError } from '../backend/utils/errors.js'
 
 const router = express.Router()
 
+const ANALYTICS_TICKET_LABEL_ALIASES = {
+  'parking - 2 & 3 wheeler': 'Parking - 2 Wheeler',
+}
+
+const resolveAnalyticsTicketLabel = ({ itemCode, label }) => {
+  const code = (itemCode || '').toString().trim().toLowerCase()
+  if (code === 'parking_2w_3w') return 'Parking - 2 Wheeler'
+  const normalizedLabel = (label || '').toString().trim().toLowerCase()
+  return ANALYTICS_TICKET_LABEL_ALIASES[normalizedLabel] || label || ''
+}
+
 const parseDateOnly = (value) => {
   if (!value) return null
   const parsed = new Date(`${value}T00:00:00.000Z`)
@@ -180,7 +191,11 @@ const getTicketTypeRows = async (match) => {
     },
     { $sort: { amount: -1, quantity: -1, _id: 1 } },
   )
-  return Ticket.aggregate(pipeline)
+  const rows = await Ticket.aggregate(pipeline)
+  return (Array.isArray(rows) ? rows : []).map((row) => ({
+    ...row,
+    label: resolveAnalyticsTicketLabel({ itemCode: row?._id, label: row?.label }),
+  }))
 }
 
 const getCategoryRows = async (match) => {

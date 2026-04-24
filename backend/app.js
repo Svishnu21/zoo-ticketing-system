@@ -1,5 +1,9 @@
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
+import mongoSanitize from 'express-mongo-sanitize'
+import hpp from 'hpp'
 import fs from 'fs'
 import path from 'path'
 import React from 'react'
@@ -14,8 +18,10 @@ import counterRoutes from './routes/counterRoutes.js'
 import authRoutes from './routes/authRoutes.js'
 import userRoutes from './routes/userRoutes.js'
 import assignmentRoutes from './routes/assignmentRoutes.js'
+import paymentRoutes from './routes/payment.js'
 import adminRoutes from '../admin/admin.routes.js'
 import { requireAuth, requireRole, requireAdminSession } from './middleware/authMiddleware.js'
+import { setCsrfCookie, verifyCsrfToken } from './middleware/csrf.js'
 import { ApiError, errorHandler } from './utils/errors.js'
 import { getCounterTicket } from './services/counterBookingService.js'
 
@@ -443,6 +449,59 @@ export const createApp = () => {
   const app = express()
   const ADMIN_PATH = path.join(PUBLIC_PATH, 'admin')
 
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+
+  const corsOptions = {
+    origin: (origin, callback) => {
+      // Allow non-browser or same-origin requests with no Origin header.
+      if (!origin) return callback(null, true)
+      // In local development, allow all origins to avoid blocked assets when Vite auto-switches ports.
+      if (process.env.NODE_ENV !== 'production') {
+        return callback(null, true)
+      }
+      if (allowedOrigins.includes(origin)) return callback(null, true)
+      return callback(ApiError.forbidden('CORS origin not allowed.'))
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }
+
+  const authRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Too many authentication attempts. Please try again later.' },
+  })
+
+  const apiRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Too many requests. Please try again later.' },
+  })
+
+  const cspDirectives = {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "'unsafe-inline'", 'https://unpkg.com'],
+    styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+    imgSrc: ["'self'", 'data:', 'https:'],
+    fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+    connectSrc: ["'self'", 'https:', 'https://unpkg.com'],
+    baseUri: ["'self'"],
+    formAction: ["'self'"],
+    frameAncestors: ["'none'"],
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    cspDirectives.upgradeInsecureRequests = null
+  }
+
   const resolveAdminFile = (fileName) => {
     const candidates = [
       path.join(ADMIN_PATH, fileName),
@@ -469,8 +528,40 @@ export const createApp = () => {
   }
 
   app.set('trust proxy', 1)
-  app.use(cors({ origin: true, credentials: true }))
-  app.use(express.json({ limit: '1mb' }))
+  app.disable('x-powered-by')
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: cspDirectives,
+      },
+    }),
+  )
+  app.use(cors(corsOptions))
+  app.use(express.json({ limit: '50kb' }))
+  app.use(express.urlencoded({ extended: true, limit: '50kb' }))
+  app.use((req, _res, next) => {
+    // Express 5 exposes req.query via getter-only property; sanitize in place and avoid reassignment.
+    ['body', 'params', 'headers', 'query'].forEach((key) => {
+      const target = req[key]
+      if (target && typeof target === 'object') {
+        mongoSanitize.sanitize(target)
+      }
+    })
+    next()
+  })
+  app.use(hpp())
+  app.use(setCsrfCookie)
+
+  app.use('/api/auth/login', authRateLimiter)
+  app.use('/api/auth/register', authRateLimiter)
+  app.use('/api/auth/forgot-password', authRateLimiter)
+  app.use('/api/auth/otp', authRateLimiter)
+  app.use('/api/auth/reset-password', authRateLimiter)
+  app.use('/api/counter/login', authRateLimiter)
+  app.use('/api', apiRateLimiter)
+  app.use('/api', verifyCsrfToken)
+  app.use('/admin', verifyCsrfToken)
 
   // Prevent browser/proxy caching for sensitive booking-flow pages and ticket-fetch endpoints.
   app.use((req, res, next) => {
@@ -498,6 +589,11 @@ export const createApp = () => {
   // requests like `/js/counter.js` resolve during development.
   if (fs.existsSync(FRONTEND_PUBLIC)) {
     app.use(express.static(FRONTEND_PUBLIC))
+  }
+
+  // MOVED: Serve built frontend assets before route registrations so /assets/*.css and /assets/*.js are not intercepted.
+  if (fs.existsSync(DIST_PATH)) {
+    app.use(express.static(DIST_PATH))
   }
 
   // Serve friendly routes for static HTML from /public
@@ -600,34 +696,39 @@ export const createApp = () => {
 
   app.use('/api/tickets', bookingRoutes)
   app.use('/api/bookings', bookingRoutes)
+  app.use('/api/payment', paymentRoutes)
   app.use('/api/day-control', dayControlRoutes)
   app.use('/api', systemSettingsRoutes)
   app.use('/api/counter', requireAuth, requireRole('ADMIN', 'COUNTER'), counterRoutes)
   app.use('/api/scanner', requireAuth, requireRole('ADMIN', 'SCANNER'), scannerRoutes)
   app.use('/admin', requireAdminSession, adminRoutes)
 
-  // --- PDF ISOLATION TEST (no shared logic, no DB) ---
-  app.get('/__pdf_isolation_test__', async (_req, res, next) => {
-    try {
-      const doc = React.createElement(
-        Document,
-        null,
-        React.createElement(
-          Page,
-          { size: 'A4' },
-          React.createElement(Text, null, 'PDF ISOLATION TEST - OK'),
-        ),
-      )
+  if (process.env.NODE_ENV !== 'production') {
+    // --- PDF ISOLATION TEST (no shared logic, no DB) ---
+    app.get('/__pdf_isolation_test__', async (_req, res, next) => {
+      try {
+        const doc = React.createElement(
+          Document,
+          null,
+          React.createElement(
+            Page,
+            { size: 'A4' },
+            React.createElement(Text, null, 'PDF ISOLATION TEST - OK'),
+          ),
+        )
 
-      const buffer = await pdf(doc).toBuffer()
-      res.setHeader('Content-Type', 'application/pdf')
-      res.setHeader('Content-Disposition', 'inline; filename="pdf-isolation-test.pdf"')
-      res.setHeader('Content-Length', buffer.length)
-      return res.end(buffer)
-    } catch (error) {
-      return next(error)
-    }
-  })
+        const blob = await pdf(doc).toBlob()
+        const ab = await blob.arrayBuffer()
+        const buffer = Buffer.from(ab)
+        res.setHeader('Content-Type', 'application/pdf')
+        res.setHeader('Content-Disposition', 'inline; filename="pdf-isolation-test.pdf"')
+        res.setHeader('Content-Length', buffer.length)
+        return res.end(buffer)
+      } catch (error) {
+        return next(error)
+      }
+    })
+  }
 
   // --- Daily Summary PDF (binary-only, no redirects, placeholder data) ---
   app.get('/api/reports/daily-summary/pdf', async (_req, res, next) => {
@@ -648,7 +749,9 @@ export const createApp = () => {
         ),
       )
 
-      const buffer = await pdf(doc).toBuffer()
+      const blob = await pdf(doc).toBlob()
+      const ab = await blob.arrayBuffer()
+      const buffer = Buffer.from(ab)
       res.setHeader('Content-Type', 'application/pdf')
       res.setHeader('Content-Disposition', 'inline; filename="daily-summary.pdf"')
       res.setHeader('Content-Length', buffer.length)
@@ -667,8 +770,7 @@ export const createApp = () => {
   })
 
   if (fs.existsSync(DIST_PATH)) {
-    app.use(express.static(DIST_PATH))
-
+    // FIX 1: Keep only the React Router catch-all here. Static assets are served earlier.
     // Use `app.use` instead of a wildcard route string to avoid path-to-regexp
     // incompatibilities with certain versions of the matcher library.
     app.use((req, res, next) => {

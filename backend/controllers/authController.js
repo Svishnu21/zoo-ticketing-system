@@ -28,6 +28,22 @@ const clearAdminSessionCookie = (req, res) => {
 // Strip quotes and whitespace from environment values to avoid accidental mismatches
 const cleanEnv = (value) => (value ?? '').toString().trim().replace(/^['"]|['"]$/g, '')
 
+const logAuthFailure = (req, loginId, reason) => {
+  console.warn('[auth] login_failed', {
+    loginId,
+    reason,
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+    at: new Date().toISOString(),
+  })
+}
+
+const verifyEnvAdminPassword = async (password, envAdminPassword, envAdminPasswordHash) => {
+  if (envAdminPasswordHash) return verifyPassword(password, envAdminPasswordHash)
+  if (envAdminPassword) return password === envAdminPassword
+  return false
+}
+
 export const login = asyncHandler(async (req, res) => {
   const { username, email, password, secretCode } = req.body || {}
   const normalizedUsername = (username ?? '').toString().trim().toLowerCase()
@@ -41,13 +57,20 @@ export const login = asyncHandler(async (req, res) => {
 
   const envAdminUsername = cleanEnv(process.env.ADMIN_USERNAME).toLowerCase()
   const envAdminPassword = cleanEnv(process.env.ADMIN_PASSWORD)
+  const envAdminPasswordHash = cleanEnv(process.env.ADMIN_PASSWORD_HASH)
   const envAdminSecret = cleanEnv(process.env.ADMIN_SECRET_CODE)
 
   // TEMP/DEV ONLY: environment-based admin login with plaintext password. Replace with bcrypt later.
-  if (envAdminUsername && envAdminPassword && adminLoginId === envAdminUsername) {
-    if (password !== envAdminPassword) throw ApiError.unauthorized('Invalid username or password.')
-    if (!envAdminSecret) throw ApiError.unauthorized('Admin secret code not configured.')
-    if (!secretCode || secretCode !== envAdminSecret) throw ApiError.unauthorized('Invalid admin secret code.')
+  if (envAdminUsername && adminLoginId === envAdminUsername) {
+    const validAdminPassword = await verifyEnvAdminPassword(password, envAdminPassword, envAdminPasswordHash)
+    if (!validAdminPassword) {
+      logAuthFailure(req, normalizedLoginId, 'invalid_password')
+      throw ApiError.unauthorized('Invalid username or password.')
+    }
+    if (!envAdminSecret || !secretCode || secretCode !== envAdminSecret) {
+      logAuthFailure(req, normalizedLoginId, 'invalid_secret_code')
+      throw ApiError.unauthorized('Invalid username or password.')
+    }
 
     const adminUser = {
       _id: 'env-admin',
@@ -66,24 +89,38 @@ export const login = asyncHandler(async (req, res) => {
   // Database-backed login for COUNTER/SCANNER/Admin-from-DB
   const normalizedEmail = normaliseEmail(normalizedLoginId)
   const user = await User.findOne({ email: normalizedEmail })
-  if (!user) throw ApiError.unauthorized('Invalid credentials.')
+  if (!user) {
+    logAuthFailure(req, normalizedLoginId, 'user_not_found')
+    throw ApiError.unauthorized('Invalid credentials.')
+  }
+
+  if (user.lockUntil && Number(user.lockUntil) > Date.now()) {
+    const minutes = Math.ceil((Number(user.lockUntil) - Date.now()) / 60000)
+    throw new ApiError(429, `Account locked. Try again in ${minutes} minutes.`)
+  }
 
   if (user.status !== 'ACTIVE') {
     throw ApiError.forbidden('User is disabled.')
   }
 
   const valid = await verifyPassword(password, user.passwordHash)
-  if (!valid) throw ApiError.unauthorized('Invalid credentials.')
+  if (!valid) {
+    const attempts = Number(user.loginAttempts || 0) + 1
+    const update = { loginAttempts: attempts }
+    if (attempts >= 5) {
+      update.lockUntil = Date.now() + 15 * 60 * 1000
+    }
+    await User.updateOne({ _id: user._id }, { $set: update })
 
-  await User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } })
+    logAuthFailure(req, normalizedLoginId, 'invalid_password')
+    throw ApiError.unauthorized('Invalid credentials.')
+  }
+
+  await User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date(), loginAttempts: 0, lockUntil: 0 } })
 
   const accessToken = signAccessToken(user)
 
-  if ((user.role || '').toString().toUpperCase() === 'ADMIN') {
-    setAdminSessionCookie(req, res, accessToken)
-  } else {
-    clearAdminSessionCookie(req, res)
-  }
+  setAdminSessionCookie(req, res, accessToken)
 
   res.json({
     success: true,

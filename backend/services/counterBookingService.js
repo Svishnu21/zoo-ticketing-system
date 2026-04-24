@@ -1,3 +1,4 @@
+import mongoose from 'mongoose'
 import { Ticket } from '../models/Ticket.js'
 import { TicketIssue } from '../models/TicketIssue.js'
 import { ApiError } from '../utils/errors.js'
@@ -174,105 +175,7 @@ const recordTicketIssue = async ({ ticket, pricedItems, payload }) => {
     remarks: payload.remarks || payload.notes || payload.comment || payload.note,
   }
 
-  // Persist without blocking issuance; log and continue on error
-  try {
-    await TicketIssue.createSafe(doc)
-  } catch (err) {
-    console.error('Failed to record ticket issue', err?.message || err)
-  }
-}
-
-export const createCounterBooking = async (payload = {}) => {
-  const visitDate = payload.visitDate ?? todayIsoDate()
-  const paymentMode = typeof payload.paymentMode === 'string' ? payload.paymentMode.toUpperCase() : 'CASH'
-  assertPaymentModeAllowed(paymentMode)
-  assertCounterPaymentMode(paymentMode)
-
-  const paymentBreakup = normalisePaymentBreakup(paymentMode, payload)
-
-  if (payload.ticketSource && payload.ticketSource.toString().toUpperCase() === 'ONLINE') {
-    throw ApiError.badRequest('Counter API does not accept online booking payloads.')
-  }
-
-  const items = sanitizeCounterItems(payload.selectedItems ?? payload.items)
-  if (!items.length) {
-    throw ApiError.badRequest('At least one item with quantity greater than zero is required for counter booking.')
-  }
-
-  const issuedBy = typeof payload.issuedBy === 'string' && payload.issuedBy.trim() ? payload.issuedBy.trim() : 'COUNTER'
-
-  const bookingPayload = {
-    ...payload,
-    visitDate,
-    paymentMode,
-    paymentStatus: 'PAID',
-    ticketSource: 'COUNTER',
-    bookingType: 'WALKIN',
-    paymentBreakup,
-    items,
-    selectedItems: undefined,
-    // Counter flow omits visitor details; use neutral placeholders to satisfy existing validation
-    visitorName: payload.visitorName || issuedBy,
-    visitorMobile: payload.visitorMobile || '0000000000',
-    visitorEmail: payload.visitorEmail || '',
-  }
-
-  const { ticket, qrImage, visitDateIso, totalAmount, pricedItems, verificationToken } = await createBooking(bookingPayload)
-
-  await assertCounterTicketIntegrity({
-    ticket,
-    pricedItems,
-    expectedItemCount: items.length,
-    expectedTotal: totalAmount,
-  })
-
-  if (!Number.isFinite(totalAmount) || totalAmount < 0) {
-    await Ticket.deleteOne({ _id: ticket._id })
-    throw ApiError.badRequest('Counter ticket total is invalid.')
-  }
-
-  const isFreeTicket = Number.isFinite(totalAmount) && totalAmount === 0
-
-  // Validate payment amounts after server-side pricing to avoid diverging from online logic
-  if (paymentMode === 'CASH' && !isAmountEqual(paymentBreakup.cash, totalAmount)) {
-    await Ticket.deleteOne({ _id: ticket._id })
-    throw ApiError.badRequest('Cash amount must match the total amount.')
-  }
-
-  if (paymentMode === 'UPI' && !isAmountEqual(paymentBreakup.upi, totalAmount)) {
-    await Ticket.deleteOne({ _id: ticket._id })
-    throw ApiError.badRequest('UPI amount must match the total amount.')
-  }
-
-  if (paymentMode === 'SPLIT') {
-    const cash = Number(paymentBreakup.cash || 0)
-    const upi = Number(paymentBreakup.upi || 0)
-
-    if (!isFreeTicket) {
-      if (cash <= 0 || upi <= 0) {
-        await Ticket.deleteOne({ _id: ticket._id })
-        throw ApiError.badRequest('Split payment requires both cash and UPI amounts.')
-      }
-    }
-
-    if (!isAmountEqual(cash + upi, totalAmount)) {
-      await Ticket.deleteOne({ _id: ticket._id })
-      throw ApiError.badRequest('Cash + UPI amount must equal the total amount.')
-    }
-  }
-
-  await recordTicketIssue({ ticket, pricedItems, payload })
-
-  return {
-    ticket,
-    qrImage,
-    totalAmount,
-    visitDateIso,
-    pricedItems,
-    paymentBreakup,
-    issuedBy: bookingPayload.visitorName,
-    verificationToken,
-  }
+  await TicketIssue.create([doc])
 }
 
 export const getCounterTicket = async (ticketId, _opts = {}) => {
@@ -309,6 +212,110 @@ export const getCounterTicket = async (ticketId, _opts = {}) => {
     qrImage,
   }
 }
+
+export const createCounterBooking = async (payload = {}) => {
+  const visitDate = payload.visitDate ?? todayIsoDate()
+  const paymentMode = typeof payload.paymentMode === 'string' ? payload.paymentMode.toUpperCase() : 'CASH'
+  assertPaymentModeAllowed(paymentMode)
+  assertCounterPaymentMode(paymentMode)
+
+  const paymentBreakup = normalisePaymentBreakup(paymentMode, payload)
+
+  if (payload.ticketSource && payload.ticketSource.toString().toUpperCase() === 'ONLINE') {
+    throw ApiError.badRequest('Counter API does not accept online booking payloads.')
+  }
+
+  const items = sanitizeCounterItems(payload.selectedItems ?? payload.items)
+  if (!items.length) {
+    throw ApiError.badRequest('At least one item with quantity greater than zero is required for counter booking.')
+  }
+
+  const issuedBy = typeof payload.issuedBy === 'string' && payload.issuedBy.trim() ? payload.issuedBy.trim() : 'COUNTER'
+
+  // --- Fix 4: Server-side Idempotency Check (5s window) ---
+  const fiveSecondsAgo = new Date(Date.now() - 5000)
+  const duplicate = await Ticket.findOne({
+    ticketSource: 'COUNTER',
+    visitorName: issuedBy, // Operator ID stored here for counter tickets
+    quantity: items.reduce((sum, it) => sum + Number(it.quantity || 0), 0),
+    totalAmount: payload.totalAmount, // Optional check but helps
+    issueDate: { $gte: fiveSecondsAgo },
+  }).lean()
+
+  if (duplicate) {
+    console.warn('[counter] potential duplicate booking ignored', { ticketId: duplicate.ticketId })
+    return getCounterTicket(duplicate.ticketId)
+  }
+
+  try {
+    const bookingPayload = {
+      ...payload,
+      visitDate,
+      paymentMode,
+      paymentStatus: 'PAID',
+      ticketSource: 'COUNTER',
+      bookingType: 'WALKIN',
+      paymentBreakup,
+      items,
+      selectedItems: undefined,
+      visitorName: payload.visitorName || issuedBy,
+      visitorMobile: payload.visitorMobile || '0000000000',
+      visitorEmail: payload.visitorEmail || '',
+    }
+
+    const { ticket, qrImage, visitDateIso, totalAmount, pricedItems, verificationToken } = await createBooking(bookingPayload)
+
+    await assertCounterTicketIntegrity({
+      ticket,
+      pricedItems,
+      expectedItemCount: items.length,
+      expectedTotal: totalAmount,
+    })
+
+    if (!Number.isFinite(totalAmount) || totalAmount < 0) {
+      throw ApiError.badRequest('Counter ticket total is invalid.')
+    }
+
+    const isFreeTicket = Number.isFinite(totalAmount) && totalAmount === 0
+
+    // Validate payment amounts
+    if (paymentMode === 'CASH' && !isAmountEqual(paymentBreakup.cash, totalAmount)) {
+      throw ApiError.badRequest('Cash amount must match the total amount.')
+    }
+
+    if (paymentMode === 'UPI' && !isAmountEqual(paymentBreakup.upi, totalAmount)) {
+      throw ApiError.badRequest('UPI amount must match the total amount.')
+    }
+
+    if (paymentMode === 'SPLIT') {
+      const cash = Number(paymentBreakup.cash || 0)
+      const upi = Number(paymentBreakup.upi || 0)
+      if (!isFreeTicket && (cash <= 0 || upi <= 0)) {
+        throw ApiError.badRequest('Split payment requires both cash and UPI amounts.')
+      }
+      if (!isAmountEqual(cash + upi, totalAmount)) {
+        throw ApiError.badRequest('Cash + UPI amount must equal the total amount.')
+      }
+    }
+
+    await recordTicketIssue({ ticket, pricedItems, payload })
+
+    return {
+      ticket,
+      qrImage,
+      totalAmount,
+      visitDateIso,
+      pricedItems,
+      paymentBreakup,
+      issuedBy: bookingPayload.visitorName,
+      verificationToken,
+    }
+  } catch (error) {
+    console.error('[counter] booking FAILED', error)
+    throw error
+  }
+}
+
 
 export const getRecentCounterTickets = async () => {
   const startOfToday = new Date(todayIsoDate())

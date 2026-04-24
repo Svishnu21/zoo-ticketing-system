@@ -8,7 +8,7 @@ const userSchema = new Schema(
     fullName: { type: String, required: true, trim: true, maxlength: 120 },
 
     // Unique login identifier (email/username)
-    email: { type: String, required: true, lowercase: true, trim: true, unique: true, index: true },
+    email: { type: String, required: true, lowercase: true, trim: true, unique: true },
 
     // Password hash (bcrypt/argon); never store plaintext
     passwordHash: { type: String, required: true },
@@ -21,6 +21,10 @@ const userSchema = new Schema(
 
     // Last successful login timestamp
     lastLoginAt: { type: Date },
+
+    // Brute-force lockout controls
+    loginAttempts: { type: Number, default: 0 },
+    lockUntil: { type: Number, default: 0 },
   },
   { timestamps: true, versionKey: false },
 )

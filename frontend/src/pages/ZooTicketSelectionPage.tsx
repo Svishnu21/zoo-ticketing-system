@@ -253,8 +253,18 @@ function ZooTicketSelectionContent() {
   const [isCheckoutConfirmOpen, setIsCheckoutConfirmOpen] = useState(false)
   const [isClosedModalOpen, setIsClosedModalOpen] = useState(false)
   const [closedDayLabel, setClosedDayLabel] = useState('Tuesdays')
-  const [dayStatusMap, setDayStatusMap] = useState<Record<string, BookingDayStatus>>({})
+  const [closedModalContent, setClosedModalContent] = useState<{ title?: string; description?: string }>({})
+  const [dayStatusMap, setDayStatusMap] = useState<Record<string, { status: BookingDayStatus; source?: string }>>({})
   const { getPrice, tariffs } = useTariffPricing()
+
+  // Clear stale booking session state when this page mounts so a fresh
+  // booking always starts cleanly (fixes BUG 2 for subsequent attempts).
+  useEffect(() => {
+    sessionStorage.removeItem('bookingFlowState')
+    sessionStorage.removeItem('latestTxnId')
+    sessionStorage.removeItem('latestBookingId')
+    sessionStorage.removeItem('latestVerificationToken')
+  }, [])
 
   useEffect(() => {
     const hasShown = window.sessionStorage.getItem(counterOnlyInfoSessionKey) === '1'
@@ -291,7 +301,11 @@ function ZooTicketSelectionContent() {
   }, [tariffs, tariffOrder])
 
   const zooTicketOptions = useMemo(() => {
-    const list = resolvedTariffs.filter((t) => (t.category || 'zoo').toLowerCase() === 'zoo')
+    const list = resolvedTariffs.filter((t) => {
+      const isZooCategory = (t.category || 'zoo').toLowerCase() === 'zoo'
+      const isSchoolVisit = t.itemCode === 'zoo_school_visit'
+      return isZooCategory && !isSchoolVisit
+    })
     const ordered = [...list].sort((a, b) => tariffOrder(a) - tariffOrder(b))
     return ordered.map((t) => {
       const meta = labelFallbacks[t.itemCode || '']
@@ -380,11 +394,14 @@ function ZooTicketSelectionContent() {
           throw new Error('Unable to fetch booking day status.')
         }
 
-        const nextStatusMap: Record<string, BookingDayStatus> = {}
-        payload.data.days.forEach((day: { date?: string; status?: string }) => {
+        const nextStatusMap: Record<string, { status: BookingDayStatus; source?: string }> = {}
+        payload.data.days.forEach((day: { date?: string; status?: string; source?: string }) => {
           if (!day?.date) return
           if (day.status !== 'open' && day.status !== 'closed') return
-          nextStatusMap[day.date] = day.status
+          nextStatusMap[day.date] = {
+            status: day.status as BookingDayStatus,
+            source: day.source,
+          }
         })
 
         if (!cancelled) {
@@ -406,8 +423,8 @@ function ZooTicketSelectionContent() {
 
   const dateOptions = useMemo<DateOption[]>(() => {
     return baseDateOptions.map((date) => {
-      const status = dayStatusMap[date.key]
-      const isClosed = status ? status === 'closed' : date.defaultIsClosed
+      const info = dayStatusMap[date.key]
+      const isClosed = info ? info.status === 'closed' : date.defaultIsClosed
       return {
         key: date.key,
         day: date.day,
@@ -444,8 +461,20 @@ function ZooTicketSelectionContent() {
       if (!date) return
 
       if (date.isClosed) {
-        const dayName = parseLocalDateKey(date.key).toLocaleDateString('en-US', { weekday: 'long' })
-        setClosedDayLabel(`${dayName}s`)
+        const info = dayStatusMap[date.key]
+        if (info?.source === 'daily_cutoff') {
+          setClosedModalContent({
+            title: language === 'en' ? 'Online Booking Closed' : 'ஆன்லைன் முன்பதிவு முடிந்தது',
+            description:
+              language === 'en'
+                ? 'Online booking for today has closed at 4:30 PM. Please choose another date or visit the zoo counter for tickets.'
+                : 'இன்றைக்கான ஆன்லைன் முன்பதிவு மாலை 4:30 மணியுடன் முடிந்தது. தயவுசெய்து வேறொரு தேதியைத் தேர்ந்தெடுக்கவும் அல்லது கவுண்டரில் டிக்கெட் பெறவும்.',
+          })
+        } else {
+          const dayName = parseLocalDateKey(date.key).toLocaleDateString('en-US', { weekday: 'long' })
+          setClosedDayLabel(`${dayName}s`)
+          setClosedModalContent({})
+        }
         setIsClosedModalOpen(true)
         return
       }
@@ -454,7 +483,7 @@ function ZooTicketSelectionContent() {
       setSelectedDateIndex(index)
       setIsClosedModalOpen(false)
     },
-    [dateOptions],
+    [dateOptions, dayStatusMap, language],
   )
 
   const updateTicketQuantity = useCallback((id: string, quantity: number) => {
@@ -595,6 +624,33 @@ function ZooTicketSelectionContent() {
       year: 'numeric',
     })
   }, [dateOptions, selectedDateIndex, language])
+
+  const closedNotice = useMemo(() => {
+    const selected = dateOptions[selectedDateIndex]
+    if (!selected || !selected.isClosed) return null
+
+    const info = dayStatusMap[selected.key]
+    if (info?.source === 'daily_cutoff') {
+      return {
+        title: language === 'en' ? 'Online Booking Closed' : 'ஆன்லைன் முன்பதிவு முடிந்தது',
+        description:
+          language === 'en'
+            ? 'Online booking for today has closed at 4:30 PM. Please choose another date or visit the zoo counter for tickets.'
+            : 'இன்றைக்கான ஆன்லைன் முன்பதிவு மாலை 4:30 மணியுடன் முடிந்தது. தயவுசெய்து வேறொரு தேதியைத் தேர்ந்தெடுக்கவும் அல்லது கவுண்டரில் டிக்கெட் பெறவும்.',
+      }
+    }
+
+    const dayName = parseLocalDateKey(selected.key).toLocaleDateString(language === 'ta' ? 'ta-IN' : 'en-US', {
+      weekday: 'long',
+    })
+    return {
+      title: language === 'en' ? `Closed on ${dayName}s` : `${dayName} அன்று விடுமுறை`,
+      description:
+        language === 'en'
+          ? 'The zoo is closed on this date. Please pick another open date to continue booking tickets.'
+          : 'இந்த தேதியில் பூங்கா மூடப்பட்டுள்ளது. முன்பதிவை தொடர வேறு ஒரு திறந்த தேதியைத் தேர்ந்தெடுக்கவும்.',
+    }
+  }, [dateOptions, selectedDateIndex, dayStatusMap, language])
 
   const cartItems: CartOverlayItem[] = useMemo(() => {
     const ticketEntries: CartOverlayItem[] = zooTicketOptions.map((ticket) => ({
@@ -821,11 +877,9 @@ function ZooTicketSelectionContent() {
 
         {dateOptions[selectedDateIndex]?.isClosed ? (
           <section className="space-y-3 rounded-3xl border border-red-200 bg-red-50 p-6 text-center text-red-700 shadow">
-            <h2 className="text-lg font-bold">{language === 'en' ? 'Closed Day' : 'விடுமுறை நாள்'}</h2>
+            <h2 className="text-lg font-bold">{closedNotice?.title}</h2>
             <p className="text-sm text-red-800">
-              {language === 'en'
-                ? 'The zoo is closed on this date. Please pick another open date to continue booking tickets.'
-                : 'இந்த தேதியில் பூங்கா மூடப்பட்டுள்ளது. முன்பதிவை தொடர வேறு ஒரு திறந்த தேதியைத் தேர்ந்தெடுக்கவும்.'}
+              {closedNotice?.description}
             </p>
           </section>
         ) : (
@@ -931,6 +985,8 @@ function ZooTicketSelectionContent() {
       <ClosedDateModal
         isOpen={isClosedModalOpen}
         onClose={() => setIsClosedModalOpen(false)}
+        title={closedModalContent.title}
+        description={closedModalContent.description}
         closedDay={closedDayLabel}
       />
     </section>

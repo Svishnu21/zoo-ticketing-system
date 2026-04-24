@@ -1,3 +1,5 @@
+import fs from 'fs'
+
 export class ApiError extends Error {
   constructor(statusCode, message, details = undefined) {
     super(message)
@@ -58,6 +60,12 @@ export const errorHandler = (error, _req, res, _next) => {
   // Log server-side errors without leaking stack traces to clients
   if (isServerError) {
     console.error('[ERROR]', error)
+    try {
+      const log = `[${new Date().toISOString()}] ${error.message}\n${error.stack}\n\n`
+      fs.appendFileSync('CRASH_LOG.txt', log)
+    } catch (_logErr) {
+      // ignore log failures
+    }
   }
 
   const payload = {

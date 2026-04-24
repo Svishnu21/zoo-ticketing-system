@@ -11,9 +11,17 @@ const toDateOnlyUtc = (value) => {
 }
 
 export const todayIsoDate = () => {
+  // Use Asia/Kolkata timezone for the zoo's local date
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+}
+
+export const isOnlineBookingCutoffReached = () => {
   const now = new Date()
-  const normalized = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  return normalized.toISOString().slice(0, 10)
+  const options = { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hour12: false }
+  const timeStr = now.toLocaleString('en-US', options)
+  const [hours, minutes] = timeStr.split(':').map(Number)
+  // Cutoff at 16:30 (4:30 PM)
+  return hours > 16 || (hours === 16 && minutes >= 30)
 }
 
 export const normaliseVisitDate = (value) => {

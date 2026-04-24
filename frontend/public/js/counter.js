@@ -63,26 +63,48 @@ const COUNTER_TICKET_API = '/api/counter/tickets'
 const COUNTER_LOGIN_PATH = '/counter/login.html'
 
 const clearCounterSession = () => {
-  localStorage.removeItem('counterToken')
-  localStorage.removeItem('counterRole')
+  sessionStorage.removeItem('counterRole')
 }
 
-const getCounterToken = () => localStorage.getItem('counterToken')
+const getCsrfToken = () =>
+  document.cookie
+    .split('; ')
+    .find((row) => row.startsWith('_csrf='))
+    ?.split('=')[1] ?? ''
 
 const redirectToCounterLogin = () => {
   clearCounterSession()
-  window.location.href = COUNTER_LOGIN_PATH
+  fetch('/api/auth/logout', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'x-csrf-token': getCsrfToken(),
+    },
+  }).finally(() => {
+    window.location.href = COUNTER_LOGIN_PATH
+  })
 }
 
 const withCounterAuthHeaders = (base = {}) => {
-  const headers = { ...base }
-  const token = getCounterToken()
-  if (token) headers.Authorization = `Bearer ${token}`
-  return headers
+  return { ...base }
+}
+
+const withCsrfHeader = (headers = {}, method = 'GET') => {
+  const normalizedMethod = (method || 'GET').toUpperCase()
+  if (['GET', 'HEAD', 'OPTIONS'].includes(normalizedMethod)) return headers
+  return {
+    ...headers,
+    'x-csrf-token': getCsrfToken(),
+  }
 }
 
 async function counterFetch(path, options = {}) {
-  const response = await fetch(path, { ...options, headers: withCounterAuthHeaders(options.headers || {}) })
+  const method = options.method || 'GET'
+  const response = await fetch(path, {
+    credentials: 'include',
+    ...options,
+    headers: withCsrfHeader(withCounterAuthHeaders(options.headers || {}), method),
+  })
   if (response.status === 401) {
     redirectToCounterLogin()
     throw new Error('Counter session expired.')
@@ -149,9 +171,31 @@ function attachLoginHandler() {
   if (document.body?.dataset?.page !== 'login') return
   const form = document.getElementById('login-form')
   const errEl = document.getElementById('login-error')
+  const submitButton = form?.querySelector('button[type="submit"]')
+  let consecutiveFailures = 0
   if (!form) return
+
+  const setCooldown = (seconds = 60) => {
+    if (!submitButton) return
+    submitButton.disabled = true
+    let remaining = Number(seconds) || 60
+    const tick = () => {
+      if (remaining <= 0) {
+        submitButton.disabled = false
+        submitButton.textContent = 'Sign In'
+        consecutiveFailures = 0
+        return
+      }
+      submitButton.textContent = `Try again in ${remaining}s`
+      remaining -= 1
+      window.setTimeout(tick, 1000)
+    }
+    tick()
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault()
+    if (submitButton?.disabled) return
     if (errEl) errEl.textContent = ''
     const formData = new FormData(form)
     const email = (formData.get('username') || '').toString().trim()
@@ -164,28 +208,40 @@ function attachLoginHandler() {
     try {
       const resp = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'x-csrf-token': getCsrfToken() },
         body: JSON.stringify({ email, password }),
+        credentials: 'include',
       })
 
       const data = await resp.json().catch(() => ({}))
-      if (!resp.ok) throw new Error(data?.message || 'Login failed')
+      if (!resp.ok) {
+        const error = new Error(data?.message || 'Login failed')
+        error.status = resp.status
+        throw error
+      }
       if (data.role !== 'COUNTER') throw new Error('Role not permitted for counter console')
 
-      // Persist token for counter flows (localStorage only)
-      localStorage.setItem('counterToken', data.token)
-      localStorage.setItem('counterRole', data.role)
+      sessionStorage.setItem('counterRole', data.role)
       window.location.href = '/counter/issue.html'
     } catch (err) {
+      const status = Number(err?.status || 0)
+      if (status === 401 || status === 429) {
+        consecutiveFailures += 1
+        if (consecutiveFailures >= 5) {
+          if (errEl) errEl.textContent = 'Too many failed attempts. Please wait 60 seconds before retrying.'
+          setCooldown(60)
+          return
+        }
+      }
       if (errEl) errEl.textContent = err?.message || 'Login failed'
     }
   })
 }
 
 function guardCounter() {
-  const token = getCounterToken()
-  if (!token) {
-    redirectToCounterLogin()
+  if (!sessionStorage.getItem('counterRole')) {
+    // UI hint only; API enforcement remains server-side via cookie-auth.
+    console.info('Counter role marker not found; protected API calls will enforce auth.')
   }
 }
 
@@ -244,11 +300,19 @@ async function loadRecentTickets() {
           </div>
           <div class="recent-actions">
             <span class="status-badge ${statusClass}">${statusText}</span>
-            <button class="reprint-btn" onclick="reprintTicket('${ticket.ticketId}')">Reprint</button>
+            <button class="reprint-btn" data-ticket-id="${ticket.ticketId}">Reprint</button>
           </div>
         </li>
       `
     }).join('')
+
+    list.querySelectorAll('.reprint-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (typeof reprintTicket === 'function') {
+          reprintTicket(btn.dataset.ticketId)
+        }
+      })
+    })
   } catch (err) {
     console.warn('Failed to load recent tickets', err)
   }
@@ -496,6 +560,9 @@ function wirePaymentUI() {
       cash = Number(document.getElementById('cash-amount')?.value) || 0
       upi = Number(document.getElementById('upi-amount')?.value) || 0
     }
+    const submitBtn = form.querySelector('button[type="submit"]')
+    if (submitBtn) submitBtn.disabled = true
+
     const payload = {
       paymentMode,
       paymentStatus: 'PAID',
@@ -514,6 +581,7 @@ function wirePaymentUI() {
       if (!response.ok) throw body
       const ticketId = body?.ticketId || body?.bookingId || body?.ticket?.ticketId
       if (!ticketId) {
+        if (submitBtn) submitBtn.disabled = false
         showPayErrorPublic('Ticket generated but ticketId missing')
         return
       }
@@ -526,6 +594,7 @@ function wirePaymentUI() {
       }
       window.location.href = `/counter/success.html?ticketId=${encodeURIComponent(ticketId)}`
     } catch (err) {
+      if (submitBtn) submitBtn.disabled = false
       console.error(err)
       const message = err?.message || err?.error || 'Failed to generate ticket'
       showPayErrorPublic(message)
@@ -645,15 +714,30 @@ function updateTotals() {
 
 // --- Success page (printable ticket) rendering ---
 function initCounterSuccessPage() {
-  const token = getCounterToken()
-  if (!token) {
-    redirectToCounterLogin()
-    return
-  }
-
   const params = new URLSearchParams(window.location.search)
   const ticketId = params.get('ticketId')
   const errorMessage = document.getElementById('errorMessage')
+
+  const printBtn = document.getElementById('print-btn')
+  if (printBtn) {
+    printBtn.addEventListener('click', () => {
+      window.print()
+    })
+  }
+
+  window.addEventListener('beforeprint', () => {
+    const ticketElement = document.querySelector('.ticket')
+    if (ticketElement) {
+      const heightMm = Math.ceil((ticketElement.offsetHeight + 40) * 25.4 / 96)
+      let styleDiv = document.getElementById('dynamic-print-size')
+      if (!styleDiv) {
+        styleDiv = document.createElement('style')
+        styleDiv.id = 'dynamic-print-size'
+        document.head.appendChild(styleDiv)
+      }
+      styleDiv.textContent = `@page { size: 80mm ${heightMm}mm; margin: 0; }`
+    }
+  })
 
   if (!ticketId) {
     showError('Ticket ID is missing in the URL.', errorMessage)
@@ -664,23 +748,10 @@ function initCounterSuccessPage() {
 }
 
 async function fetchTicket(ticketId, errorContainer) {
-  const token = getCounterToken()
-
-  // Token is mandatory for protected counter routes
-  if (!token) {
-    console.warn('Counter success: no counterToken found in storage; redirecting to login')
-    clearCounterSession()
-    redirectToCounterLogin()
-    return
-  }
-
   try {
-    const headers = { Authorization: `Bearer ${token}` }
-    console.log('Counter success: token (masked)', token ? `${token.slice(0, 8)}...` : 'none')
-    console.log('Counter success: sending headers', headers)
-
     const response = await fetch(`${COUNTER_TICKET_API}/${encodeURIComponent(ticketId)}`, {
-      headers,
+      credentials: 'include',
+      headers: withCounterAuthHeaders(),
     })
 
     if (response.status === 401) {

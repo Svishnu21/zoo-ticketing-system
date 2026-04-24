@@ -1,6 +1,7 @@
 import express from 'express'
 import { asyncHandler } from '../utils/errors.js'
 import { SystemSetting } from '../models/SystemSetting.js'
+import { validate, freezeControlRules } from '../middleware/requestValidation.js'
 
 const router = express.Router()
 
@@ -41,6 +42,7 @@ router.get(
 
 router.post(
   '/system-settings/update-freeze',
+  validate(freezeControlRules),
   asyncHandler(async (req, res) => {
     const freezeOnlineBooking = req.body?.freezeOnlineBooking
     const freezeMessage = req.body?.freezeMessage

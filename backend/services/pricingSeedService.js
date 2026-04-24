@@ -12,6 +12,7 @@ const DEFAULT_TICKET_PRICING = [
     price: 20,
     isActive: true,
   },
+  { code: 'zoo_school_visit', categoryCode: 'schoolVisitEntry', label: 'School Visit', category: 'zoo', price: 10, isActive: true },
   { code: 'zoo_child_free', categoryCode: 'childBelow5', label: 'Entry - Child (below 5)', category: 'zoo', price: 0, isActive: true },
   { code: 'zoo_differently_abled', categoryCode: 'differentlyAbled', label: 'Entry - Differently Abled', category: 'zoo', price: 0, isActive: true },
   { code: 'camera_video', categoryCode: 'videoCamera', label: 'Video Camera', category: 'camera', price: 150, isActive: true },

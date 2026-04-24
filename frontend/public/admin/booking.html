@@ -14,14 +14,14 @@
           <p>Read-only oversight</p>
         </div>
         <nav class="nav">
-          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html'">Overview</button>
-          <button class="nav-link active" onclick="window.location.href='/admin/dashboard.html#bookings'">Bookings</button>
-          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#counter'">Counter</button>
-          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#qrlogs'">QR Logs</button>
-          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#adoptions'">Adoptions</button>
-          <button class="nav-link" id="navUserMgmt" data-requires-role="ADMIN" onclick="window.location.href='/admin/users.html'">User Management</button>
-          <button class="nav-link" onclick="window.location.href='/admin/dashboard.html#reports'">Reports</button>
-          <button class="nav-link" onclick="window.location.href='/admin/web-control.html'">Web Control</button>
+          <button class="nav-link" data-href="/admin/dashboard.html">Overview</button>
+          <button class="nav-link active" data-href="/admin/dashboard.html#bookings">Bookings</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#counter">Counter</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#qrlogs">QR Logs</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#adoptions">Adoptions</button>
+          <button class="nav-link" id="navUserMgmt" data-requires-role="ADMIN" data-href="/admin/users.html">User Management</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#reports">Reports</button>
+          <button class="nav-link" data-href="/admin/web-control.html">Web Control</button>
         </nav>
         <div class="sidebar-footer">
           <button id="logoutBtn" class="btn ghost">Logout</button>
@@ -49,6 +49,7 @@
 
           <dl class="detail-list">
             <div><dt>Booking ID</dt><dd id="detailBookingId">--</dd></div>
+            <div><dt>Transaction ID</dt><dd id="detailTransactionId">--</dd></div>
             <div><dt>Visitor Name</dt><dd id="detailVisitorName">--</dd></div>
             <div><dt>Mobile Number</dt><dd id="detailVisitorMobile">--</dd></div>
             <div><dt>Visit Date</dt><dd id="detailVisitDate">--</dd></div>

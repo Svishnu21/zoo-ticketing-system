@@ -143,7 +143,7 @@ router.get(
       .sort({ createdAt: -1, issueDate: -1 })
       .skip(skip)
       .limit(limit)
-      .select('ticketId visitDate issueDate createdAt totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt usedVia usedAt visitorName visitorMobile items')
+      .select('ticketId bookingRef visitDate issueDate createdAt totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt usedVia usedAt visitorName visitorMobile items')
 
     const [tickets, total] = await Promise.all([query.lean(), Ticket.countDocuments(match)])
 
@@ -163,15 +163,25 @@ router.get(
 
     const paymentMap = {}
     if (tickets.length) {
-      const payments = await Payment.find({ ticketId: { $in: tickets.map((t) => t._id) } })
-        .select('ticketId status provider providerPaymentId mode amount')
+      const ticketIds = tickets.map((t) => t._id)
+      const bookingIds = tickets.filter((t) => t.bookingRef).map((t) => t.bookingRef)
+
+      const payments = await Payment.find({
+        $or: [{ ticketId: { $in: ticketIds } }, { bookingId: { $in: bookingIds } }],
+      })
+        .select('ticketId bookingId status provider providerPaymentId mode amount')
         .lean()
+
       payments.forEach((payment) => {
-        paymentMap[payment.ticketId.toString()] = payment
+        if (payment.ticketId) paymentMap[payment.ticketId.toString()] = payment
+        if (payment.bookingId) paymentMap[payment.bookingId.toString()] = payment
       })
     }
 
-    const rows = tickets.map((ticket) => presentBookingRow(ticket, paymentMap[ticket._id.toString()]))
+    const rows = tickets.map((ticket) => {
+      const payment = paymentMap[ticket._id.toString()] || (ticket.bookingRef ? paymentMap[ticket.bookingRef.toString()] : null)
+      return presentBookingRow(ticket, payment)
+    })
 
     res.json({
       data: rows,

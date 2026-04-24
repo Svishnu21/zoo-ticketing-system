@@ -23,6 +23,5 @@ const counterSchema = new Schema(
   { timestamps: true, versionKey: false },
 )
 
-counterSchema.index({ status: 1 })
 
 export const Counter = mongoose.model('Counter', counterSchema)

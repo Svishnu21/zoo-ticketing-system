@@ -30,9 +30,24 @@ export const validateAndConsumeQrToken = async (token, { gateId } = {}) => {
   const todayDateOnly = new Date(`${todayIso}T00:00:00.000Z`)
   const now = new Date()
 
-  // Atomic update prevents replay: only the first valid scan flips the status from unused to used
+  // --- Fix 7: 5:00 PM (17:00 IST) server-side expiry ---
+  // Asia/Kolkata is UTC+5:30
+  const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000))
+  if (istTime.getUTCHours() >= 17) {
+    throw ApiError.badRequest('Ticket expired. Entry is closed for today after 05:00 PM IST.', { code: 'EXPIRED' })
+  }
+
+  const cleanToken = String(token || '').trim()
+
+  // Atomic update prevents replay: only the first valid scan flips the status from unused to used.
+  // Enforcement: strictly verify paymentStatus is PAID (for counter/admin) or SUCCESS (for online).
   const ticket = await Ticket.findOneAndUpdate(
-    { qrToken: token, qrUsed: false, visitDate: todayDateOnly },
+    {
+      $or: [{ qrToken: cleanToken }, { ticketId: cleanToken }],
+      qrUsed: false,
+      visitDate: todayDateOnly,
+      paymentStatus: { $in: ['PAID', 'SUCCESS'] },
+    },
     {
       $set: {
         qrUsed: true,
@@ -43,34 +58,39 @@ export const validateAndConsumeQrToken = async (token, { gateId } = {}) => {
         scannedAt: now,
       },
     },
-    { new: true, projection: { ticketId: 1, visitDate: 1, qrUsedAt: 1, bookingId: 1, bookingRef: 1 } },
+    { new: true, projection: { ticketId: 1, visitDate: 1, qrUsedAt: 1, bookingId: 1, bookingRef: 1, paymentStatus: 1 } },
   ).lean()
 
   if (ticket) {
-    await logScan({ ticketId: ticket.ticketId, ticketRef: ticket._id, bookingId: ticket.bookingId, qrToken: token, result: 'success', gateId })
+    await logScan({ ticketId: ticket.ticketId, ticketRef: ticket._id, bookingId: ticket.bookingId, qrToken: cleanToken, result: 'success', gateId })
     return ticket
   }
 
-  const existing = await Ticket.findOne({ qrToken: token })
-    .select('visitDate qrUsed qrUsedAt ticketId bookingId')
+  const existing = await Ticket.findOne({ $or: [{ qrToken: cleanToken }, { ticketId: cleanToken }] })
+    .select('visitDate qrUsed qrUsedAt ticketId bookingId paymentStatus')
     .lean()
-
+  
   if (!existing) {
-    await logScan({ ticketId: undefined, qrToken: token, result: 'invalid_token', gateId })
+    await logScan({ ticketId: undefined, qrToken: cleanToken, result: 'invalid_token', gateId })
     throw ApiError.notFound('QR code is invalid.', { code: 'INVALID' })
   }
 
+  if (!['PAID', 'SUCCESS'].includes(existing.paymentStatus)) {
+    await logScan({ ticketId: existing.ticketId, ticketRef: existing._id, bookingId: existing.bookingId, qrToken: cleanToken, result: 'payment_pending', gateId })
+    throw ApiError.forbidden('Payment pending. User must pay before entry.', { code: 'PAYMENT_PENDING', ticketId: existing.ticketId })
+  }
+
   if (existing.qrUsed) {
-    await logScan({ ticketId: existing.ticketId, ticketRef: existing._id, bookingId: existing.bookingId, qrToken: token, result: 'already_used', gateId })
+    await logScan({ ticketId: existing.ticketId, ticketRef: existing._id, bookingId: existing.bookingId, qrToken: cleanToken, result: 'already_used', gateId })
     throw ApiError.conflict('QR code has already been used.', { code: 'ALREADY_USED' })
   }
 
   const visitDateIso = existing.visitDate instanceof Date ? existing.visitDate.toISOString().slice(0, 10) : undefined
   if (visitDateIso !== todayIso) {
-    await logScan({ ticketId: existing.ticketId, ticketRef: existing._id, bookingId: existing.bookingId, qrToken: token, result: 'invalid_date', gateId })
+    await logScan({ ticketId: existing.ticketId, ticketRef: existing._id, bookingId: existing.bookingId, qrToken: cleanToken, result: 'invalid_date', gateId })
     throw ApiError.badRequest('Ticket is not valid for today.', { code: 'INVALID_DATE' })
   }
 
-  await logScan({ ticketId: existing.ticketId, ticketRef: existing._id, bookingId: existing.bookingId, qrToken: token, result: 'error', gateId })
+  await logScan({ ticketId: existing.ticketId, ticketRef: existing._id, bookingId: existing.bookingId, qrToken: cleanToken, result: 'error', gateId })
   throw ApiError.badRequest('QR code could not be validated.')
 }

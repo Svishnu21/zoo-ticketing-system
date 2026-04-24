@@ -93,7 +93,7 @@ export function Header() {
   }
 
   return (
-    <header ref={headerRef} className="sticky top-0 z-50 shadow-forest-sm">
+    <header ref={headerRef} className="sticky top-0 z-50 shadow-forest-sm print:hidden">
       <div className="bg-gradient-forest text-white">
         <div className="container flex flex-wrap items-center justify-center gap-4 py-2 text-xs font-semibold sm:justify-between sm:text-sm">
           <span className="inline-flex items-center gap-2">

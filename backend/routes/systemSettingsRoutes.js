@@ -2,6 +2,7 @@ import express from 'express'
 import { asyncHandler } from '../utils/errors.js'
 import { requireAuth, requireRole } from '../middleware/authMiddleware.js'
 import { getSystemSettings, updateFreezeControl } from '../services/systemSettingsService.js'
+import { validate, freezeControlRules } from '../middleware/requestValidation.js'
 
 const router = express.Router()
 
@@ -21,6 +22,7 @@ router.post(
   '/update-freeze',
   requireAuth,
   requireRole('ADMIN'),
+  validate(freezeControlRules),
   asyncHandler(async (req, res) => {
     const freezeOnlineBooking = req.body?.freezeOnlineBooking
     const freezeMessage = req.body?.freezeMessage

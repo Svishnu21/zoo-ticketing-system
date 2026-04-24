@@ -8,7 +8,7 @@ let isAdminSession = false
 document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search)
   const ticketId = params.get('ticketId')
-  const hasAdminSession = Boolean(sessionStorage.getItem('token') || localStorage.getItem('token'))
+  const hasAdminSession = Boolean(sessionStorage.getItem('role') || sessionStorage.getItem('isLoggedIn'))
   isAdminSession = hasAdminSession
   const preferAdminFetch = hasAdminSession
   const verificationToken = params.get('token') || sessionStorage.getItem('latestVerificationToken')
@@ -90,12 +90,7 @@ async function fetchAdminTicket(ticketId) {
 }
 
 function adminAuthHeaders() {
-  const token = sessionStorage.getItem('token') || localStorage.getItem('token')
-  if (!token) return { 'Content-Type': 'application/json' }
-  return {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  }
+  return { 'Content-Type': 'application/json' }
 }
 
 function computeTicketCount(items) {
@@ -355,3 +350,17 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
 }
+
+window.addEventListener('beforeprint', () => {
+  const ticketElement = document.querySelector('.ticket');
+  if (ticketElement) {
+    const heightMm = Math.ceil((ticketElement.offsetHeight + 40) * 25.4 / 96);
+    let styleDiv = document.getElementById('dynamic-print-size');
+    if (!styleDiv) {
+      styleDiv = document.createElement('style');
+      styleDiv.id = 'dynamic-print-size';
+      document.head.appendChild(styleDiv);
+    }
+    styleDiv.textContent = `@page { size: 80mm ${heightMm}mm; margin: 0; }`;
+  }
+});

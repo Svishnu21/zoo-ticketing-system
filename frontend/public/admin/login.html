@@ -20,11 +20,14 @@
           </label>
           <label>
             <span>Password</span>
-            <input type="password" name="password" placeholder="Enter password" required />
+            <div style="position: relative; display: flex; align-items: center;">
+              <input type="password" id="adminPasswordInput" name="password" placeholder="Enter password" required style="width: 100%; padding-right: 3rem;" />
+              <button type="button" id="togglePasswordBtn" style="position: absolute; right: 0.5rem; background: none; border: none; cursor: pointer; color: #15803d; font-size: 0.85rem; font-weight: 600; padding: 0.2rem;">Show</button>
+            </div>
           </label>
           <label>
             <span>Secure OTP</span>
-            <input type="password" name="otp" placeholder="4-digit OTP" maxlength="4" required />
+            <input type="password" name="otp" placeholder="Enter Secure OTP" required />
           </label>
           <button type="submit" class="btn primary">Access Dashboard</button>
           <p class="form-hint">Use your assigned credentials. Contact the park IT desk for support.</p>

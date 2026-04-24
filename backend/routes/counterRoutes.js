@@ -9,18 +9,24 @@ import {
 } from '../controllers/counterBookingController.js'
 import { postCounterLogin } from '../controllers/counterAuthController.js'
 import { requireAuth, requireRole } from '../middleware/authMiddleware.js'
+import {
+  validate,
+  counterLoginRules,
+  counterBookingRules,
+  counterTicketIdRules,
+} from '../middleware/requestValidation.js'
 
 const router = express.Router()
 
-router.post('/login', postCounterLogin)
+router.post('/login', validate(counterLoginRules), postCounterLogin)
 
 router.use(requireAuth, requireRole('ADMIN', 'COUNTER'))
 
 router.get('/pricing', getCounterPricingController)
-router.post('/bookings', postCounterBooking)
+router.post('/bookings', validate(counterBookingRules), postCounterBooking)
 router.get('/recent', getCounterRecent)
 router.get('/history', getCounterHistoryController)
-router.get('/tickets/:id', getCounterTicketController)
+router.get('/tickets/:id', validate(counterTicketIdRules), getCounterTicketController)
 router.get('/health/missing-items', getCounterMissingItemsController)
 
 export default router
