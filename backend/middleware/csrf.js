@@ -38,6 +38,9 @@ export const verifyCsrfToken = (req, res, next) => {
   const safeMethods = ['GET', 'HEAD', 'OPTIONS']
   if (safeMethods.includes((req.method || '').toUpperCase())) return next()
 
+  const publicRoutes = ['/api/payment/success', '/api/payment/failure', '/api/payment/webhook']
+  if (publicRoutes.includes(req.path)) return next()
+
   const cookies = parseCookies(req.headers?.cookie)
 
   // Enforce CSRF validation for cookie-authenticated sessions only.

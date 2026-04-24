@@ -462,7 +462,8 @@ export const createApp = () => {
       if (process.env.NODE_ENV !== 'production') {
         return callback(null, true)
       }
-      if (allowedOrigins.includes(origin)) return callback(null, true)
+      const isEasebuzz = (origin || '').toString().toLowerCase().includes('easebuzz.in')
+      if (allowedOrigins.includes(origin) || isEasebuzz) return callback(null, true)
       return callback(ApiError.forbidden('CORS origin not allowed.'))
     },
     credentials: true,
