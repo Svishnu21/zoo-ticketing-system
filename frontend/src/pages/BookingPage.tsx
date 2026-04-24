@@ -1,7 +1,9 @@
 // Booking page for collecting visitor details and initiating Easebuzz payment.
 import { useMemo, useState } from 'react'
 
-const API_BASE_URL = (import.meta as ImportMeta & { env: { VITE_API_BASE_URL?: string } }).env.VITE_API_BASE_URL || 'http://localhost:5000'
+const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:5000'
+  : ''
 
 const TICKET_TYPES = [
   { key: 'ADULT', label: 'Adult', unitPrice: 100 },
