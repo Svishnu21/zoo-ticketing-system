@@ -1,5 +1,6 @@
 // Booking page for collecting visitor details and initiating Easebuzz payment.
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
   ? 'http://localhost:5000'
@@ -21,10 +22,13 @@ const initialQuantities: Quantities = {
 }
 
 export function BookingPage() {
+  const navigate = useNavigate()
   const [customerName, setCustomerName] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [visitDate, setVisitDate] = useState('')
+  const [pendingTxnId, setPendingTxnId] = useState<string | null>(null)
+  const [isVerifying, setIsVerifying] = useState(false)
   const [selectedTicketType, setSelectedTicketType] = useState<TicketKey>('ADULT')
   const [quantities, setQuantities] = useState<Quantities>(initialQuantities)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -46,6 +50,41 @@ export function BookingPage() {
   }, [quantities])
 
   const totalAmount = useMemo(() => items.reduce((sum, item) => sum + item.lineTotal, 0), [items])
+
+  // --- Handle 'Safety Net' for missed redirects ---
+  useEffect(() => {
+    const lastTxnId = sessionStorage.getItem('latestTxnId')
+    const lastBookingId = sessionStorage.getItem('latestBookingId')
+    if (lastTxnId && lastBookingId) {
+      setPendingTxnId(lastTxnId)
+    }
+  }, [])
+
+  const handleCheckStatus = async () => {
+    if (!pendingTxnId) return
+    try {
+      setIsVerifying(true)
+      const response = await fetch(`${API_BASE_URL}/api/payment/status/${encodeURIComponent(pendingTxnId)}`)
+      const payload = await response.json()
+      
+      if (payload.success && (payload.payment?.status === 'SUCCESS' || payload.payment?.status === 'PAID')) {
+        // Payment is confirmed! Move to the confirmation page.
+        navigate(`/booking-confirmed?txnid=${encodeURIComponent(pendingTxnId)}&bookingId=${encodeURIComponent(payload.booking?.bookingId || '')}`)
+      } else {
+        alert('Payment not yet confirmed. If you have already paid, please wait a few moments and try again.')
+      }
+    } catch (err) {
+      console.error('Failed to verify status', err)
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+
+  const handleClearPending = () => {
+    sessionStorage.removeItem('latestTxnId')
+    sessionStorage.removeItem('latestBookingId')
+    setPendingTxnId(null)
+  }
 
   const setQuantity = (key: TicketKey, nextValue: number) => {
     setQuantities((previous) => ({
@@ -89,6 +128,10 @@ export function BookingPage() {
       }
 
       window.location.href = payload.payment_url
+
+      // Save to session storage so we can reconcile if they come back here without redirecting
+      sessionStorage.setItem('latestTxnId', payload.txnid)
+      sessionStorage.setItem('latestBookingId', payload.bookingId)
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Payment initiation failed.')
     } finally {
@@ -100,6 +143,28 @@ export function BookingPage() {
     <section className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="text-3xl font-bold">Zoo Ticket Booking</h1>
       <p className="mt-2 text-sm text-gray-600">Fill your details, choose tickets, and continue to Easebuzz payment.</p>
+
+      {pendingTxnId && (
+        <div className="mt-6 rounded-xl border-2 border-green-200 bg-green-50 p-4 shadow-sm animate-pulse">
+          <h2 className="text-lg font-bold text-green-800">Payment in Progress?</h2>
+          <p className="text-sm text-green-700">If you just completed a payment but weren't redirected, click below to fetch your ticket.</p>
+          <div className="mt-3 flex gap-3">
+            <button
+              onClick={handleCheckStatus}
+              disabled={isVerifying}
+              className="rounded-lg bg-green-700 px-4 py-2 text-sm font-bold text-white hover:bg-green-800 disabled:opacity-50"
+            >
+              {isVerifying ? 'Verifying...' : 'Check My Ticket Status'}
+            </button>
+            <button
+              onClick={handleClearPending}
+              className="text-sm font-medium text-green-700 underline"
+            >
+              Start New Booking instead
+            </button>
+          </div>
+        </div>
+      )}
 
       <form className="mt-6 space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm" onSubmit={handleSubmit}>
         <div>
