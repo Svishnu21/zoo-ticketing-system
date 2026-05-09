@@ -99,7 +99,7 @@ export const welcomeContent: { heading: LocalizedText; paragraphs: LocalizedText
   },
   paragraphs: [
     {
-      en: "Kurumbapatti Zoological Park is recognized as the 'Small category Zoo' in the western part of Tamil Nadu. It is committed to providing nature education for school children and the local populace of Salem and adjoining districts.",
+      en: "Kurumbapatti Zoological Park (DFO SALEM ZOO AUTHORITY OF TAMIL NADU) is recognized as the 'Small category Zoo' in the western part of Tamil Nadu. It is committed to providing nature education for school children and the local populace of Salem and adjoining districts.",
       ta: 'குரும்பப்பட்டி உயிரியல் பூங்கா,மேற்கு தமிழ்நாட்டின்  அங்கீகரிக்கப்பட்ட \'சிறிய வகை உயிரியல் பூங்கா\' ஆகும். இது சேலம் மற்றும் அருகிலுள்ள மாவட்டங்களின் பள்ளி மாணவர்கள் மற்றும் உள்ளூர் மக்களுக்கு இயற்கை கல்வியை வழங்க அர்ப்பணித்துள்ளது.',
     },
     {
