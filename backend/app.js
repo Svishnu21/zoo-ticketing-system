@@ -494,6 +494,8 @@ export const createApp = () => {
     imgSrc: ["'self'", 'data:', 'https:'],
     fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
     connectSrc: ["'self'", 'https:', 'https://unpkg.com'],
+    frameSrc: ["'self'", 'https://www.google.com', 'https://maps.google.com'],
+    childSrc: ["'self'", 'https://www.google.com', 'https://maps.google.com'],
     baseUri: ["'self'"],
     formAction: ["'self'"],
     frameAncestors: ["'none'"],
