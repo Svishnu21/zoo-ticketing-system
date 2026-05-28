@@ -450,26 +450,58 @@ export const createApp = () => {
   const app = express()
   const ADMIN_PATH = path.join(PUBLIC_PATH, 'admin')
 
-  const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  const envOrigins = (process.env.ALLOWED_ORIGINS || '')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean)
 
+  const productionOrigins = [
+    'https://kzpsalem.com',
+    'https://www.kzpsalem.com',
+  ]
+
+  const devOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5000',
+  ]
+
+  const allowedOrigins = Array.from(new Set([...envOrigins, ...productionOrigins, ...devOrigins]))
+
   const corsOptions = {
     origin: (origin, callback) => {
-      // Allow non-browser or same-origin requests with no Origin header.
-      if (!origin) return callback(null, true)
-      // In local development, allow all origins to avoid blocked assets when Vite auto-switches ports.
+      // 1. Allow undefined/null origins (server-to-server, mobile redirects, payment callbacks, webviews)
+      if (!origin || origin === 'null' || origin === 'undefined') {
+        console.info(`[CORS] Allowed undefined/null origin (Server/Mobile/Callback)`)
+        return callback(null, true)
+      }
+
+      // 2. In local development, allow all origins to avoid blocked assets
       if (process.env.NODE_ENV !== 'production') {
         return callback(null, true)
       }
-      const isEasebuzz = (origin || '').toString().toLowerCase().includes('easebuzz.in')
-      if (allowedOrigins.includes(origin) || isEasebuzz) return callback(null, true)
+
+      // 3. Allow explicitly whitelisted origins
+      if (allowedOrigins.includes(origin)) {
+        console.info(`[CORS] Allowed whitelisted origin: ${origin}`)
+        return callback(null, true)
+      }
+
+      // 4. Allow specific payment gateway origin (Easebuzz)
+      const isEasebuzz = origin.toLowerCase().includes('easebuzz.in')
+      if (isEasebuzz) {
+        console.info(`[CORS] Allowed payment gateway origin: ${origin}`)
+        return callback(null, true)
+      }
+
+      // 5. Block all other unknown/malicious origins
+      console.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`)
       return callback(ApiError.forbidden('CORS origin not allowed.'))
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token', 'Origin', 'Accept'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   }
 
   const authRateLimiter = rateLimit({
