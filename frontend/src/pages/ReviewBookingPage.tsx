@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent, KeyboardEvent } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { ArrowLeft, CalendarDays, ReceiptIndianRupee, Ticket } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/Button'
 import { useLanguage } from '@/providers/LanguageProvider'
+
+import { OTPVerification } from '@/components/booking/OTPVerification'
 
 interface ReviewBookingStateItem {
   id: string
@@ -85,17 +86,11 @@ export function ReviewBookingPage() {
   const [visitorMobile, setVisitorMobile] = useState('')
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'info' | 'verifying' | 'success' | 'error'>('idle')
   const [submissionMessage, setSubmissionMessage] = useState('')
-  const [isOtpVisible, setIsOtpVisible] = useState(false)
-  const [otpValues, setOtpValues] = useState(['', '', '', ''])
-  const [timeLeft, setTimeLeft] = useState(0)
-  const [isGenerateDisabled, setIsGenerateDisabled] = useState(false)
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
+  // States for confirmation modal and payment flow
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false)
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false)
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false)
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false)
-  const otpRefs = useRef<Array<HTMLInputElement | null>>([])
-  const defaultOtp = import.meta.env.VITE_DEFAULT_OTP ?? '0000'
 
   useEffect(() => {
     const hasRequiredReviewState = Boolean(state.selectedDateKey) && Array.isArray(state.items) && state.items.length > 0
@@ -130,175 +125,22 @@ export function ReviewBookingPage() {
     }
   }, [state.items, state.selectedDateKey])
 
-  const formattedTimeLeft = useMemo(() => {
-    const safeTime = Math.max(timeLeft, 0)
-    const minutes = Math.floor(safeTime / 60)
-      .toString()
-      .padStart(2, '0')
-    const seconds = (safeTime % 60)
-      .toString()
-      .padStart(2, '0')
-    return `${minutes}:${seconds}`
-  }, [timeLeft])
-
-  useEffect(() => {
-    if (!isOtpVisible || timeLeft <= 0) {
-      return
-    }
-
-    const timerId = window.setInterval(() => {
-      setTimeLeft((previous) => (previous > 0 ? previous - 1 : 0))
-    }, 1000)
-
-    return () => window.clearInterval(timerId)
-  }, [isOtpVisible, timeLeft])
-
-  useEffect(() => {
-    if (!isOtpVisible || timeLeft !== 0 || !isGenerateDisabled) {
-      return
-    }
-
-    setSubmissionStatus('error')
-    setSubmissionMessage(
-      language === 'en' ? 'OTP expired. Please generate a new code.' : 'OTP காலாவதியானது. புதிய குறியீட்டை உருவாக்கவும்.',
-    )
-    setIsVerifyingOtp(false)
-    setIsGenerateDisabled(false)
-    setIsConfirmationOpen(false)
-    setHasAcceptedTerms(false)
-  }, [isOtpVisible, timeLeft, isGenerateDisabled, language])
-
-  const handleGenerateOtp = () => {
-    if (!visitorName.trim() || visitorMobile.trim().length !== 10) {
-      setSubmissionStatus('error')
-      setSubmissionMessage(
-        language === 'en'
-          ? 'Please provide a valid name and exactly a 10-digit mobile number before continuing.'
-          : 'தொடருவதற்கு முன் சரியான பெயரையும் 10-இலக்க கைபேசி எண்ணையும் நிரப்பவும்.',
-      )
-      return
-    }
-    
-    if (visitorEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(visitorEmail.trim())) {
-      setSubmissionStatus('error')
-      setSubmissionMessage(
-        language === 'en'
-          ? 'Please provide a valid email address.'
-          : 'சரியான மின்னஞ்சல் ஐடியை வழங்கவும்.',
-      )
-      return
-    }
-
-    setIsOtpVisible(true)
-    setIsGenerateDisabled(true)
-    setSubmissionStatus('info')
+  // Called when OTP is verified — opens the payment confirmation modal
+  const handleOtpVerified = useCallback(() => {
+    setSubmissionStatus('success')
     setSubmissionMessage(
       language === 'en'
-        ? 'OTP sent successfully. Please enter the 4-digit code below.'
-        : 'OTP வெற்றிகரமாக அனுப்பப்பட்டது. கீழே 4 இலக்க குறியீட்டை உள்ளிடுங்கள்.',
+        ? 'OTP verified! Please confirm to proceed to payment.'
+        : 'OTP சரிபார்க்கப்பட்டது! கட்டணத்திற்கு செல்ல உறுதிப்படுத்தவும்.',
     )
-    setTimeLeft(120)
-    setOtpValues(['', '', '', ''])
-    setIsVerifyingOtp(false)
-    setIsConfirmationOpen(false)
+    setIsConfirmationOpen(true)
     setHasAcceptedTerms(false)
+  }, [language])
 
-    window.setTimeout(() => {
-      otpRefs.current[0]?.focus()
-    }, 0)
-  }
+  // Check if mobile number is valid (10 digits) for the OTP component
+  const isMobileValid = visitorMobile.trim().length === 10
 
-  const handleOtpChange = (index: number, value: string) => {
-    const digit = value.replace(/\D/g, '').slice(-1)
-    setOtpValues((prev) => {
-      const next = [...prev]
-      next[index] = digit
-      return next
-    })
 
-    if (digit && index < otpRefs.current.length - 1) {
-      otpRefs.current[index + 1]?.focus()
-    }
-  }
-
-  const handleOtpKeyDown = (index: number, event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Backspace' && !otpValues[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus()
-    }
-  }
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-
-    if (!visitorName.trim() || visitorMobile.trim().length !== 10) {
-      setSubmissionStatus('error')
-      setSubmissionMessage(
-        language === 'en'
-          ? 'Please provide a valid name and exactly a 10-digit mobile number before continuing.'
-          : 'தொடருவதற்கு முன் சரியான பெயரையும் 10-இலக்க கைபேசி எண்ணையும் நிரப்பவும்.',
-      )
-      return
-    }
-
-    if (visitorEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(visitorEmail.trim())) {
-      setSubmissionStatus('error')
-      setSubmissionMessage(
-        language === 'en'
-          ? 'Please provide a valid email address.'
-          : 'சரியான மின்னஞ்சல் ஐடியை வழங்கவும்.',
-      )
-      return
-    }
-
-    const otpCode = otpValues.join('')
-
-    if (!isOtpVisible) {
-      setSubmissionStatus('error')
-      setSubmissionMessage(
-        language === 'en'
-          ? 'Generate an OTP first to continue.'
-          : 'தொடர முதலில் OTP உருவாக்கவும்.',
-      )
-      return
-    }
-
-    if (otpCode.length !== otpValues.length || otpValues.some((digit) => !digit)) {
-      setSubmissionStatus('error')
-      setSubmissionMessage(
-        language === 'en'
-          ? 'Enter the complete 4-digit OTP before submitting.'
-          : 'சமர்ப்பிப்பதற்கு முன் 4 இலக்க OTP ஐ முழுமையாக உள்ளிடுங்கள்.',
-      )
-      return
-    }
-    setSubmissionStatus('verifying')
-    setSubmissionMessage(
-      language === 'en' ? 'Verifying OTP...' : 'OTP சரிபார்க்கப்படுகிறது...'
-    )
-    setIsVerifyingOtp(true)
-
-    if (otpCode === defaultOtp) {
-      setSubmissionStatus('success')
-      setSubmissionMessage(
-        language === 'en'
-          ? 'OTP verified! Please confirm to proceed to payment.'
-          : 'OTP சரிபார்க்கப்பட்டது! கட்டணத்திற்கு செல்ல உறுதிப்படுத்தவும்.',
-      )
-      setIsVerifyingOtp(false)
-      setIsConfirmationOpen(true)
-      setHasAcceptedTerms(false)
-    } else {
-      setSubmissionStatus('error')
-      setSubmissionMessage(
-        language === 'en'
-          ? 'Invalid OTP, please try again.'
-          : 'OTP தவறாக உள்ளது, தயவுசெய்து மீண்டும் முயற்சிக்கவும்.',
-      )
-      setIsVerifyingOtp(false)
-      setIsConfirmationOpen(false)
-      setHasAcceptedTerms(false)
-    }
-  }
 
   const handleProceedToPayment = async () => {
     if (!hasAcceptedTerms || isSubmittingBooking) {
@@ -397,7 +239,6 @@ export function ReviewBookingPage() {
       setSubmissionMessage(message)
     } finally {
       setIsSubmittingBooking(false)
-      setIsVerifyingOtp(false)
     }
   }
 
@@ -483,10 +324,8 @@ export function ReviewBookingPage() {
               {language === 'en' ? 'Visitor Details' : 'பார்வையாளர் விவரங்கள்'}
             </h2>
           </div>
-          <form
+          <div
             className="rounded-3xl border border-forest-green/15 bg-white p-6 shadow-lg"
-            onSubmit={handleSubmit}
-            noValidate
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -541,6 +380,7 @@ export function ReviewBookingPage() {
               </div>
             </div>
 
+
             {submissionMessage && (
               <p
                 className={
@@ -553,67 +393,14 @@ export function ReviewBookingPage() {
               </p>
             )}
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <Button
-                type="button"
-                variant="hero"
-                size="lg"
-                className="w-full sm:w-auto"
-                onClick={handleGenerateOtp}
-                disabled={isGenerateDisabled}
-              >
-                {isGenerateDisabled
-                  ? language === 'en'
-                    ? 'OTP Sent'
-                    : 'OTP அனுப்பப்பட்டது'
-                  : language === 'en'
-                    ? 'Generate OTP'
-                    : 'OTP உருவாக்கவும்'}
-              </Button>
-            </div>
 
-            {isOtpVisible && (
-              <div className="mt-8 space-y-5">
-                <div className="flex justify-center gap-3">
-                  {otpValues.map((value, index) => (
-                    <input
-                      key={`otp-field-${index}`}
-                      ref={(element) => {
-                        otpRefs.current[index] = element
-                      }}
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={1}
-                      value={value}
-                      onChange={(event) => handleOtpChange(index, event.target.value)}
-                      onKeyDown={(event) => handleOtpKeyDown(index, event)}
-                      className="h-12 w-12 rounded-2xl border border-forest-green/30 bg-white text-center text-lg font-semibold text-forest-green shadow-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-forest-green/30 sm:h-14 sm:w-14"
-                      aria-label={language === 'en' ? `OTP digit ${index + 1}` : `OTP இலக்கம் ${index + 1}`}
-                    />
-                  ))}
-                </div>
-                <p className="text-center text-xs font-medium text-muted-foreground">Time Left: {formattedTimeLeft}</p>
-                <div className="flex justify-center">
-                  <Button
-                    type="submit"
-                    variant="hero"
-                    size="lg"
-                    className="w-full sm:w-auto"
-                    disabled={isVerifyingOtp}
-                  >
-                    {isVerifyingOtp
-                      ? language === 'en'
-                        ? 'Verifying OTP...'
-                        : 'OTP சரிபார்க்கப்படுகிறது...'
-                      : language === 'en'
-                        ? 'Submit OTP'
-                        : 'OTP சமர்ப்பிக்கவும்'}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </form>
+            <OTPVerification
+              mobileNumber={visitorMobile.trim()}
+              onVerified={handleOtpVerified}
+              language={language}
+              isMobileValid={isMobileValid && visitorName.trim().length > 0}
+            />
+          </div>
         </section>
       </div>
 

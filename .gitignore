@@ -39,3 +39,4 @@ server.log
 backend/scratch/
 *.pdf
 CRASH_LOG.txt
+server.log

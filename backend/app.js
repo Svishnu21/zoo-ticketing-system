@@ -19,6 +19,7 @@ import authRoutes from './routes/authRoutes.js'
 import userRoutes from './routes/userRoutes.js'
 import assignmentRoutes from './routes/assignmentRoutes.js'
 import paymentRoutes from './routes/payment.js'
+import otpRoutes from './routes/otpRoutes.js'
 import adminRoutes from '../admin/admin.routes.js'
 import { requireAuth, requireRole, requireAdminSession } from './middleware/authMiddleware.js'
 import { setCsrfCookie, verifyCsrfToken } from './middleware/csrf.js'
@@ -468,7 +469,7 @@ export const createApp = () => {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],
   }
 
   const authRateLimiter = rateLimit({
@@ -485,6 +486,16 @@ export const createApp = () => {
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'Too many requests. Please try again later.' },
+  })
+
+  // Dedicated rate limiter for OTP endpoints — stricter than general API limiter.
+  // Allows 10 OTP requests per IP per 15 minutes to prevent SMS spam abuse.
+  const otpRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, message: 'Too many OTP requests. Please try again later.' },
   })
 
   const cspDirectives = {
@@ -562,6 +573,7 @@ export const createApp = () => {
   app.use('/api/auth/otp', authRateLimiter)
   app.use('/api/auth/reset-password', authRateLimiter)
   app.use('/api/counter/login', authRateLimiter)
+  app.use('/api/otp', otpRateLimiter)  // OTP endpoints get dedicated stricter rate limiting
   app.use('/api', apiRateLimiter)
   app.use('/api', verifyCsrfToken)
   app.use('/admin', verifyCsrfToken)
@@ -700,6 +712,7 @@ export const createApp = () => {
   app.use('/api/tickets', bookingRoutes)
   app.use('/api/bookings', bookingRoutes)
   app.use('/api/payment', paymentRoutes)
+  app.use('/api/otp', otpRoutes)  // Public OTP endpoints for visitor booking flow
   app.use('/api/day-control', dayControlRoutes)
   app.use('/api', systemSettingsRoutes)
   app.use('/api/counter', requireAuth, requireRole('ADMIN', 'COUNTER'), counterRoutes)

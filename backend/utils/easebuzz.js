@@ -1,14 +1,4 @@
-// Utility helpers for Easebuzz SHA-512 hash generation and verification.
-//
-// Easebuzz Hash Sequences (from official docs):
-//   Request (Initiate):
-//     key|txnid|amount|productinfo|firstname|email|udf1|udf2|udf3|udf4|udf5|udf6|udf7|udf8|udf9|udf10|salt
-//
-//   Response verification (surl/furl/webhook — REVERSE order):
-//     salt|status|udf10|udf9|udf8|udf7|udf6|udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key
-//
-//   Transaction Retrieve API:
-//     key|txnid|amount|email|phone|salt
+
 //
 import crypto from 'crypto'
 
