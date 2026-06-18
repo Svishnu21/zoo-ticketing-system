@@ -29,7 +29,7 @@ const scanLogSchema = new Schema(
     result: {
       type: String,
       required: true,
-      enum: ['success', 'already_used', 'invalid_token', 'invalid_date', 'not_found', 'error'],
+      enum: ['success', 'already_used', 'invalid_token', 'invalid_date', 'payment_pending', 'not_found', 'error'],
       index: true,
     },
 

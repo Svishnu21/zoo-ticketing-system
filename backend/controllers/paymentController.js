@@ -450,6 +450,21 @@ export const paymentSuccess = async (req, res) => {
         },
         { returnDocument: 'after' },
       )
+
+      // --- CRITICAL: Update all associated tickets to reflect successful payment ---
+      // Without this, tickets remain paymentStatus: 'PENDING' and QR validation rejects them.
+      if (booking?.tickets?.length) {
+        const ticketUpdateResult = await Ticket.updateMany(
+          { _id: { $in: booking.tickets }, paymentStatus: { $ne: 'SUCCESS' } },
+          { $set: { paymentStatus: 'SUCCESS', paymentMode: 'ONLINE' } },
+        )
+        console.log('[payment] surl → ticket paymentStatus updated to SUCCESS', {
+          txnid,
+          bookingId: booking.bookingId,
+          ticketsMatched: ticketUpdateResult.matchedCount,
+          ticketsModified: ticketUpdateResult.modifiedCount,
+        })
+      }
     }
 
     // --- Audit Log (mask raw payload to avoid logging sensitive card data) ---
@@ -640,13 +655,27 @@ export const paymentWebhook = async (req, res) => {
       )
 
       if (payment?.bookingId) {
-        await Booking.findByIdAndUpdate(payment.bookingId, {
+        const webhookBooking = await Booking.findByIdAndUpdate(payment.bookingId, {
           $set: {
             status: 'CONFIRMED',
             paymentStatus: 'SUCCESS',
             paymentMode: 'ONLINE',
           }
-        })
+        }, { returnDocument: 'after' })
+
+        // --- CRITICAL: Update all associated tickets to reflect successful payment ---
+        if (webhookBooking?.tickets?.length) {
+          const ticketUpdateResult = await Ticket.updateMany(
+            { _id: { $in: webhookBooking.tickets }, paymentStatus: { $ne: 'SUCCESS' } },
+            { $set: { paymentStatus: 'SUCCESS', paymentMode: 'ONLINE' } },
+          )
+          console.log('[webhook] ticket paymentStatus updated to SUCCESS', {
+            txnid,
+            bookingId: webhookBooking.bookingId,
+            ticketsMatched: ticketUpdateResult.matchedCount,
+            ticketsModified: ticketUpdateResult.modifiedCount,
+          })
+        }
       }
 
       // --- Audit Log ---
@@ -798,6 +827,20 @@ export const verifyTransaction = async (req, res) => {
             paymentStatus: 'SUCCESS',
           },
         })
+
+        // --- CRITICAL: Update all associated tickets to reflect successful payment ---
+        if (booking.tickets?.length) {
+          const ticketUpdateResult = await Ticket.updateMany(
+            { _id: { $in: booking.tickets }, paymentStatus: { $ne: 'SUCCESS' } },
+            { $set: { paymentStatus: 'SUCCESS' } },
+          )
+          console.log('[payment] reconciliation → ticket paymentStatus updated to SUCCESS', {
+            txnid,
+            bookingId: booking.bookingId,
+            ticketsMatched: ticketUpdateResult.matchedCount,
+            ticketsModified: ticketUpdateResult.modifiedCount,
+          })
+        }
       }
       reconciled = true
 
@@ -880,13 +923,19 @@ export const getBookingStatus = async (req, res) => {
     let qrImage = null
     
     if (isPaid && booking.tickets && booking.tickets.length > 0) {
-      ticket = await Ticket.findById(booking.tickets[0]).lean()
+      // qrToken has select:false in the schema, so we must explicitly include it
+      ticket = await Ticket.findById(booking.tickets[0]).select('+qrToken').lean()
       if (ticket && ticket.qrToken) {
         try {
           qrImage = await generateQrDataUrl(ticket.qrToken)
         } catch (e) {
           console.error('[payment] failed to generate qr image for ticket', e.message || e)
         }
+      } else {
+        console.warn('[payment] getBookingStatus: ticket found but qrToken is missing', {
+          ticketId: ticket?.ticketId,
+          bookingId: booking.bookingId,
+        })
       }
     }
 

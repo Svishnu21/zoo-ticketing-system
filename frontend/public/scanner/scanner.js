@@ -351,8 +351,12 @@ async function validateWithBackend(token, gateId) {
   if (response.status === 400) {
     return { ticketId: ticketIdFromError, label: 'Wrong Date', detail: message, className: 'warning' }
   }
+  if (response.status === 403) {
+    return { ticketId: ticketIdFromError, label: 'Payment Pending', detail: message, className: 'warning' }
+  }
 
-  throw new Error(message)
+  // Include HTTP status in the error for better diagnostics at the gate
+  throw new Error(`[${response.status}] ${message}`)
 }
 
 async function validateTicketIdWithBackend(ticketId, reason, gateId) {
@@ -391,5 +395,6 @@ async function validateTicketIdWithBackend(ticketId, reason, gateId) {
     return { ticketId: ticketIdFromError, label: 'Payment Pending', detail: message, className: 'warning', mode: 'MANUAL' }
   }
 
-  throw new Error(message)
+  // Include HTTP status in the error for better diagnostics at the gate
+  throw new Error(`[${response.status}] ${message}`)
 }
