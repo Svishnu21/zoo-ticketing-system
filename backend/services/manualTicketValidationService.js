@@ -1,4 +1,5 @@
 import { Ticket } from '../models/Ticket.js'
+import { Booking } from '../models/Booking.js'
 import { ScanLog } from '../models/ScanLog.js'
 import { ApiError } from '../utils/errors.js'
 import { todayIsoDate } from '../utils/dates.js'
@@ -51,6 +52,46 @@ const logManualAttempt = async ({ ticketId, gateId, reason, result }) => {
   }
 }
 
+/**
+ * Self-healing: When a ticket has paymentStatus PENDING but its parent Booking
+ * shows a confirmed payment, auto-repair the ticket and return true.
+ */
+const tryAutoRepairPaymentStatus = async (existing) => {
+  if (!existing || ['PAID', 'SUCCESS'].includes(existing.paymentStatus)) {
+    return false
+  }
+
+  const bookingFilter = existing.bookingRef
+    ? { _id: existing.bookingRef }
+    : existing.bookingId
+      ? { bookingId: existing.bookingId }
+      : null
+
+  if (!bookingFilter) return false
+
+  const booking = await Booking.findOne(bookingFilter)
+    .select('bookingId paymentStatus')
+    .lean()
+
+  if (!booking || !['PAID', 'SUCCESS'].includes(booking.paymentStatus)) {
+    return false
+  }
+
+  const repairResult = await Ticket.updateOne(
+    { _id: existing._id, paymentStatus: { $nin: ['PAID', 'SUCCESS'] } },
+    { $set: { paymentStatus: 'SUCCESS' } },
+  )
+
+  console.info('[manual-validate] AUTO-REPAIRED ticket paymentStatus', {
+    ticketId: existing.ticketId,
+    bookingId: booking.bookingId,
+    previousTicketStatus: existing.paymentStatus,
+    modified: repairResult.modifiedCount,
+  })
+
+  return repairResult.modifiedCount > 0
+}
+
 export const validateTicketIdFallback = async ({ ticketId, gateId, reason }) => {
   let normalizedTicketId
   let normalizedReason
@@ -97,7 +138,7 @@ export const validateTicketIdFallback = async ({ ticketId, gateId, reason }) => 
   }
 
   const existing = await Ticket.findOne({ ticketId: normalizedTicketId })
-    .select('ticketId visitDate qrUsed qrUsedAt usedVia usedAt paymentStatus')
+    .select('ticketId visitDate qrUsed qrUsedAt usedVia usedAt paymentStatus bookingId bookingRef')
     .lean()
 
   if (!existing) {
@@ -105,7 +146,38 @@ export const validateTicketIdFallback = async ({ ticketId, gateId, reason }) => 
     throw ApiError.notFound('Ticket ID not found.')
   }
 
+  // --- Self-healing: if ticket is PENDING but Booking is paid, auto-repair and retry ---
   if (!['PAID', 'SUCCESS'].includes(existing.paymentStatus)) {
+    const repaired = await tryAutoRepairPaymentStatus(existing)
+
+    if (repaired) {
+      // Retry the atomic scan after repair
+      const retryTicket = await Ticket.findOneAndUpdate(
+        { ticketId: normalizedTicketId, paymentStatus: { $in: ['PAID', 'SUCCESS'] }, visitDate: todayDateOnly, qrUsed: false },
+        {
+          $set: {
+            qrUsed: true,
+            qrUsedAt: now,
+            usedVia: 'MANUAL_TICKET_ID',
+            usedAt: now,
+            entryStatus: 'ENTERED',
+            scannedAt: now,
+          },
+        },
+        { returnDocument: 'after', projection: { ticketId: 1, visitDate: 1, qrUsedAt: 1, usedAt: 1, _id: 0, paymentStatus: 1 } },
+      ).lean()
+
+      if (retryTicket) {
+        console.info('[manual-validate] VALID (auto-repaired) → entry granted', { ticketId: normalizedTicketId })
+        await logManualAttempt({ ticketId: normalizedTicketId, gateId, reason: normalizedReason, result: 'success' })
+        return {
+          ticketId: retryTicket.ticketId,
+          visitDate: retryTicket.visitDate instanceof Date ? retryTicket.visitDate.toISOString().slice(0, 10) : todayIso,
+          usedAt: retryTicket.usedAt || retryTicket.qrUsedAt || now,
+        }
+      }
+    }
+
     await logManualAttempt({ ticketId: normalizedTicketId, gateId: gateId, reason: normalizedReason, result: 'error' })
     throw ApiError.forbidden('Payment not completed for this ticket.', { ticketId: normalizedTicketId })
   }
@@ -125,3 +197,4 @@ export const validateTicketIdFallback = async ({ ticketId, gateId, reason }) => 
   await logManualAttempt({ ticketId: normalizedTicketId, gateId, reason: normalizedReason, result: 'error' })
   throw ApiError.badRequest('Ticket ID could not be validated.')
 }
+

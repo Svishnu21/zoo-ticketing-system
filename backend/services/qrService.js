@@ -1,4 +1,5 @@
 import { Ticket } from '../models/Ticket.js'
+import { Booking } from '../models/Booking.js'
 import { ScanLog } from '../models/ScanLog.js'
 import { ApiError } from '../utils/errors.js'
 import { todayIsoDate } from '../utils/dates.js'
@@ -18,6 +19,64 @@ const logScan = async ({ ticketId, ticketRef, bookingId, qrToken, result, gateId
     // Logging failures should never block gate flow; swallow errors after emitting for operators
     console.error('Failed to log scan attempt', error)
   }
+}
+
+/**
+ * Self-healing: When a ticket has paymentStatus PENDING but its parent Booking
+ * shows a confirmed payment (SUCCESS or PAID), auto-repair the ticket and return true.
+ * This covers tickets created before the payment-callback fix was deployed, and
+ * any future edge case where the callback-level Ticket.updateMany fails silently.
+ */
+const tryAutoRepairPaymentStatus = async (existing) => {
+  if (!existing || ['PAID', 'SUCCESS'].includes(existing.paymentStatus)) {
+    return false // Nothing to repair
+  }
+
+  // Look up the parent booking by bookingId (human-readable) or bookingRef (ObjectId)
+  const bookingFilter = existing.bookingRef
+    ? { _id: existing.bookingRef }
+    : existing.bookingId
+      ? { bookingId: existing.bookingId }
+      : null
+
+  if (!bookingFilter) {
+    console.warn('[qr-validate] auto-repair skipped: no booking linkage on ticket', { ticketId: existing.ticketId })
+    return false
+  }
+
+  const booking = await Booking.findOne(bookingFilter)
+    .select('bookingId paymentStatus status')
+    .lean()
+
+  if (!booking) {
+    console.warn('[qr-validate] auto-repair skipped: booking not found', { ticketId: existing.ticketId, bookingFilter })
+    return false
+  }
+
+  if (!['PAID', 'SUCCESS'].includes(booking.paymentStatus)) {
+    // Booking itself is not paid — genuine payment-pending situation
+    console.info('[qr-validate] auto-repair skipped: booking payment not confirmed', {
+      ticketId: existing.ticketId,
+      bookingPaymentStatus: booking.paymentStatus,
+    })
+    return false
+  }
+
+  // Booking IS paid but ticket is still PENDING → auto-repair the ticket
+  const repairResult = await Ticket.updateOne(
+    { _id: existing._id, paymentStatus: { $nin: ['PAID', 'SUCCESS'] } },
+    { $set: { paymentStatus: 'SUCCESS' } },
+  )
+
+  console.info('[qr-validate] AUTO-REPAIRED ticket paymentStatus', {
+    ticketId: existing.ticketId,
+    bookingId: booking.bookingId,
+    bookingPaymentStatus: booking.paymentStatus,
+    previousTicketStatus: existing.paymentStatus,
+    modified: repairResult.modifiedCount,
+  })
+
+  return repairResult.modifiedCount > 0
 }
 
 export const validateAndConsumeQrToken = async (token, { gateId } = {}) => {
@@ -71,7 +130,7 @@ export const validateAndConsumeQrToken = async (token, { gateId } = {}) => {
 
   // --- Fallback: find the ticket to determine the exact rejection reason ---
   const existing = await Ticket.findOne({ $or: [{ qrToken: cleanToken }, { ticketId: cleanToken }] })
-    .select('+qrToken visitDate qrUsed qrUsedAt ticketId bookingId paymentStatus')
+    .select('+qrToken visitDate qrUsed qrUsedAt ticketId bookingId bookingRef paymentStatus')
     .lean()
 
   console.info('[qr-validate] primary atomic update missed; diagnosing reason', {
@@ -89,7 +148,40 @@ export const validateAndConsumeQrToken = async (token, { gateId } = {}) => {
     throw ApiError.notFound('QR code is invalid.', { code: 'INVALID' })
   }
 
+  // --- Self-healing: if ticket is PENDING but Booking is paid, auto-repair and retry ---
   if (!['PAID', 'SUCCESS'].includes(existing.paymentStatus)) {
+    const repaired = await tryAutoRepairPaymentStatus(existing)
+
+    if (repaired) {
+      // Ticket is now fixed → retry the atomic scan-and-consume
+      const retryTicket = await Ticket.findOneAndUpdate(
+        {
+          _id: existing._id,
+          qrUsed: false,
+          visitDate: todayDateOnly,
+          paymentStatus: { $in: ['PAID', 'SUCCESS'] },
+        },
+        {
+          $set: {
+            qrUsed: true,
+            qrUsedAt: now,
+            usedVia: 'QR_TOKEN',
+            usedAt: now,
+            entryStatus: 'ENTERED',
+            scannedAt: now,
+          },
+        },
+        { returnDocument: 'after', projection: { ticketId: 1, visitDate: 1, qrUsedAt: 1, bookingId: 1, bookingRef: 1, paymentStatus: 1 } },
+      ).lean()
+
+      if (retryTicket) {
+        console.info('[qr-validate] VALID (auto-repaired) → entry granted', { ticketId: retryTicket.ticketId, gateId })
+        await logScan({ ticketId: retryTicket.ticketId, ticketRef: retryTicket._id, bookingId: retryTicket.bookingId, qrToken: cleanToken, result: 'success', gateId })
+        return retryTicket
+      }
+    }
+
+    // Auto-repair was not possible or retry still failed — genuine payment pending
     await logScan({ ticketId: existing.ticketId, ticketRef: existing._id, bookingId: existing.bookingId, qrToken: cleanToken, result: 'payment_pending', gateId })
     throw ApiError.forbidden('Payment pending. User must pay before entry.', { code: 'PAYMENT_PENDING', ticketId: existing.ticketId })
   }
@@ -108,3 +200,4 @@ export const validateAndConsumeQrToken = async (token, { gateId } = {}) => {
   await logScan({ ticketId: existing.ticketId, ticketRef: existing._id, bookingId: existing.bookingId, qrToken: cleanToken, result: 'error', gateId })
   throw ApiError.badRequest('QR code could not be validated.')
 }
+
