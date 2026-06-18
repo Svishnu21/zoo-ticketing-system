@@ -33,7 +33,7 @@ async function adminFetch(url, options = {}) {
 
 	const res = await fetch(url, opts)
 
-	if (res.status === 401 || res.status === 403) {
+	if (res.status === 401) {
 		await logoutAdmin({ redirect: true })
 		throw new Error('Admin session is not valid. Please sign in again.')
 	}

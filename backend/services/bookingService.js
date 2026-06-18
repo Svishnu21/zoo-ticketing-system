@@ -312,7 +312,9 @@ export const getTicketForDisplay = async (ticketId, { verificationToken, allowTo
 
   // --- Post-Audit Fix: Block QR visibility for pending/failed payments ---
   if (!['PAID', 'SUCCESS'].includes(ticket.paymentStatus)) {
-    throw ApiError.forbidden('Ticket is not yet confirmed. QR is not available.')
+    if (!allowTokenBypass) {
+      throw ApiError.forbidden('Ticket is not yet confirmed. QR is not available.')
+    }
   }
 
   // Enforce verification token if stored.
@@ -383,13 +385,15 @@ export const getTicketForDisplay = async (ticketId, { verificationToken, allowTo
     })
   }
 
-  let qrImage
-  try {
-    qrImage = await generateQrDataUrl(ticket.qrToken)
-  } catch (error) {
-    // Log server-side for operators; do not leak token or stack traces to clients
-    console.error('Failed to generate QR image for ticket', { ticketId, reason: error?.message })
-    throw ApiError.internal('Unable to generate QR image for this ticket.')
+  let qrImage = null
+  if (['PAID', 'SUCCESS'].includes(ticket.paymentStatus)) {
+    try {
+      qrImage = await generateQrDataUrl(ticket.qrToken)
+    } catch (error) {
+      // Log server-side for operators; do not leak token or stack traces to clients
+      console.error('Failed to generate QR image for ticket', { ticketId, reason: error?.message })
+      throw ApiError.internal('Unable to generate QR image for this ticket.')
+    }
   }
 
   const ticketCount = Array.isArray(ticket.items)
