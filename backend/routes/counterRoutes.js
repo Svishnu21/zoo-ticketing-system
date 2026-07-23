@@ -20,7 +20,7 @@ const router = express.Router()
 
 router.post('/login', validate(counterLoginRules), postCounterLogin)
 
-router.use(requireAuth, requireRole('ADMIN', 'COUNTER'))
+router.use(requireAuth, requireRole('ADMIN', 'COUNTER', 'SCANNER'))
 
 router.get('/pricing', getCounterPricingController)
 router.post('/bookings', validate(counterBookingRules), postCounterBooking)

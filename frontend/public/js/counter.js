@@ -63,7 +63,10 @@ const COUNTER_TICKET_API = '/api/counter/tickets'
 const COUNTER_LOGIN_PATH = '/counter/login.html'
 
 const clearCounterSession = () => {
+  sessionStorage.removeItem('counterToken')
   sessionStorage.removeItem('counterRole')
+  sessionStorage.removeItem('counterUser')
+  sessionStorage.removeItem('counterLoggedIn')
 }
 
 const getCsrfToken = () =>
@@ -86,7 +89,10 @@ const redirectToCounterLogin = () => {
 }
 
 const withCounterAuthHeaders = (base = {}) => {
-  return { ...base }
+  const headers = { ...base }
+  const token = sessionStorage.getItem('counterToken')
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
 }
 
 const withCsrfHeader = (headers = {}, method = 'GET') => {
@@ -219,9 +225,12 @@ function attachLoginHandler() {
         error.status = resp.status
         throw error
       }
-      if (data.role !== 'COUNTER') throw new Error('Role not permitted for counter console')
+      if (!['COUNTER', 'SCANNER', 'ADMIN'].includes(data.role)) throw new Error('Role not permitted for counter console')
 
+      sessionStorage.setItem('counterToken', data.token || '')
       sessionStorage.setItem('counterRole', data.role)
+      sessionStorage.setItem('counterUser', JSON.stringify({ ...(data.user || {}), role: data.role }))
+      sessionStorage.setItem('counterLoggedIn', 'true')
       window.location.href = '/counter/issue.html'
     } catch (err) {
       const status = Number(err?.status || 0)
@@ -239,7 +248,7 @@ function attachLoginHandler() {
 }
 
 function guardCounter() {
-  if (!sessionStorage.getItem('counterRole')) {
+  if (!sessionStorage.getItem('counterRole') && !sessionStorage.getItem('counterLoggedIn')) {
     // UI hint only; API enforcement remains server-side via cookie-auth.
     console.info('Counter role marker not found; protected API calls will enforce auth.')
   }

@@ -412,7 +412,6 @@ const buildCounterPrintHtml = (ticket = {}) => {
         <div class="divider"></div>
 
         <section class="qr-block" aria-label="QR and entry notes">
-          <div class="qr-label">Ticket Type</div>
           <div class="qr-box">${qrMarkup}</div>
           <ul class="notes">
             <li>Single entry only.</li>

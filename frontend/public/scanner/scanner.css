@@ -347,6 +347,88 @@ body.scanner-body {
   }
 }
 
+/* ── Scan Mode Toggle ──────────────────────────────────────────────────── */
+.scan-mode-toggle {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  width: fit-content;
+}
+
+.mode-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.mode-btn:hover:not(:disabled) {
+  color: var(--text);
+  background: rgba(15, 61, 145, 0.06);
+}
+
+.mode-btn.active {
+  background: linear-gradient(120deg, var(--blue), var(--blue-2));
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(15, 61, 145, 0.2);
+}
+
+.mode-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── USB Scanner Panel ─────────────────────────────────────────────────── */
+.usb-box {
+  position: relative;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: linear-gradient(140deg, rgba(15, 61, 145, 0.04), rgba(240, 245, 252, 0.92));
+}
+
+.usb-status {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.usb-status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #9ca3af;
+  display: inline-block;
+  flex-shrink: 0;
+  transition: background 0.3s ease;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.15);
+}
+
+.usb-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
 @media (max-width: 720px) {
   .cam-panel,
   .status-panel,
@@ -362,5 +444,14 @@ body.scanner-body {
   .top-actions {
     flex-wrap: wrap;
     justify-content: flex-start;
+  }
+
+  .scan-mode-toggle {
+    width: 100%;
+  }
+
+  .mode-btn {
+    flex: 1;
+    text-align: center;
   }
 }

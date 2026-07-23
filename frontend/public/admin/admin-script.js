@@ -1,5 +1,8 @@
 function adminAuthHeaders() {
-	return { 'Content-Type': 'application/json' }
+	const headers = { 'Content-Type': 'application/json' }
+	const token = sessionStorage.getItem('adminToken')
+	if (token) headers.Authorization = `Bearer ${token}`
+	return headers
 }
 
 function getCsrfToken() {
@@ -66,9 +69,10 @@ const userApiBase = `${backendOrigin}/api/users`
 const today = new Date().toISOString().slice(0, 10)
 
 function clearLocalAdminSession() {
-	sessionStorage.removeItem('role')
-	sessionStorage.removeItem('isLoggedIn')
-	sessionStorage.removeItem('user')
+	sessionStorage.removeItem('adminToken')
+	sessionStorage.removeItem('adminRole')
+	sessionStorage.removeItem('adminLoggedIn')
+	sessionStorage.removeItem('adminUser')
 }
 
 async function logoutAdmin({ redirect = false } = {}) {
@@ -314,10 +318,10 @@ const getCounterTicketIdFromLocation = () => {
 console.log('[admin-script] loaded', { page, href: window.location.href })
 
 function getCurrentRole() {
-	const storedRole = sessionStorage.getItem('role')
+	const storedRole = sessionStorage.getItem('adminRole')
 	if (storedRole) return storedRole.toUpperCase()
 	try {
-		const user = JSON.parse(sessionStorage.getItem('user') || '{}')
+		const user = JSON.parse(sessionStorage.getItem('adminUser') || '{}')
 		return user?.role ? String(user.role).toUpperCase() : null
 	} catch (_err) {
 		return null
@@ -326,7 +330,7 @@ function getCurrentRole() {
 
 function getCurrentUserId() {
 	try {
-		const user = JSON.parse(sessionStorage.getItem('user') || '{}')
+		const user = JSON.parse(sessionStorage.getItem('adminUser') || '{}')
 		return user?.id || user?._id || null
 	} catch (_err) {
 		return null
@@ -375,9 +379,10 @@ async function loginWithCredentials({ email, password, secretCode, expectedRole,
 		if (!data?.role) throw new Error('Invalid auth response')
 		if (expectedRole && data.role !== expectedRole) throw new Error('Role not permitted for this console')
 
-		sessionStorage.setItem('role', data.role)
-		sessionStorage.setItem('isLoggedIn', 'true')
-		sessionStorage.setItem('user', JSON.stringify({ ...(data.user || {}), role: data.role }))
+		sessionStorage.setItem('adminToken', data.token || '')
+		sessionStorage.setItem('adminRole', data.role)
+		sessionStorage.setItem('adminLoggedIn', 'true')
+		sessionStorage.setItem('adminUser', JSON.stringify({ ...(data.user || {}), role: data.role }))
 		if (typeof onSuccess === 'function') onSuccess()
 		return true
 	} catch (err) {

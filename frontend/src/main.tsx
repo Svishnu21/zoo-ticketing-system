@@ -11,6 +11,7 @@ import { FacilitiesPage } from '@/pages/FacilitiesPage'
 import { GalleryPage } from '@/pages/GalleryPage'
 import { HomePage } from '@/pages/HomePage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { InformationPage } from '@/pages/InformationPage'
 import { ParkRulesPage } from '@/pages/ParkRulesPage'
 import { TariffPage } from '@/pages/TariffPage'
 import { ZooPage } from '@/pages/ZooPage'
@@ -62,7 +63,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="about/administration" element={<AdministrationPage />} />
             <Route path="about/annual-report" element={<AnnualReportsPage />} />
             <Route path="about/publications" element={<OtherPublicationsPage />} />
-            {/* Visitor Information page removed */}
+            <Route path="information" element={<InformationPage />} />
             <Route path="tenders" element={<TendersPage />} />
             <Route path="adoption" element={<AdoptionPage />} />
             <Route path="adoption/choose" element={<ChooseAdoptionPage />} />

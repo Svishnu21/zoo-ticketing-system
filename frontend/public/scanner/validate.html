@@ -20,7 +20,14 @@
     </header>
 
     <main class="grid">
-      <section class="panel cam-panel">
+      <!-- Scan Mode Toggle -->
+      <div class="scan-mode-toggle" id="scanModeToggle">
+        <button class="mode-btn active" data-mode="camera" id="modeCameraBtn">📷 Camera</button>
+        <button class="mode-btn" data-mode="usb" id="modeUsbBtn" title="USB Scanner requires Chrome or Edge">🔌 USB Scanner</button>
+      </div>
+
+      <!-- Camera Scanner Panel (default visible) -->
+      <section class="panel cam-panel" id="cameraPanel">
         <header class="panel-head">
           <h2>Camera Scanner</h2>
           <p>Point at QR. Uses device camera.</p>
@@ -32,6 +39,26 @@
           <button id="stopCamera" class="btn" type="button">Stop</button>
         </div>
         <p class="muted">Camera permissions required. If camera fails, use manual entry.</p>
+      </section>
+
+      <!-- USB Serial Scanner Panel (hidden by default) -->
+      <section class="panel cam-panel hidden" id="usbPanel">
+        <header class="panel-head">
+          <h2>USB Serial Scanner</h2>
+          <p>Wired barcode/QR scanner via COM port.</p>
+        </header>
+        <div class="usb-box" id="usbBox">
+          <div class="usb-status" id="usbStatus">
+            <span class="usb-status-dot" id="usbStatusDot"></span>
+            <span id="usbStatusText">Not connected</span>
+          </div>
+          <div class="usb-actions">
+            <button id="usbConnectBtn" class="btn primary">Connect Scanner</button>
+            <button id="usbDisconnectBtn" class="btn hidden">Disconnect</button>
+          </div>
+          <p id="usbError" class="error" aria-live="assertive"></p>
+        </div>
+        <p class="muted" id="usbBrowserWarning"></p>
       </section>
 
       <section class="panel manual-panel">
@@ -78,6 +105,7 @@
     </main>
 
     <script src="/js/vendor/jsQR.js"></script>
+    <script type="module" src="./usb-serial-scanner.js"></script>
     <script type="module" src="./scanner.js"></script>
   </body>
 </html>

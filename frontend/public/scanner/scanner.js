@@ -1,3 +1,5 @@
+import { initUsbScanner, isWebSerialSupported } from './usb-serial-scanner.js'
+
 const page = window.location.pathname.split('/').pop() || 'login.html'
 
 const sessionKey = 'scannerAuth'
@@ -6,13 +8,28 @@ const SCANNER_LOGIN_PATH = './login.html'
 
 const getScannerSession = () => {
   try {
-    return JSON.parse(sessionStorage.getItem(sessionKey) || '{}')
+    const token = sessionStorage.getItem('scannerToken')
+    const role = sessionStorage.getItem('scannerRole')
+    const userStr = sessionStorage.getItem('scannerUser')
+    const userObj = userStr ? JSON.parse(userStr) : {}
+    const legacy = JSON.parse(sessionStorage.getItem(sessionKey) || '{}')
+    return {
+      token: token || legacy.token,
+      role: role || legacy.role,
+      gateId: userObj.gateId || userObj.counterId || legacy.gateId || 'Gate',
+      user: userObj.user || userObj.fullName || legacy.user || 'Unknown',
+      issuedAt: legacy.issuedAt || Date.now(),
+    }
   } catch (_err) {
     return {}
   }
 }
 
 const clearScannerSession = () => {
+  sessionStorage.removeItem('scannerToken')
+  sessionStorage.removeItem('scannerRole')
+  sessionStorage.removeItem('scannerUser')
+  sessionStorage.removeItem('scannerLoggedIn')
   sessionStorage.removeItem(sessionKey)
   sessionStorage.removeItem(logKey)
 }
@@ -73,13 +90,18 @@ function initLogin() {
       if (!res.ok) throw new Error(payload?.message || 'Login failed')
       if (payload.role !== 'SCANNER') throw new Error('Role not permitted for scanner console')
 
-      sessionStorage.setItem(sessionKey, JSON.stringify({
+      const sessionData = {
         token: payload.token,
         role: payload.role,
         gateId: payload.user?.counterId || 'Gate',
         user: payload.user?.fullName || email,
         issuedAt: Date.now(),
-      }))
+      }
+      sessionStorage.setItem('scannerToken', payload.token || '')
+      sessionStorage.setItem('scannerRole', payload.role || '')
+      sessionStorage.setItem('scannerUser', JSON.stringify({ fullName: payload.user?.fullName || email, gateId: payload.user?.counterId || 'Gate', email }))
+      sessionStorage.setItem('scannerLoggedIn', 'true')
+      sessionStorage.setItem(sessionKey, JSON.stringify(sessionData))
       window.location.href = './validate.html'
     } catch (err) {
       errorBox.textContent = err?.message || 'Invalid credentials'
@@ -280,6 +302,64 @@ function initValidate() {
   startCamera?.addEventListener('click', () => startVideoAndScan())
   stopCamera?.addEventListener('click', () => stopVideoAndScan())
 
+  // ── USB Scanner Mode Toggle ─────────────────────────────────────────────
+  const cameraPanel = document.getElementById('cameraPanel')
+  const usbPanel = document.getElementById('usbPanel')
+  const modeCameraBtn = document.getElementById('modeCameraBtn')
+  const modeUsbBtn = document.getElementById('modeUsbBtn')
+  let usbScannerInstance = null
+
+  // Disable USB toggle if Web Serial is not supported
+  if (!isWebSerialSupported()) {
+    if (modeUsbBtn) {
+      modeUsbBtn.disabled = true
+      modeUsbBtn.title = 'USB Scanner requires Chrome 89+ or Edge 89+'
+    }
+  }
+
+  function switchToCamera() {
+    // Destroy USB scanner if active
+    if (usbScannerInstance) {
+      usbScannerInstance.destroy()
+      usbScannerInstance = null
+    }
+    // Show camera, hide USB
+    if (cameraPanel) cameraPanel.classList.remove('hidden')
+    if (usbPanel) usbPanel.classList.add('hidden')
+    // Update toggle buttons
+    if (modeCameraBtn) modeCameraBtn.classList.add('active')
+    if (modeUsbBtn) modeUsbBtn.classList.remove('active')
+    // Reset status
+    setStatus('', 'Awaiting Scan', 'Scan a QR code to validate entry.')
+  }
+
+  function switchToUsb() {
+    // Stop camera if active
+    stopVideoAndScan()
+    // Hide camera, show USB
+    if (cameraPanel) cameraPanel.classList.add('hidden')
+    if (usbPanel) usbPanel.classList.remove('hidden')
+    // Update toggle buttons
+    if (modeUsbBtn) modeUsbBtn.classList.add('active')
+    if (modeCameraBtn) modeCameraBtn.classList.remove('active')
+    // Initialize USB scanner — pass shared deps
+    if (!usbScannerInstance) {
+      usbScannerInstance = initUsbScanner({
+        setStatus,
+        appendLog,
+        handleQrValidation,
+        auth,
+      })
+    }
+    setStatus('', 'USB Scanner Mode', 'Click "Connect Scanner" to begin.')
+  }
+
+  modeCameraBtn?.addEventListener('click', switchToCamera)
+  modeUsbBtn?.addEventListener('click', () => {
+    if (modeUsbBtn.disabled) return
+    switchToUsb()
+  })
+
   async function handleQrValidation(token) {
     setStatus('', 'Validating…', 'Checking with backend for authenticity and usage status.')
     try {
@@ -343,12 +423,42 @@ async function validateWithBackend(token, gateId) {
   const message = payload?.message || 'Validation failed.'
 
   if (response.status === 409) {
+    if (payload.details?.code === 'ALREADY_USED') {
+      const vDate = payload.details?.visitDate || 'Unknown Date'
+      const tSource = payload.details?.ticketSource || 'Unknown Type'
+      return { 
+        ticketId: ticketIdFromError, 
+        label: 'Already Used', 
+        detail: `${message} (ID: ${ticketIdFromError} | Date: ${vDate} | Type: ${tSource})`, 
+        className: 'danger' 
+      }
+    }
     return { ticketId: ticketIdFromError, label: 'Already Used', detail: message, className: 'danger' }
   }
   if (response.status === 404) {
-    return { ticketId: 'UNKNOWN', label: 'Invalid Ticket', detail: message, className: 'danger' }
+    return { ticketId: ticketIdFromError, label: 'Invalid Ticket', detail: message, className: 'danger' }
   }
   if (response.status === 400) {
+    if (payload.details?.code === 'EXPIRED') {
+      const vDate = payload.details?.visitDate || 'Unknown Date'
+      const tSource = payload.details?.ticketSource || 'Unknown Type'
+      return { 
+        ticketId: ticketIdFromError, 
+        label: 'Ticket Expired', 
+        detail: `${message} (ID: ${ticketIdFromError} | Date: ${vDate} | Type: ${tSource})`, 
+        className: 'warning' 
+      }
+    }
+    if (payload.details?.code === 'INVALID_DATE') {
+      const vDate = payload.details?.visitDate || 'Unknown Date'
+      const tSource = payload.details?.ticketSource || 'Unknown Type'
+      return { 
+        ticketId: ticketIdFromError, 
+        label: 'Wrong Date', 
+        detail: `${message} (ID: ${ticketIdFromError} | Date: ${vDate} | Type: ${tSource})`, 
+        className: 'warning' 
+      }
+    }
     return { ticketId: ticketIdFromError, label: 'Wrong Date', detail: message, className: 'warning' }
   }
   if (response.status === 403) {
@@ -380,13 +490,13 @@ async function validateTicketIdWithBackend(ticketId, reason, gateId) {
   }
 
   const message = payload?.message || 'Validation failed.'
-  const ticketIdFromError = payload.details?.ticketId || payload.ticketId || 'UNKNOWN'
+  const ticketIdFromError = payload.details?.ticketId || payload.ticketId || ticketId || 'UNKNOWN'
 
   if (response.status === 409) {
     return { ticketId: ticketIdFromError, label: 'Already Used', detail: message, className: 'danger', mode: 'MANUAL' }
   }
   if (response.status === 404) {
-    return { ticketId: 'UNKNOWN', label: 'Invalid Ticket', detail: message, className: 'danger', mode: 'MANUAL' }
+    return { ticketId: ticketIdFromError, label: 'Invalid Ticket', detail: message, className: 'danger', mode: 'MANUAL' }
   }
   if (response.status === 400) {
     return { ticketId: ticketIdFromError, label: 'Wrong Date / Input', detail: message, className: 'warning', mode: 'MANUAL' }

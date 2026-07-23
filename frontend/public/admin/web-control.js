@@ -30,9 +30,10 @@ const escapeHtml = (value) => String(value ?? '')
   .replace(/'/g, '&#39;')
 
 const clearAdminSession = () => {
-  sessionStorage.removeItem('role')
-  sessionStorage.removeItem('isLoggedIn')
-  sessionStorage.removeItem('user')
+  sessionStorage.removeItem('adminToken')
+  sessionStorage.removeItem('adminRole')
+  sessionStorage.removeItem('adminLoggedIn')
+  sessionStorage.removeItem('adminUser')
 }
 
 const setMessage = (text, tone = 'muted') => {
@@ -105,7 +106,10 @@ const formatDateTime = (value) => {
 }
 
 const authHeaders = () => {
-  return { 'Content-Type': 'application/json' }
+  const headers = { 'Content-Type': 'application/json' }
+  const token = sessionStorage.getItem('adminToken')
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
 }
 
 const withCsrfHeader = (headers = {}, method = 'GET') => {
@@ -334,7 +338,7 @@ const bindLogout = () => {
 }
 
 const applyRoleVisibility = () => {
-  const role = (sessionStorage.getItem('role') || localStorage.getItem('role') || '').toUpperCase()
+  const role = (sessionStorage.getItem('adminRole') || '').toUpperCase()
   const adminOnly = document.querySelectorAll('[data-requires-role="ADMIN"]')
   adminOnly.forEach((el) => {
     el.style.display = role && role !== 'ADMIN' ? 'none' : ''
