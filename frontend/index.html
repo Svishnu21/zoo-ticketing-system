@@ -42,6 +42,28 @@
     <meta name="geo.placename" content="Salem" />
     <meta name="geo.position" content="11.744942;78.167589" />
     <meta name="ICBM" content="11.744942, 78.167589" />
+    <!-- TEMPORARY LAUNCH SCREEN (opening ceremony) - START
+         Sends first-time visitors of "/" to /launch.html. The launch button links to "/?from=launch".
+         Visitors who have already loaded any page of the site in this tab are not redirected.
+         Other routes are unaffected. To remove: delete this block and frontend/public/launch.html + launch.css. -->
+    <script>
+      (function () {
+        var key = 'kzpLaunchSeen'
+        var loc = window.location
+        var seen = false
+        try { seen = sessionStorage.getItem(key) === '1'; sessionStorage.setItem(key, '1') } catch (e) {}
+        if (loc.pathname !== '/') return
+        var params = new URLSearchParams(loc.search)
+        if (params.get('from') === 'launch') {
+          params.delete('from')
+          var query = params.toString()
+          history.replaceState(history.state, '', '/' + (query ? '?' + query : '') + loc.hash)
+          return
+        }
+        if (!seen) loc.replace('/launch.html')
+      })()
+    </script>
+    <!-- TEMPORARY LAUNCH SCREEN - END -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

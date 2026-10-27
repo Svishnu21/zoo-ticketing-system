@@ -1,0 +1,339 @@
+/*
+  TEMPORARY launch welcome screen styles (official website opening ceremony).
+  Used only by launch.html. Delete together with launch.html after the ceremony.
+*/
+
+:root {
+  --launch-green-900: #0b3d24;
+  --launch-green-800: #11502f;
+  --launch-green-700: #17663c;
+  --launch-green-500: #2e8b57;
+  --launch-green-100: #e6f2ea;
+  --launch-gold: #c9a227;
+  --launch-white: #ffffff;
+  --launch-text: #1d2b22;
+  --launch-muted: #4a5d51;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--launch-text);
+  background: var(--launch-green-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+.launch {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px 160px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.14), transparent 60%),
+    radial-gradient(circle at 15% 30%, rgba(46, 139, 87, 0.35), transparent 45%),
+    radial-gradient(circle at 85% 25%, rgba(46, 139, 87, 0.3), transparent 40%),
+    linear-gradient(180deg, var(--launch-green-700) 0%, var(--launch-green-800) 55%, var(--launch-green-900) 100%);
+}
+
+/* ---------- Card ---------- */
+
+.launch__card {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 680px;
+  padding: 48px 40px 40px;
+  text-align: center;
+  background: var(--launch-white);
+  border-radius: 20px;
+  border-top: 6px solid var(--launch-green-500);
+  box-shadow:
+    0 30px 60px -20px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  animation: launch-rise 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.launch__emblem {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px;
+  display: block;
+  animation: launch-fade 0.8s ease-out 0.2s both;
+}
+
+.launch__emblem circle {
+  fill: var(--launch-green-100);
+  stroke: var(--launch-green-500);
+  stroke-width: 2;
+}
+
+.launch__emblem path {
+  fill: var(--launch-green-500);
+}
+
+.launch__emblem .launch__emblem-vein {
+  fill: none;
+  stroke: var(--launch-white);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.launch__eyebrow {
+  margin: 0 0 12px;
+  display: inline-block;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--launch-green-700);
+  background: var(--launch-green-100);
+  border-radius: 999px;
+  animation: launch-fade 0.8s ease-out 0.3s both;
+}
+
+.launch__title {
+  margin: 0;
+  font-family: 'Paytone One', 'Nunito', sans-serif;
+  font-weight: 400;
+  font-size: clamp(1.9rem, 5.2vw, 3rem);
+  line-height: 1.15;
+  color: var(--launch-green-800);
+  animation: launch-fade 0.8s ease-out 0.4s both;
+}
+
+.launch__subtitle {
+  margin: 12px 0 0;
+  font-size: clamp(1.1rem, 2.6vw, 1.4rem);
+  font-weight: 700;
+  color: var(--launch-green-500);
+  animation: launch-fade 0.8s ease-out 0.5s both;
+}
+
+.launch__divider {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0;
+  animation: launch-fade 0.8s ease-out 0.6s both;
+}
+
+.launch__divider span {
+  position: relative;
+  width: 120px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--launch-gold), transparent);
+}
+
+.launch__divider span::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: var(--launch-gold);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.launch__message {
+  margin: 0 auto 32px;
+  max-width: 52ch;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--launch-muted);
+  animation: launch-fade 0.8s ease-out 0.7s both;
+}
+
+/* ---------- Button ---------- */
+
+.launch__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 16px 36px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--launch-white);
+  text-decoration: none;
+  background: linear-gradient(135deg, var(--launch-green-500), var(--launch-green-700));
+  border-radius: 999px;
+  box-shadow: 0 12px 24px -8px rgba(23, 102, 60, 0.6);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  animation:
+    launch-fade 0.8s ease-out 0.85s both,
+    launch-pulse 2.4s ease-in-out 1.8s infinite;
+}
+
+.launch__button svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.2s ease;
+}
+
+.launch__button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px -8px rgba(23, 102, 60, 0.7);
+  background: linear-gradient(135deg, var(--launch-green-700), var(--launch-green-800));
+}
+
+.launch__button:hover svg {
+  transform: translateX(4px);
+}
+
+.launch__button:focus-visible {
+  outline: 3px solid var(--launch-gold);
+  outline-offset: 4px;
+}
+
+.launch__place {
+  margin: 28px 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--launch-muted);
+  animation: launch-fade 0.8s ease-out 1s both;
+}
+
+/* ---------- Decorative scenery ---------- */
+
+.launch__forest {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 100%;
+  height: 220px;
+  pointer-events: none;
+}
+
+.launch__forest-back {
+  fill: rgba(255, 255, 255, 0.06);
+}
+
+.launch__forest-front {
+  fill: rgba(5, 36, 20, 0.55);
+}
+
+.launch__birds {
+  position: absolute;
+  top: 8%;
+  right: 6%;
+  z-index: 1;
+  width: min(300px, 50vw);
+  pointer-events: none;
+  animation: launch-drift 14s ease-in-out infinite alternate;
+}
+
+.launch__birds path {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* ---------- Animations ---------- */
+
+@keyframes launch-rise {
+  from {
+    opacity: 0;
+    transform: translateY(32px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes launch-fade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes launch-pulse {
+  0%,
+  100% {
+    box-shadow: 0 12px 24px -8px rgba(23, 102, 60, 0.6), 0 0 0 0 rgba(46, 139, 87, 0.45);
+  }
+  50% {
+    box-shadow: 0 12px 24px -8px rgba(23, 102, 60, 0.6), 0 0 0 12px rgba(46, 139, 87, 0);
+  }
+}
+
+@keyframes launch-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-40px);
+  }
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 560px) {
+  .launch {
+    padding: 32px 16px 120px;
+  }
+
+  .launch__card {
+    padding: 36px 20px 28px;
+    border-radius: 16px;
+  }
+
+  .launch__emblem {
+    width: 60px;
+    height: 60px;
+  }
+
+  .launch__message {
+    font-size: 1rem;
+  }
+
+  .launch__button {
+    width: 100%;
+    padding: 16px 20px;
+  }
+
+  .launch__forest {
+    height: 140px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
