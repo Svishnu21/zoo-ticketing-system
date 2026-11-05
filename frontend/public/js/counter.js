@@ -256,11 +256,40 @@ function guardCounter() {
 
 async function loadTickets() {
   renderTickets()
-  qsa('.qty-input').forEach((input) => input.addEventListener('input', updateTotals))
+  qsa('.qty-input').forEach((input) => {
+    input.addEventListener('input', updateTotals)
+    input.addEventListener('wheel', preventQtyWheelChange, { passive: false })
+  })
   updateTotals()
   setVisitDateToday()
   wirePaymentUI()
   loadRecentTickets()
+}
+
+// Browsers step a focused number input on mouse wheel; block that and scroll the page instead.
+function preventQtyWheelChange(event) {
+  const input = event.currentTarget
+  if (document.activeElement !== input) return
+  event.preventDefault()
+
+  const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1
+  const dx = event.deltaX * unit
+  const dy = event.deltaY * unit
+
+  let el = input.parentElement
+  while (el && el !== document.body && el !== document.documentElement) {
+    const style = getComputedStyle(el)
+    const canScrollY = /(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight
+    const canScrollX = /(auto|scroll)/.test(style.overflowX) && el.scrollWidth > el.clientWidth
+    const movesY = canScrollY && dy !== 0 && (dy < 0 ? el.scrollTop > 0 : el.scrollTop + el.clientHeight < el.scrollHeight)
+    const movesX = canScrollX && dx !== 0 && (dx < 0 ? el.scrollLeft > 0 : el.scrollLeft + el.clientWidth < el.scrollWidth)
+    if (movesY || movesX) {
+      el.scrollBy(dx, dy)
+      return
+    }
+    el = el.parentElement
+  }
+  window.scrollBy(dx, dy)
 }
 
 function renderTickets() {
@@ -728,11 +757,26 @@ function initCounterSuccessPage() {
   const errorMessage = document.getElementById('errorMessage')
 
   const printBtn = document.getElementById('print-btn')
+  let isPrinting = false
+  const releasePrint = () => {
+    isPrinting = false
+    if (printBtn) printBtn.disabled = false
+  }
   if (printBtn) {
     printBtn.addEventListener('click', () => {
-      window.print()
+      // Guard against double clicks queuing a second print dialog.
+      if (isPrinting) return
+      isPrinting = true
+      printBtn.disabled = true
+      try {
+        window.print()
+      } finally {
+        // Re-enable after the dialog closes (afterprint) or, as a fallback, shortly after.
+        setTimeout(releasePrint, 1000)
+      }
     })
   }
+  window.addEventListener('afterprint', () => setTimeout(releasePrint, 300))
 
   window.addEventListener('beforeprint', () => {
     const ticketElement = document.querySelector('.ticket')

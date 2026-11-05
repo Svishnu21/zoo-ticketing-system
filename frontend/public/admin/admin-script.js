@@ -2698,14 +2698,8 @@ function setupReports() {
 
 	const formatQuantityCell = (value) => Math.max(0, Math.round(toNumber(value))).toLocaleString('en-IN')
 
-	const formatAmountCell = (value) => {
-		const amount = toNumber(value)
-		const isWhole = Math.abs(amount - Math.round(amount)) < 0.001
-		return amount.toLocaleString('en-IN', {
-			minimumFractionDigits: isWhole ? 0 : 2,
-			maximumFractionDigits: 2,
-		})
-	}
+	// Display-only rounding: underlying report values are left untouched.
+	const formatAmountCell = (value) => Math.round(toNumber(value)).toLocaleString('en-IN')
 
 	const updateSummaryCards = (rows, type) => {
 		let totals = { tickets: 0, online: 0, counter: 0, revenue: 0, pending: 0 }
@@ -2720,7 +2714,7 @@ function setupReports() {
 		setTextSafe('reportTotalTickets', totals.tickets ? totals.tickets.toLocaleString('en-IN') : '--')
 		setTextSafe('reportOnlineTickets', totals.online ? totals.online.toLocaleString('en-IN') : '--')
 		setTextSafe('reportCounterTickets', totals.counter ? totals.counter.toLocaleString('en-IN') : '--')
-		setTextSafe('reportTotalRevenue', totals.revenue ? formatINR(totals.revenue) : '₹ --')
+		setTextSafe('reportTotalRevenue', totals.revenue ? formatINR(Math.round(totals.revenue)) : '₹ --')
 	}
 
 	const fetchReportRows = async ({ type, from, to, source, category }) => {
@@ -2767,7 +2761,7 @@ function setupReports() {
 		return tickets
 	}
 
-	const renderCollectionSummaryTable = ({ pricingRows, metricsByCode }) => {
+	const renderCollectionSummaryTable = ({ pricingRows, metricsByCode, splitCollection }) => {
 		const headers = ['DESCRIPTION', 'PRICE', 'QUANTITY', 'AMOUNT', 'ZAT', 'VCF', 'CASH', 'BANK']
 		tableHead.innerHTML = `<tr>${headers
 			.map((header, index) => `<th${index === 0 ? '' : ' class="report-num"'}>${header}</th>`)
@@ -2835,6 +2829,25 @@ function setupReports() {
 				`)
 			})
 		})
+
+		const splitCash = toNumber(splitCollection?.cash)
+		const splitBank = toNumber(splitCollection?.bank)
+		if (splitCash > 0 || splitBank > 0) {
+			total.total_cash += splitCash
+			total.total_bank += splitBank
+			html.push(`
+				<tr>
+					<td>Split Payments (Counter, booking-level)</td>
+					<td class="report-num">-</td>
+					<td class="report-num">-</td>
+					<td class="report-num">-</td>
+					<td class="report-num">-</td>
+					<td class="report-num">-</td>
+					<td class="report-num">${formatAmountCell(splitCash)}</td>
+					<td class="report-num">${formatAmountCell(splitBank)}</td>
+				</tr>
+			`)
+		}
 
 		html.push(`
 			<tr class="report-total-row">
@@ -3021,14 +3034,27 @@ function setupReports() {
 			return lines.map((line) => ({ metric: line.metric, paid_amount: equal_share }))
 		}
 
+		// Split bookings are reported at booking level (actual cash/UPI collected), not per ticket type.
+		const splitCollection = { cash: 0, bank: 0 }
+
 		const applyPaymentSplitFromBookingRecords = () => {
 			metricsByCode.forEach((metric) => {
 				metric.cash_amount = 0
 				metric.bank_amount = 0
+				metric.split_paid_amount = 0
 			})
+			splitCollection.cash = 0
+			splitCollection.bank = 0
 
 			if (includeCounter && Array.isArray(counterTickets)) {
+				const seenTicketIds = new Set()
 				counterTickets.forEach((booking) => {
+					const ticketId = (booking?.ticketId || '').toString()
+					if (ticketId) {
+						if (seenTicketIds.has(ticketId)) return
+						seenTicketIds.add(ticketId)
+					}
+
 					const payment_mode = normalizeMode(booking?.paymentMode)
 					const allocated_rows = allocateCounterBookingToTicketTypes(booking)
 					if (!allocated_rows.length) return
@@ -3041,13 +3067,11 @@ function setupReports() {
 					}
 
 					if (payment_mode === 'SPLIT') {
-						const total = resolveCounterBookingPaidAmount(booking)
-						const cash = toNumber(booking?.paymentBreakup?.cash)
-						const upi = toNumber(booking?.paymentBreakup?.upi)
+						splitCollection.cash += toPaidAmount(booking?.paymentBreakup?.cash)
+						splitCollection.bank += toPaidAmount(booking?.paymentBreakup?.upi)
+						// Track the ticket-wise amount covered by split bookings so the per-row balance check skips it.
 						allocated_rows.forEach((row) => {
-							const ratio = total > 0 ? row.paid_amount / total : 0
-							row.metric.cash_amount += cash * ratio
-							row.metric.bank_amount += upi * ratio
+							row.metric.split_paid_amount += row.paid_amount
 						})
 						return
 					}
@@ -3074,9 +3098,10 @@ function setupReports() {
 				metric.cash_amount = toPaidAmount(metric.cash_amount)
 				metric.bank_amount = toPaidAmount(metric.bank_amount)
 
-				if (Math.abs((metric.cash_amount + metric.bank_amount) - metric.row_amount) > BALANCE_EPSILON) {
-					metric.cash_amount = Math.min(metric.row_amount, metric.cash_amount)
-					metric.bank_amount = Math.max(0, metric.row_amount - metric.cash_amount)
+				const directly_paid_amount = Math.max(0, metric.row_amount - toPaidAmount(metric.split_paid_amount))
+				if (Math.abs((metric.cash_amount + metric.bank_amount) - directly_paid_amount) > BALANCE_EPSILON) {
+					metric.cash_amount = Math.min(directly_paid_amount, metric.cash_amount)
+					metric.bank_amount = Math.max(0, directly_paid_amount - metric.cash_amount)
 				}
 
 				if (metric.isKidsZone) {
@@ -3116,6 +3141,8 @@ function setupReports() {
 				totals.total_cash += toNumber(metric.cash_amount)
 				totals.total_bank += toNumber(metric.bank_amount)
 			})
+			totals.total_cash += splitCollection.cash
+			totals.total_bank += splitCollection.bank
 
 			return totals
 		}
@@ -3129,7 +3156,7 @@ function setupReports() {
 			totals = computeRenderedTotals()
 		}
 
-		return { pricingRows, metricsByCode }
+		return { pricingRows, metricsByCode, splitCollection }
 	}
 
 	const getFilters = () => {
