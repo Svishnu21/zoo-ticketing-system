@@ -1,6 +1,8 @@
 import express from 'express'
 import { Ticket } from '../backend/models/Ticket.js'
 import { ScanLog } from '../backend/models/ScanLog.js'
+import { Booking } from '../backend/models/Booking.js'
+import { buildConfirmedTicketFilter, ONLINE_BOOKING_STATUS } from '../backend/services/onlinePaymentService.js'
 import { asyncHandler, ApiError } from '../backend/utils/errors.js'
 
 const router = express.Router()
@@ -97,6 +99,50 @@ const buildVisitOrIssueMatch = (range) => {
 	return { $or: [{ visitDate: range }, { issueDate: range }] }
 }
 
+// All ticket metrics use confirmed tickets only: counter tickets as before, and online tickets
+// whose payment was verified. Unpaid / failed online attempts contribute zero.
+const buildMetricsMatch = async (range) => ({
+	...buildVisitOrIssueMatch(range),
+	...(await buildConfirmedTicketFilter()),
+})
+
+// Online payment attempts that are NOT confirmed bookings — reported separately, never in revenue.
+const getOnlineAttemptSummary = async (range) => {
+	const match = {
+		ticketSource: 'ONLINE',
+		status: {
+			$in: [
+				ONLINE_BOOKING_STATUS.PENDING,
+				ONLINE_BOOKING_STATUS.INITIATION_FAILED,
+				ONLINE_BOOKING_STATUS.FAILED,
+				ONLINE_BOOKING_STATUS.RECOVERY_REQUIRED,
+			],
+		},
+		...(range ? { $or: [{ visitDate: range }, { createdAt: range }] } : {}),
+	}
+	const rows = await Booking.aggregate([
+		{ $match: match },
+		{ $group: { _id: '$status', count: { $sum: 1 }, amount: { $sum: '$totalAmount' } } },
+	])
+	const summary = {
+		pending: { count: 0, amount: 0 },
+		initiationFailed: { count: 0, amount: 0 },
+		failed: { count: 0, amount: 0 },
+		recoveryRequired: { count: 0, amount: 0 },
+	}
+	const keyByStatus = {
+		[ONLINE_BOOKING_STATUS.PENDING]: 'pending',
+		[ONLINE_BOOKING_STATUS.INITIATION_FAILED]: 'initiationFailed',
+		[ONLINE_BOOKING_STATUS.FAILED]: 'failed',
+		[ONLINE_BOOKING_STATUS.RECOVERY_REQUIRED]: 'recoveryRequired',
+	}
+	rows.forEach((row) => {
+		const key = keyByStatus[row._id]
+		if (key) summary[key] = { count: row.count, amount: row.amount }
+	})
+	return summary
+}
+
 const logMatch = (label, match, query) => {
 	console.log(`[admin/analytics] ${label} match`, {
 		match,
@@ -130,7 +176,7 @@ const logIncrementalCounts = async (label, match) => {
   }
 }
 
-const getSummaryData = async (visitRange, match) => {
+const getSummaryData = async (visitRange, match, confirmedFilter = {}) => {
   const pipeline = []
   if (Object.keys(match).length) {
     pipeline.push({ $match: match })
@@ -162,7 +208,9 @@ const getSummaryData = async (visitRange, match) => {
   })
 
   const [doc] = await Ticket.aggregate(pipeline)
-  const pendingFilter = visitRange ? { visitDate: visitRange, qrUsed: false } : { qrUsed: false }
+  const pendingFilter = visitRange
+    ? { visitDate: visitRange, qrUsed: false, ...confirmedFilter }
+    : { qrUsed: false, ...confirmedFilter }
   const pending = await Ticket.countDocuments(pendingFilter)
 
   return {
@@ -294,22 +342,25 @@ router.get(
   '/dashboard',
   asyncHandler(async (req, res) => {
     const visitRange = buildDateMatch(req.query)
-    const match = buildVisitOrIssueMatch(visitRange)
+    const confirmedFilter = await buildConfirmedTicketFilter()
+    const match = { ...buildVisitOrIssueMatch(visitRange), ...confirmedFilter }
     logMatch('dashboard', match, req.query)
     await logIncrementalCounts('dashboard', match)
 
-    const [summary, ticketTypes, categories, sourceSplit, entries, scanlogs] = await Promise.all([
-      getSummaryData(visitRange, match),
+    const [summary, ticketTypes, categories, sourceSplit, entries, scanlogs, onlinePaymentAttempts] = await Promise.all([
+      getSummaryData(visitRange, match, confirmedFilter),
       getTicketTypeRows(match),
       getCategoryRows(match),
       getSourceSplitRows(match),
       getEntriesData(match),
       getScanlogData(visitRange),
+      getOnlineAttemptSummary(visitRange),
     ])
 
     res.json({
       success: true,
       summary,
+      onlinePaymentAttempts,
       ticketTypes,
       categories,
       sourceSplit,
@@ -323,13 +374,17 @@ router.get(
   '/analytics/summary',
   asyncHandler(async (req, res) => {
     const visitRange = buildDateMatch(req.query)
-    const match = buildVisitOrIssueMatch(visitRange)
+    const confirmedFilter = await buildConfirmedTicketFilter()
+    const match = { ...buildVisitOrIssueMatch(visitRange), ...confirmedFilter }
     logMatch('summary', match, req.query)
     await logCollectionInfo()
     await logIncrementalCounts('summary', match)
-    const summary = await getSummaryData(visitRange, match)
+    const [summary, onlinePaymentAttempts] = await Promise.all([
+      getSummaryData(visitRange, match, confirmedFilter),
+      getOnlineAttemptSummary(visitRange),
+    ])
 
-    res.json({ success: true, ...summary })
+    res.json({ success: true, ...summary, onlinePaymentAttempts })
   }),
 )
 
@@ -337,7 +392,7 @@ router.get(
   '/analytics/ticket-types',
   asyncHandler(async (req, res) => {
     const visitRange = buildDateMatch(req.query)
-    const match = buildVisitOrIssueMatch(visitRange)
+    const match = await buildMetricsMatch(visitRange)
     logMatch('ticket-types', match, req.query)
     await logIncrementalCounts('ticket-types', match)
     const rows = await getTicketTypeRows(match)
@@ -349,7 +404,7 @@ router.get(
   '/analytics/categories',
   asyncHandler(async (req, res) => {
     const visitRange = buildDateMatch(req.query)
-    const match = buildVisitOrIssueMatch(visitRange)
+    const match = await buildMetricsMatch(visitRange)
     logMatch('categories', match, req.query)
     await logIncrementalCounts('categories', match)
     const rows = await getCategoryRows(match)
@@ -361,7 +416,7 @@ router.get(
   '/analytics/source-split',
   asyncHandler(async (req, res) => {
     const visitRange = buildDateMatch(req.query)
-    const match = buildVisitOrIssueMatch(visitRange)
+    const match = await buildMetricsMatch(visitRange)
     logMatch('source-split', match, req.query)
     await logIncrementalCounts('source-split', match)
     const rows = await getSourceSplitRows(match)
@@ -373,7 +428,7 @@ router.get(
   '/analytics/entries',
   asyncHandler(async (req, res) => {
     const visitRange = buildDateMatch(req.query)
-    const baseMatch = buildVisitOrIssueMatch(visitRange)
+    const baseMatch = await buildMetricsMatch(visitRange)
     logMatch('entries', baseMatch, req.query)
     await logIncrementalCounts('entries-base', baseMatch)
     const entries = await getEntriesData(baseMatch)

@@ -1,5 +1,5 @@
 // Booking page for collecting visitor details and initiating Easebuzz payment.
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const API_BASE_URL = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -32,6 +32,8 @@ export function BookingPage() {
   const [selectedTicketType, setSelectedTicketType] = useState<TicketKey>('ADULT')
   const [quantities, setQuantities] = useState<Quantities>(initialQuantities)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  // Synchronous double-submit guard (state updates are async).
+  const submitLockRef = useRef(false)
   const [errorMessage, setErrorMessage] = useState('')
 
   const items = useMemo(() => {
@@ -102,6 +104,13 @@ export function BookingPage() {
       return
     }
 
+    if (submitLockRef.current) return
+    submitLockRef.current = true
+    // One idempotency key per deliberate submission; the backend never creates two bookings for one key.
+    const attemptId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 14)}`
+
     try {
       setIsSubmitting(true)
 
@@ -119,6 +128,7 @@ export function BookingPage() {
           visitDate,
           items,
           totalAmount,
+          attemptId,
         }),
       })
 
@@ -135,6 +145,7 @@ export function BookingPage() {
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Payment initiation failed.')
     } finally {
+      submitLockRef.current = false
       setIsSubmitting(false)
     }
   }

@@ -27,7 +27,7 @@ const formatTicketDate = (date) => {
   return `${dd}${mm}${yy}`
 }
 
-const generateTicketId = (now = new Date()) => {
+export const generateTicketId = (now = new Date()) => {
   // Embeds issue date for traceability while keeping randomness non-sequential
   const datePart = formatTicketDate(now)
   const randomPart = crypto.randomBytes(3).toString('hex').toUpperCase() // 6 hex chars, 24 bits entropy

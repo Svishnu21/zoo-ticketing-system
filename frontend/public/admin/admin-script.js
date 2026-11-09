@@ -216,7 +216,7 @@ async function openTicketPreview(ticketId, options = {}) {
 					<h4 class="park-name">Kurumbapatti Zoological Park</h4>
 					<div class="meta">
 						<div><strong>Booking ID:</strong> ${escapeHtml(data.ticketId || '—')}</div>
-						<div><strong>Transaction ID:</strong> ${escapeHtml(data.paymentReference || '—')}</div>
+						<div><strong>Transaction ID:</strong> ${escapeHtml(data.paymentReference || data.gatewayTransactionId || '—')}</div>
 						<div><strong>Visit Date:</strong> ${escapeHtml(data.visitDate || '—')}</div>
 						<div><strong>Booked At:</strong> ${data.bookedAt ? formatDateTime(data.bookedAt) : (data.issueDate ? formatDateTime(data.issueDate) : '—')}</div>
 						<div><strong>Source:</strong> ${options.source === 'counter' || (data.issuedBy) ? 'Counter' : 'Online'}</div>
@@ -1327,6 +1327,23 @@ function renderOverview() {
 	setTextSafe('metricRevenueToday', hasData ? formatINR(summary.totalRevenue || 0) : '₹ --')
 	setTextSafe('metricEntered', hasData ? (summary.entered || 0).toString() : '--')
 	setTextSafe('metricPending', hasData ? (summary.pending || 0).toString() : '--')
+
+	// Online payment attempts that are NOT bookings (pending / failed / recovery) — shown separately,
+	// never included in the booking counts or revenue above.
+	const attempts = state.analytics.onlinePaymentAttempts
+	if (attempts) {
+		const unconfirmed = (attempts.pending?.count || 0) + (attempts.initiationFailed?.count || 0) + (attempts.failed?.count || 0)
+		setTextSafe('metricOnlineAttempts', unconfirmed.toString())
+		const recovery = attempts.recoveryRequired?.count || 0
+		setTextSafe(
+			'metricOnlineAttemptsSub',
+			recovery > 0
+				? `${recovery} paid, ticket recovery required · not counted in revenue`
+				: 'Not counted in bookings or revenue',
+		)
+	} else {
+		setTextSafe('metricOnlineAttempts', '--')
+	}
 }
 
 function setupAnalytics() {
@@ -1484,6 +1501,7 @@ async function loadAnalytics() {
 		state.analytics.sourceSplit = Array.isArray(dashboardData?.sourceSplit) ? dashboardData.sourceSplit : []
 		state.analytics.entries = dashboardData?.entries || null
 		state.analytics.scanlogs = dashboardData?.scanlogs || null
+		state.analytics.onlinePaymentAttempts = dashboardData?.onlinePaymentAttempts || dashboardData?.summary?.onlinePaymentAttempts || null
 		console.debug('[admin] analytics loaded', {
 			filter: resolvedFilter,
 			summary: state.analytics.summary,
@@ -1606,7 +1624,7 @@ function setupBookings() {
 					(b) => `
 				<tr>
 					<td>${b.ticketId}</td>
-					<td><span class="tabular-nums font-mono text-[11px]">${b.paymentReference || '—'}</span></td>
+					<td><span class="tabular-nums font-mono text-[11px]">${escapeHtml(b.paymentReference || b.gatewayTransactionId || '—')}</span></td>
 					<td>${b.visitorName || '—'}</td>
 					<td>${b.visitorMobile || '—'}</td>
 					<td>${b.visitDate || '—'}</td>
@@ -1917,7 +1935,7 @@ function initBookingDetailsPage() {
 		const countValue = Number(data?.ticketCount || formatCount(data?.items) || 0)
 
 		setField('detailBookingId', data?.ticketId || ticketIdFromPath)
-		setField('detailTransactionId', data?.paymentReference || '—')
+		setField('detailTransactionId', data?.paymentReference || data?.gatewayTransactionId || '—')
 		setField('detailVisitorName', data?.visitorName || '—')
 		setField('detailVisitorMobile', data?.visitorMobile || '—')
 		setField('detailVisitDate', data?.visitDate || '—')
@@ -2726,7 +2744,23 @@ function setupReports() {
 			headers: adminAuthHeaders(),
 		})
 		if (payload?.success === false) throw new Error(payload?.message || 'Report fetch failed')
+		renderReportOnlineAttempts(payload?.onlinePaymentAttempts)
 		return Array.isArray(payload?.rows) ? payload.rows : []
+	}
+
+	// Unconfirmed online payment attempts for the report range. Shown separately — they are already
+	// excluded by the backend from every quantity / amount / ZAT / VCF / Cash / Bank figure above.
+	const renderReportOnlineAttempts = (attempts) => {
+		if (!attempts) return
+		const notCounted = (attempts.pending?.count || 0) + (attempts.initiationFailed?.count || 0) + (attempts.failed?.count || 0)
+		const recovery = attempts.recoveryRequired || { count: 0, amount: 0 }
+		setTextSafe('reportOnlineAttempts', notCounted.toLocaleString('en-IN'))
+		setTextSafe(
+			'reportOnlineAttemptsSub',
+			recovery.count
+				? `Recovery required: ${recovery.count} paid (${formatINR(recovery.amount || 0)}) — not in totals until ticket issued`
+				: 'Pending / failed — excluded from totals',
+		)
 	}
 
 	const fetchPricingConfig = async () => {

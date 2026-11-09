@@ -17,6 +17,11 @@ const bookingItemSchema = new Schema(
     quantity: { type: Number, required: true, min: 1 },
     // Line total snapshot (unitPrice * quantity)
     lineTotal: { type: Number, required: true, min: 0 },
+    // Product grouping snapshot (zoo/parking/camera/transport). Online bookings store this at
+    // payment initiation so the ticket can be generated later, after payment is verified.
+    category: { type: String, trim: true },
+    // Canonical pricing category resolved by the backend at initiation time
+    categoryCode: { type: String, trim: true },
   },
   { _id: false },
 )
@@ -52,8 +57,28 @@ const bookingSchema = new Schema(
     // Counter that issued this booking (for counter flow)
     counterId: { type: Schema.Types.ObjectId, ref: 'Counter', index: true },
 
-    // Booking lifecycle state
-    status: { type: String, enum: ['PENDING', 'CONFIRMED', 'CANCELLED', 'EXPIRED'], default: 'CONFIRMED', index: true },
+    // Booking lifecycle state.
+    // Online payment lifecycle: PENDING → CONFIRMED | FAILED | INITIATION_FAILED | RECOVERY_REQUIRED.
+    // Only CONFIRMED online bookings have a ticket and count towards bookings, visitors and revenue.
+    status: {
+      type: String,
+      enum: ['PENDING', 'CONFIRMED', 'CANCELLED', 'EXPIRED', 'INITIATION_FAILED', 'FAILED', 'RECOVERY_REQUIRED'],
+      default: 'CONFIRMED',
+      index: true,
+    },
+
+    // Why the booking is in its current (non-confirmed) state, for audit/troubleshooting
+    statusReason: { type: String, trim: true, maxlength: 500 },
+
+    // Client-generated idempotency key for one online payment attempt (one Proceed confirmation).
+    // Prevents duplicate bookings/payments when the same attempt is submitted more than once.
+    paymentAttemptKey: { type: String, trim: true },
+
+    // Online payment lifecycle timestamps
+    confirmedAt: { type: Date },
+    recoveryRequiredAt: { type: Date },
+    // Per-booking lock used only when recovering a ticket for a legacy booking reference
+    ticketIssueLockedAt: { type: Date },
 
     // Entry state derived from tickets (NOT_ENTERED, PARTIAL, FULLY_ENTERED)
     entryStatus: { type: String, enum: ['NOT_ENTERED', 'PARTIAL', 'FULLY_ENTERED'], default: 'NOT_ENTERED', index: true },
@@ -103,6 +128,8 @@ const bookingSchema = new Schema(
 )
 
 bookingSchema.index({ bookingId: 1 }, { unique: true })
+// Sparse: existing bookings (and all counter bookings) have no attempt key.
+bookingSchema.index({ paymentAttemptKey: 1 }, { unique: true, sparse: true })
 bookingSchema.index({ visitorMobile: 1 })
 bookingSchema.index({ createdAt: -1 })
 bookingSchema.index({ visitDate: 1, ticketSource: 1, paymentStatus: 1 })

@@ -2,6 +2,7 @@ import express from 'express'
 import { Ticket } from '../backend/models/Ticket.js'
 import { Payment } from '../backend/models/Payment.js'
 import { getTicketForDisplay } from '../backend/services/bookingService.js'
+import { buildConfirmedTicketFilter, PAID_STATUSES } from '../backend/services/onlinePaymentService.js'
 import { ApiError, asyncHandler } from '../backend/utils/errors.js'
 
 const router = express.Router()
@@ -66,6 +67,8 @@ const presentBookingRow = (ticket, payment) => {
     paymentStatus,
     paymentProvider: payment?.provider,
     paymentReference: payment?.providerPaymentId,
+    // Our Easebuzz txnid — shown when the gateway payment id (easepayid) was not captured
+    gatewayTransactionId: payment?.transactionId,
     paymentAmount: payment?.amount ?? ticket.totalAmount,
     totalAmount: ticket.totalAmount,
     ticketCount,
@@ -126,6 +129,12 @@ router.get(
       match.$or = [{ ticketId: regex }, { visitorMobile: regex }]
     }
 
+    // Online bookings list = verified successful payments only. Pre-payment ONLINE ticket documents
+    // from unpaid / failed attempts are kept in the DB for audit (see Payment Attempts) but hidden here.
+    if (source !== 'COUNTER') {
+      Object.assign(match, await buildConfirmedTicketFilter())
+    }
+
     // Debug: log the exact admin read query to verify filters and source alignment.
     console.log('[admin/bookings] query', {
       match,
@@ -169,7 +178,7 @@ router.get(
       const payments = await Payment.find({
         $or: [{ ticketId: { $in: ticketIds } }, { bookingId: { $in: bookingIds } }],
       })
-        .select('ticketId bookingId status provider providerPaymentId mode amount')
+        .select('ticketId bookingId transactionId status provider providerPaymentId mode amount')
         .lean()
 
       payments.forEach((payment) => {
@@ -204,7 +213,7 @@ router.get(
     }
 
     const ticketDoc = await Ticket.findOne({ ticketId })
-      .select('ticketId visitDate issueDate createdAt totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt usedVia usedAt visitorName visitorMobile items')
+      .select('ticketId bookingRef visitDate issueDate createdAt totalAmount paymentMode paymentStatus ticketSource paymentBreakup qrUsed qrUsedAt usedVia usedAt visitorName visitorMobile items')
       .lean()
 
     if (!ticketDoc) {
@@ -214,8 +223,11 @@ router.get(
     // Admin-authenticated details view: bypass public verification-token requirement.
     const display = await getTicketForDisplay(ticketId, { allowTokenBypass: true })
 
-    const payment = await Payment.findOne({ ticketId: ticketDoc._id })
-      .select('status provider providerPaymentId mode amount metadata completedAt')
+    // Online payments are linked to the booking (bookingId = Booking._id); legacy ones to the ticket.
+    const payment = await Payment.findOne({
+      $or: [{ ticketId: ticketDoc._id }, ...(ticketDoc.bookingRef ? [{ bookingId: ticketDoc.bookingRef }] : [])],
+    })
+      .select('transactionId status provider providerPaymentId mode amount metadata completedAt')
       .lean()
 
     res.json({
@@ -227,6 +239,7 @@ router.get(
       entryTimestamp: ticketDoc.usedAt || ticketDoc.qrUsedAt,
       paymentProvider: payment?.provider,
       paymentReference: payment?.providerPaymentId,
+      gatewayTransactionId: payment?.transactionId,
       paymentMode: payment?.mode?.toUpperCase() || display.paymentMode,
       paymentStatus: computePaymentStatus(ticketDoc, payment),
       paymentAmount: payment?.amount ?? display.totalAmount,
@@ -249,7 +262,7 @@ router.post(
       throw ApiError.notFound('Booking not found.')
     }
 
-    if (ticket.paymentStatus && ticket.paymentStatus.toUpperCase() !== 'PAID') {
+    if (ticket.paymentStatus && !PAID_STATUSES.includes(ticket.paymentStatus.toUpperCase())) {
       throw ApiError.badRequest('Resend is only available for paid bookings.')
     }
 

@@ -26,10 +26,11 @@ const paymentSchema = new Schema(
     amount: { type: Number, required: true, min: 0 },
     currency: { type: String, default: 'INR', minlength: 3, maxlength: 3 },
 
-    // Payment lifecycle (coerced to uppercase; accept PAID for compatibility)
+    // Payment lifecycle (coerced to uppercase; accept PAID for compatibility).
+    // INITIATION_FAILED: the gateway never issued a payment link, so the customer could not pay.
     status: {
       type: String,
-      enum: ['PENDING', 'SUCCESS', 'FAILED', 'REFUNDED', 'PAID', 'pending', 'success', 'failed', 'refunded', 'paid'],
+      enum: ['PENDING', 'SUCCESS', 'FAILED', 'REFUNDED', 'PAID', 'INITIATION_FAILED', 'pending', 'success', 'failed', 'refunded', 'paid', 'initiation_failed'],
       required: true,
       set: (v) => (typeof v === 'string' ? v.toUpperCase() : v),
       index: true,
@@ -41,9 +42,13 @@ const paymentSchema = new Schema(
     gatewayMeta: { type: Map, of: String },
     maskedAccount: { type: String },
 
+    // Gateway checkout URL returned by initiateLink; replayed for duplicate submissions of the same attempt
+    paymentUrl: { type: String, select: false },
+
     // Timing details
     requestedAt: { type: Date, default: Date.now },
     completedAt: { type: Date },
+    webhookReceivedAt: { type: Date },
     failureReason: { type: String },
 
     // Soft delete flag

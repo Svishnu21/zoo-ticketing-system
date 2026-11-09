@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { ArrowLeft, CalendarDays, ReceiptIndianRupee, Ticket } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
@@ -31,6 +31,23 @@ const ticketTypeLabels: Record<ReviewBookingState['ticketTypeId'], { en: string;
 }
 
 const apiBase = '' // Use relative paths; Vite proxy handles backend routing in dev
+
+/**
+ * Idempotency key for one payment attempt. The backend creates at most one booking/payment per key,
+ * so repeated clicks or resubmissions of the same attempt never create duplicate bookings.
+ */
+function createPaymentAttemptId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  const bytes = new Uint8Array(16)
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(bytes)
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256)
+  }
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+}
 
 function formatReviewItemLabel(label: string): string {
   const trimmedLabel = label.trim()
@@ -91,6 +108,9 @@ export function ReviewBookingPage() {
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false)
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false)
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false)
+  // Synchronous guard: state updates are async, so a fast double-click could otherwise send two requests.
+  const submitLockRef = useRef(false)
+  const paymentAttemptIdRef = useRef<string>('')
 
   useEffect(() => {
     const hasRequiredReviewState = Boolean(state.selectedDateKey) && Array.isArray(state.items) && state.items.length > 0
@@ -133,6 +153,7 @@ export function ReviewBookingPage() {
         ? 'OTP verified! Please confirm to proceed to payment.'
         : 'OTP சரிபார்க்கப்பட்டது! கட்டணத்திற்கு செல்ல உறுதிப்படுத்தவும்.',
     )
+    paymentAttemptIdRef.current = createPaymentAttemptId()
     setIsConfirmationOpen(true)
     setHasAcceptedTerms(false)
   }, [language])
@@ -143,7 +164,7 @@ export function ReviewBookingPage() {
 
 
   const handleProceedToPayment = async () => {
-    if (!hasAcceptedTerms || isSubmittingBooking) {
+    if (!hasAcceptedTerms || isSubmittingBooking || submitLockRef.current) {
       return
     }
 
@@ -155,6 +176,15 @@ export function ReviewBookingPage() {
       )
       return
     }
+
+    submitLockRef.current = true
+    if (!paymentAttemptIdRef.current) {
+      paymentAttemptIdRef.current = createPaymentAttemptId()
+    }
+    let redirecting = false
+    // When the server reports the same attempt is still in progress, keep its key so a retry
+    // cannot start a second payment for it.
+    let keepAttemptId = false
 
     setIsSubmittingBooking(true)
     setSubmissionStatus('verifying')
@@ -202,6 +232,7 @@ export function ReviewBookingPage() {
           lineTotal: item.total,
         })),
         totalAmount,
+        attemptId: paymentAttemptIdRef.current,
       }
 
       const csrfCookie = document.cookie.split('; ').find(row => row.startsWith('_csrf='))?.split('=')[1] ?? ''
@@ -216,6 +247,12 @@ export function ReviewBookingPage() {
 
       const data = await response.json().catch(() => ({}))
       if (!response.ok || data?.success !== true || !data?.payment_url) {
+        if (data?.alreadyPaid && data?.txnid) {
+          redirecting = true
+          window.location.href = `/booking-confirmed?txnid=${encodeURIComponent(String(data.txnid))}`
+          return
+        }
+        keepAttemptId = Boolean(data?.inProgress)
         const message = data?.message || (language === 'en' ? 'Unable to initiate payment.' : 'கட்டணத்தை தொடங்க முடியவில்லை.')
         console.error('Payment initiation failed:', message, data)
         throw new Error(message)
@@ -232,13 +269,28 @@ export function ReviewBookingPage() {
       setSubmissionStatus('success')
       setSubmissionMessage(language === 'en' ? 'Redirecting to payment…' : 'கட்டணத்திற்கு மாற்றப்படுகிறது…')
       setIsConfirmationOpen(false)
+      redirecting = true
       window.location.href = String(data.payment_url)
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : language === 'en' ? 'Booking failed.' : 'முன்பதிவு தோல்வியடைந்தது.'
       setSubmissionStatus('error')
-      setSubmissionMessage(message)
+      setSubmissionMessage(
+        language === 'en'
+          ? `${message} No payment has been taken. You can try again.`
+          : `${message} கட்டணம் எதுவும் எடுக்கப்படவில்லை. மீண்டும் முயற்சிக்கலாம்.`,
+      )
+      // A retry after a failure is a genuinely new attempt: new key, and terms must be re-accepted
+      // so the customer retries deliberately rather than by repeated clicking.
+      if (!keepAttemptId) {
+        paymentAttemptIdRef.current = createPaymentAttemptId()
+      }
+      setHasAcceptedTerms(false)
     } finally {
-      setIsSubmittingBooking(false)
+      // Stay locked while the browser navigates to the gateway.
+      if (!redirecting) {
+        submitLockRef.current = false
+        setIsSubmittingBooking(false)
+      }
     }
   }
 
@@ -428,6 +480,18 @@ export function ReviewBookingPage() {
                     ₹ {formattedTotal}
                   </p>
                 </div>
+                {submissionMessage && (submissionStatus === 'error' || submissionStatus === 'verifying') && (
+                  <p
+                    role={submissionStatus === 'error' ? 'alert' : 'status'}
+                    className={
+                      submissionStatus === 'error'
+                        ? 'mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700'
+                        : 'mt-4 rounded-2xl border border-forest-green/20 bg-white/70 px-4 py-3 text-sm font-semibold text-forest-green'
+                    }
+                  >
+                    {submissionMessage}
+                  </p>
+                )}
                 <label className="mt-6 flex items-start gap-3 text-sm font-medium text-forest-green/90">
                   <input
                     type="checkbox"
@@ -460,9 +524,12 @@ export function ReviewBookingPage() {
                         size="lg"
                         className="w-full rounded-full text-lg font-semibold shadow-[0_18px_35px_rgba(11,59,46,0.25)] transition disabled:cursor-not-allowed disabled:opacity-60 lg:w-auto"
                         onClick={handleProceedToPayment}
-                        disabled={!hasAcceptedTerms}
+                        disabled={!hasAcceptedTerms || isSubmittingBooking}
+                        aria-busy={isSubmittingBooking}
                       >
-                        {language === 'en' ? 'Proceed' : 'தொடரவும்'}
+                        {isSubmittingBooking
+                          ? (language === 'en' ? 'Processing…' : 'செயலாக்கப்படுகிறது…')
+                          : (language === 'en' ? 'Proceed' : 'தொடரவும்')}
                       </Button>
                     </div>
                   </div>

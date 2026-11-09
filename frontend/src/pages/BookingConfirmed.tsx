@@ -33,6 +33,12 @@ interface BookingPayload {
 interface StatusResponse {
   success: boolean
   txnid: string
+  /** True only when the payment is verified by the gateway AND the ticket exists. */
+  confirmed?: boolean
+  /** Payment verified but ticket not generated yet. */
+  recoveryRequired?: boolean
+  pending?: boolean
+  bookingStatus?: string
   ticketId?: string
   qrImage?: string
   booking: BookingPayload
@@ -61,6 +67,7 @@ export function BookingConfirmed() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [data, setData] = useState<StatusResponse | null>(null)
+  const [pollCount, setPollCount] = useState(0)
 
   // Clear stale booking state on mount so the next booking flow starts clean.
   useEffect(() => {
@@ -92,7 +99,16 @@ export function BookingConfirmed() {
     }
 
     void fetchStatus()
-  }, [txnid])
+  }, [txnid, pollCount])
+
+  // The gateway callback/webhook can arrive a few seconds after the redirect. Re-check the
+  // server (never the redirect itself) for up to ~1 minute while the payment is unresolved.
+  const isAwaitingServerConfirmation = Boolean(data && !data.confirmed && (data.pending || data.recoveryRequired))
+  useEffect(() => {
+    if (!isAwaitingServerConfirmation || pollCount >= 12) return
+    const timer = window.setTimeout(() => setPollCount((count) => count + 1), 5000)
+    return () => window.clearTimeout(timer)
+  }, [isAwaitingServerConfirmation, pollCount])
 
   const handleBookAgain = useCallback(() => {
     resetBookingSessionState()
@@ -148,6 +164,46 @@ export function BookingConfirmed() {
           >
             Start New Booking
           </button>
+        </div>
+      </section>
+    )
+  }
+
+  // A ticket is shown only when the server confirms a verified payment with an issued ticket.
+  if (data && !data.confirmed) {
+    const paymentStatus = (data.payment?.status || '').toUpperCase()
+    const paid = Boolean(data.recoveryRequired) || paymentStatus === 'SUCCESS' || paymentStatus === 'PAID'
+    const failed = !paid && (paymentStatus === 'FAILED' || paymentStatus === 'INITIATION_FAILED')
+    const stillChecking = isAwaitingServerConfirmation && pollCount < 12
+
+    return (
+      <section className="mx-auto max-w-2xl px-4 py-12">
+        <div className="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+          {stillChecking && (
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-green-200 border-t-green-700"></div>
+          )}
+          <h1 className="text-2xl font-bold text-gray-900">
+            {paid ? 'Payment Received' : failed ? 'Payment Not Completed' : 'Verifying Your Payment'}
+          </h1>
+          <p className="mt-3 text-gray-600">
+            {paid
+              ? 'Your payment was successful. Your ticket is being generated — please do not pay again. If it does not appear shortly, contact the zoo help desk with the transaction ID below.'
+              : failed
+                ? 'No amount has been confirmed for this transaction. You can start a new booking.'
+                : stillChecking
+                  ? 'We are confirming your payment with the payment gateway. This usually takes a few seconds.'
+                  : 'We could not confirm this payment yet. If money was debited, it will be confirmed automatically or refunded by the gateway — please do not pay again; contact the zoo help desk with the transaction ID below.'}
+          </p>
+          <p className="mt-4 font-mono text-sm text-gray-800">Transaction ID: {data.txnid}</p>
+          {!stillChecking && (
+            <button
+              type="button"
+              onClick={handleBookAgain}
+              className="mt-8 inline-block rounded-lg bg-green-700 px-6 py-3 font-semibold text-white shadow-sm hover:bg-green-800 transition-colors"
+            >
+              {failed ? 'Start New Booking' : 'Back to Home'}
+            </button>
+          )}
         </div>
       </section>
     )

@@ -9,6 +9,8 @@
     "build": "npm --prefix frontend run build",
     "start": "npm --prefix frontend run start",
     "server": "node backend/server.js",
+    "test:payments": "node --test --test-concurrency=1 backend/tests/onlinePayment.test.mjs",
+    "audit:online-payments": "node scripts/audit-online-payments.mjs",
     "install:frontend": "npm --prefix frontend install"
   },
   "devDependencies": {

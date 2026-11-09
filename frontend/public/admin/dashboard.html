@@ -16,6 +16,7 @@
         <nav class="nav">
           <button class="nav-link active" data-target="overview">Overview</button>
           <button class="nav-link" data-target="bookings">Bookings</button>
+          <button class="nav-link" data-href="/admin/payment-attempts.html">Payment Attempts</button>
           <button class="nav-link" data-target="counter">Counter</button>
           <button class="nav-link" data-target="qrlogs">QR Logs</button>
           <button class="nav-link" data-target="adoptions">Adoptions</button>
@@ -102,6 +103,12 @@
               <p>Entered</p>
               <h3 id="metricEntered">--</h3>
               <span class="stat-sub">Total scans</span>
+            </article>
+            <article class="stat-card warning">
+              <p>Unconfirmed Online Attempts</p>
+              <h3 id="metricOnlineAttempts">--</h3>
+              <span class="stat-sub" id="metricOnlineAttemptsSub">Not counted in bookings or revenue</span>
+              <a class="stat-sub" href="/admin/payment-attempts.html">View payment attempts →</a>
             </article>
           </div>
 
@@ -436,6 +443,11 @@
               <p>Total Revenue</p>
               <h3 id="reportTotalRevenue">₹ --</h3>
               <span class="stat-sub">Online + Counter</span>
+            </article>
+            <article class="stat-card warning">
+              <p>Online Attempts Not Counted</p>
+              <h3 id="reportOnlineAttempts">--</h3>
+              <span class="stat-sub" id="reportOnlineAttemptsSub">Pending / failed — excluded from totals</span>
             </article>
           </div>
 

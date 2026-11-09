@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment Attempts</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body class="admin">
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>Admin Dashboard</h1>
+          <p>Read-only oversight</p>
+        </div>
+        <nav class="nav">
+          <button class="nav-link" data-href="/admin/dashboard.html">Overview</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#bookings">Bookings</button>
+          <button class="nav-link active" data-href="/admin/payment-attempts.html">Payment Attempts</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#counter">Counter</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#qrlogs">QR Logs</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#adoptions">Adoptions</button>
+          <button class="nav-link" data-requires-role="ADMIN" data-href="/admin/users.html">User Management</button>
+          <button class="nav-link" data-href="/admin/dashboard.html#reports">Reports</button>
+          <button class="nav-link" data-href="/admin/web-control.html">Web Control</button>
+        </nav>
+        <div class="sidebar-footer">
+          <button id="logoutBtn" class="btn ghost">Logout</button>
+        </div>
+      </aside>
+
+      <main class="content">
+        <div class="topbar">
+          <div>
+            <h2>Online Payment Attempts</h2>
+            <p>Audit trail of every online payment attempt. Only <strong>Confirmed</strong> attempts are bookings; all other states are excluded from bookings, visitor counts and revenue.</p>
+          </div>
+        </div>
+
+        <section class="panel active">
+          <div class="cards-grid summary-grid">
+            <article class="stat-card">
+              <p>Confirmed</p>
+              <h3 id="attemptCountCONFIRMED">--</h3>
+              <span class="stat-sub" id="attemptAmountCONFIRMED">Verified payment, ticket issued</span>
+            </article>
+            <article class="stat-card warning">
+              <p>Pending</p>
+              <h3 id="attemptCountPENDING">--</h3>
+              <span class="stat-sub" id="attemptAmountPENDING">Awaiting gateway result</span>
+            </article>
+            <article class="stat-card">
+              <p>Initiation Failed</p>
+              <h3 id="attemptCountINITIATION_FAILED">--</h3>
+              <span class="stat-sub" id="attemptAmountINITIATION_FAILED">Gateway gave no payment link</span>
+            </article>
+            <article class="stat-card">
+              <p>Failed</p>
+              <h3 id="attemptCountFAILED">--</h3>
+              <span class="stat-sub" id="attemptAmountFAILED">Gateway confirmed failure</span>
+            </article>
+            <article class="stat-card warning">
+              <p>Recovery Required</p>
+              <h3 id="attemptCountRECOVERY_REQUIRED">--</h3>
+              <span class="stat-sub" id="attemptAmountRECOVERY_REQUIRED">Paid — ticket needs recovery</span>
+            </article>
+          </div>
+
+          <div class="filters">
+            <label>
+              <span>Status</span>
+              <select id="attemptStatusFilter">
+                <option value="ALL">All</option>
+                <option value="RECOVERY_REQUIRED">Recovery Required</option>
+                <option value="PENDING">Pending</option>
+                <option value="INITIATION_FAILED">Initiation Failed</option>
+                <option value="FAILED">Failed</option>
+                <option value="CONFIRMED">Confirmed</option>
+              </select>
+            </label>
+            <label>
+              <span>Attempted From</span>
+              <input type="date" id="attemptFromFilter" />
+            </label>
+            <label>
+              <span>Attempted To</span>
+              <input type="date" id="attemptToFilter" />
+            </label>
+            <label class="search-field">
+              <span>Search (Booking ID / Mobile / Txn ID)</span>
+              <input type="search" id="attemptSearchInput" placeholder="KZP-... , mobile or transaction ID" />
+            </label>
+          </div>
+
+          <p id="attemptActionMessage" class="stat-sub" role="status"></p>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Booking Ref</th>
+                  <th>Status</th>
+                  <th>Visitor</th>
+                  <th>Mobile</th>
+                  <th>Visit Date</th>
+                  <th>Attempted At</th>
+                  <th>Tickets</th>
+                  <th>Amount</th>
+                  <th>Transaction ID</th>
+                  <th>Gateway Payment ID</th>
+                  <th>Reason</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="attemptTableBody">
+                <tr><td colspan="12">Loading payment attempts...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <button id="attemptPrevBtn" class="btn ghost">Previous</button>
+            <span id="attemptPageLabel">Page 1</span>
+            <button id="attemptNextBtn" class="btn ghost">Next</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./admin-script.js"></script>
+    <script src="./payment-attempts.js"></script>
+  </body>
+</html>

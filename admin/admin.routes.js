@@ -4,6 +4,7 @@ import scannerLogsRouter from './scanner.controller.js'
 import analyticsRouter from './analytics.controller.js'
 import reportsRouter from './reports.controller.js'
 import webControlRouter from './webControl.controller.js'
+import paymentAttemptsRouter from './paymentAttempts.controller.js'
 import { requireAuth, requireRole } from '../backend/middleware/authMiddleware.js'
 
 const router = express.Router()
@@ -15,6 +16,7 @@ router.use(scannerLogsRouter)
 router.use(analyticsRouter)
 router.use(reportsRouter)
 router.use(webControlRouter)
+router.use(paymentAttemptsRouter)
 
 // Tariff administration is disabled; respond with 403 for legacy endpoints
 router.all(

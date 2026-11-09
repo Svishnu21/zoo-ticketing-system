@@ -4,6 +4,8 @@ import { Buffer } from 'buffer'
 import PDFDocument from 'pdfkit'
 import { Ticket } from '../backend/models/Ticket.js'
 import { ScanLog } from '../backend/models/ScanLog.js'
+import { Booking } from '../backend/models/Booking.js'
+import { buildConfirmedTicketFilter, ONLINE_BOOKING_STATUS } from '../backend/services/onlinePaymentService.js'
 import { ApiError, asyncHandler } from '../backend/utils/errors.js'
 
 const router = express.Router()
@@ -156,24 +158,26 @@ const buildTicketItemsBasePipeline = ({ visitRange, sourceFilter }) => [
   },
 ]
 
-const buildEmbeddedItemsBasePipeline = ({ visitRange, sourceFilter }) => [
-  { $match: { visitDate: visitRange, ...(sourceFilter ? { ticketSource: sourceFilter } : {}) } },
+// `confirmedFilter` removes online tickets whose payment was never verified (see onlinePaymentService),
+// so failed / pending online attempts contribute zero quantity and zero revenue. Counter tickets are unaffected.
+const buildEmbeddedItemsBasePipeline = ({ visitRange, sourceFilter, confirmedFilter = {} }) => [
+  { $match: { visitDate: visitRange, ...(sourceFilter ? { ticketSource: sourceFilter } : {}), ...confirmedFilter } },
   { $unwind: '$items' },
   {
     $project: normalizeEmbeddedItemProject,
   },
 ]
 
-const sumTicketTotals = async (visitRange, sourceFilter) => {
+const sumTicketTotals = async (visitRange, sourceFilter, confirmedFilter = {}) => {
   const pipeline = [
-    { $match: { visitDate: visitRange, ...(sourceFilter ? { ticketSource: sourceFilter } : {}) } },
+    { $match: { visitDate: visitRange, ...(sourceFilter ? { ticketSource: sourceFilter } : {}), ...confirmedFilter } },
     { $group: { _id: null, total: { $sum: bookingPaidAmountExpr } } },
   ]
   const [row] = await Ticket.aggregate(pipeline)
   return Number(row?.total || 0)
 }
 
-const sumAggregatedItemTotals = async ({ visitRange, sourceFilter, preferTicketItemsCollection }) => {
+const sumAggregatedItemTotals = async ({ visitRange, sourceFilter, preferTicketItemsCollection, confirmedFilter = {} }) => {
   const totalPipeline = [{ $group: { _id: null, total: { $sum: '$lineTotal' } } }]
 
   if (preferTicketItemsCollection) {
@@ -182,7 +186,7 @@ const sumAggregatedItemTotals = async ({ visitRange, sourceFilter, preferTicketI
     return Number(rows?.[0]?.total || 0)
   }
 
-  const rows = await Ticket.aggregate([...buildEmbeddedItemsBasePipeline({ visitRange, sourceFilter }), ...totalPipeline])
+  const rows = await Ticket.aggregate([...buildEmbeddedItemsBasePipeline({ visitRange, sourceFilter, confirmedFilter }), ...totalPipeline])
   return Number(rows?.[0]?.total || 0)
 }
 
@@ -200,6 +204,45 @@ const logAggregationDiscrepancy = ({ type, from, to, sourceFilter, ticketTotal, 
     difference: diff,
     usesTicketItemsCollection,
   })
+}
+
+// Online payment attempts that are not confirmed bookings, by visit date. Reported separately —
+// never included in ticket quantities or revenue.
+const getOnlineAttemptSummary = async (visitRange) => {
+  const rows = await Booking.aggregate([
+    {
+      $match: {
+        ticketSource: 'ONLINE',
+        visitDate: visitRange,
+        status: {
+          $in: [
+            ONLINE_BOOKING_STATUS.PENDING,
+            ONLINE_BOOKING_STATUS.INITIATION_FAILED,
+            ONLINE_BOOKING_STATUS.FAILED,
+            ONLINE_BOOKING_STATUS.RECOVERY_REQUIRED,
+          ],
+        },
+      },
+    },
+    { $group: { _id: '$status', count: { $sum: 1 }, amount: { $sum: '$totalAmount' } } },
+  ])
+  const summary = {
+    pending: { count: 0, amount: 0 },
+    initiationFailed: { count: 0, amount: 0 },
+    failed: { count: 0, amount: 0 },
+    recoveryRequired: { count: 0, amount: 0 },
+  }
+  const keyByStatus = {
+    [ONLINE_BOOKING_STATUS.PENDING]: 'pending',
+    [ONLINE_BOOKING_STATUS.INITIATION_FAILED]: 'initiationFailed',
+    [ONLINE_BOOKING_STATUS.FAILED]: 'failed',
+    [ONLINE_BOOKING_STATUS.RECOVERY_REQUIRED]: 'recoveryRequired',
+  }
+  rows.forEach((row) => {
+    const key = keyByStatus[row._id]
+    if (key) summary[key] = { count: row.count, amount: row.amount }
+  })
+  return summary
 }
 
 const csv = (rows, headers) => {
@@ -229,8 +272,12 @@ router.get(
       })
     }
     const useTicketItemsCollection = await hasTicketItemsCollection()
+    const confirmedFilter = await buildConfirmedTicketFilter()
+    if (useTicketItemsCollection) {
+      console.warn('[admin/reports] legacy ticket_items collection in use — unconfirmed online attempts cannot be filtered from it')
+    }
 
-    const matchStage = { $match: { visitDate: visitRange, ...(sourceFilter ? { ticketSource: sourceFilter } : {}) } }
+    const matchStage = { $match: { visitDate: visitRange, ...(sourceFilter ? { ticketSource: sourceFilter } : {}), ...confirmedFilter } }
 
     let rows = []
     let headers = []
@@ -311,7 +358,7 @@ router.get(
         const db = getTicketCollection()
         rows = await db.collection('ticket_items').aggregate([...buildTicketItemsBasePipeline({ visitRange, sourceFilter }), ...pipeline]).toArray()
       } else {
-        rows = await Ticket.aggregate([...buildEmbeddedItemsBasePipeline({ visitRange, sourceFilter }), ...pipeline])
+        rows = await Ticket.aggregate([...buildEmbeddedItemsBasePipeline({ visitRange, sourceFilter, confirmedFilter }), ...pipeline])
       }
 
       rows = (Array.isArray(rows) ? rows : []).map((row) => ({
@@ -343,7 +390,7 @@ router.get(
         const db = getTicketCollection()
         rows = await db.collection('ticket_items').aggregate([...buildTicketItemsBasePipeline({ visitRange, sourceFilter }), ...pipeline]).toArray()
       } else {
-        rows = await Ticket.aggregate([...buildEmbeddedItemsBasePipeline({ visitRange, sourceFilter }), ...pipeline])
+        rows = await Ticket.aggregate([...buildEmbeddedItemsBasePipeline({ visitRange, sourceFilter, confirmedFilter }), ...pipeline])
       }
 
       headers = [
@@ -352,7 +399,7 @@ router.get(
         { key: 'amount', label: 'Revenue (₹)' },
       ]
     } else if (type === 'entry-compliance') {
-      const ticketMatch = { visitDate: visitRange, ...(sourceFilter ? { ticketSource: sourceFilter } : {}) }
+      const ticketMatch = { visitDate: visitRange, ...(sourceFilter ? { ticketSource: sourceFilter } : {}), ...confirmedFilter }
       const [entered, pending, manualOverrides, invalidScans] = await Promise.all([
         Ticket.countDocuments({ ...ticketMatch, qrUsed: true }),
         Ticket.countDocuments({ ...ticketMatch, qrUsed: false }),
@@ -376,13 +423,15 @@ router.get(
     const isPdf = format === 'pdf'
     const isExport = format === 'csv' || format === 'excel' || isPdf
 
-    const [ticketTotal, aggregatedTotal] = await Promise.all([
-      sumTicketTotals(visitRange, sourceFilter),
+    const [ticketTotal, aggregatedTotal, onlinePaymentAttempts] = await Promise.all([
+      sumTicketTotals(visitRange, sourceFilter, confirmedFilter),
       sumAggregatedItemTotals({
         visitRange,
         sourceFilter,
         preferTicketItemsCollection: useTicketItemsCollection,
+        confirmedFilter,
       }),
+      sourceFilter === 'COUNTER' ? null : getOnlineAttemptSummary(visitRange),
     ])
     logAggregationDiscrepancy({
       type,
@@ -515,7 +564,7 @@ router.get(
       return
     }
 
-    res.json({ success: true, rows, reconciliation })
+    res.json({ success: true, rows, reconciliation, onlinePaymentAttempts })
   }),
 )
 
@@ -561,6 +610,15 @@ router.get(
         .map(p => p.transactionId)
     }
 
+    // Successful payments whose ticket could not be generated — need recovery, not in confirmed totals.
+    const recoveryRequired = await Booking.find({
+      ticketSource: 'ONLINE',
+      visitDate: range,
+      status: ONLINE_BOOKING_STATUS.RECOVERY_REQUIRED,
+    })
+      .select('bookingId visitDate totalAmount statusReason recoveryRequiredAt')
+      .lean()
+
     res.json({
       success: true,
       totalSuccessfulPayments,
@@ -568,6 +626,7 @@ router.get(
       difference,
       isMatched,
       unbalancedPaymentIds,
+      recoveryRequired,
     })
   })
 )
