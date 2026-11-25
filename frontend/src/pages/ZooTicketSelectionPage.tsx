@@ -304,7 +304,9 @@ function ZooTicketSelectionContent() {
     const list = resolvedTariffs.filter((t) => {
       const isZooCategory = (t.category || 'zoo').toLowerCase() === 'zoo'
       const isSchoolVisit = t.itemCode === 'zoo_school_visit'
-      return isZooCategory && !isSchoolVisit
+      // UI-only: Kid Zone is hidden from online booking (tariff/config kept intact).
+      const isKidZone = t.itemCode === 'zoo_kid_zone'
+      return isZooCategory && !isSchoolVisit && !isKidZone
     })
     const ordered = [...list].sort((a, b) => tariffOrder(a) - tariffOrder(b))
     return ordered.map((t) => {

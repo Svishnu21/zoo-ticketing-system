@@ -58,6 +58,9 @@ const ALL_TICKETS = [
   { code: 'camera_video', label: 'Video Camera (non-commercial)', price: 150, category: 'CAMERA' },
 ]
 
+// UI-only: ticket types hidden from the counter issue screen (definitions above kept intact).
+const COUNTER_HIDDEN_TICKET_CODES = new Set(['zoo_kid_zone', 'zoo_school_visit'])
+
 const RECENT_TICKETS_API = '/api/counter/tickets'
 const COUNTER_TICKET_API = '/api/counter/tickets'
 const COUNTER_LOGIN_PATH = '/counter/login.html'
@@ -298,7 +301,7 @@ function renderTickets() {
 
   tbody.innerHTML = ''
   let currentCategory = ''
-  ALL_TICKETS.forEach((ticket) => {
+  ALL_TICKETS.filter((ticket) => !COUNTER_HIDDEN_TICKET_CODES.has(ticket.code)).forEach((ticket) => {
     if (ticket.category !== currentCategory) {
       currentCategory = ticket.category
       const htr = document.createElement('tr')
